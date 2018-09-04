@@ -20,10 +20,11 @@ Adopted August 30, 2018 by Brandon Thayer (brandon.thayer@pnnl.gov)
 Modified March 28, 2017 by Jacob Hansen (jacob.hansen@pnnl.gov)
 Created October 27, 2014 by Ebony Mayhorn (ebony.mayhorn@pnnl.gov)
 
-Copyright (c) 2018 Battelle Memorial Institute.  The Government retains a paid-up nonexclusive,
-irrevocable worldwide license to reproduce, prepare derivative works, perform publicly and display
-publicly by or for the Government, including the right to distribute to other Government
-contractors.
+Copyright (c) 2018 Battelle Memorial Institute.  The Government retains
+a paid-up nonexclusive, irrevocable worldwide license to reproduce,
+prepare derivative works, perform publicly and display publicly by or
+for the Government, including the right to distribute to other
+Government contractors.
 """
 
 import re

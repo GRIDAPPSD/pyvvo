@@ -450,7 +450,5 @@ class TestGLMManagerRemove(unittest.TestCase):
                           {'object': 'overhead_line'})
 
 
-
-
 if __name__ == '__main__':
     unittest.main()
