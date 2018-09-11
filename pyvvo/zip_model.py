@@ -63,7 +63,6 @@ from mystic.constraints import with_penalty
 import mystic.penalty
 from scipy.optimize import minimize
 # import mystic.solvers as my
-# from sklearn.cluster import KMeans
 
 # Make numpy error out for floating point errors.
 np.seterr(all='raise')
@@ -92,7 +91,19 @@ POLY_BOUNDS = [(-1, 1) for x in range(6)]
 
 
 def _get_poly_from_zip(z_pct, i_pct, p_pct, z_pf, i_pf, p_pf):
-    """Get polynomial terms from ZIP coefficients."""
+    """Get polynomial terms from ZIP coefficients.
+
+    :param z_pct: Impedance fraction.
+    :param i_pct: Current fraction.
+    :param p_pct: Power fraction.
+    :param z_pf: Impedance power factor (cos(Z_theta)). Negative if the
+                 power factor is leading for the impedance component.
+    :param i_pf: Current "..." for the current component.
+    :param p_pf: Power "..." for the power component.
+
+    :returns poly_terms: tuple of (a1, a2, a3, b1, b2, b3). See module
+             docstring for more details (or just read the code).
+    """
 
     # GridLAB-D uses absolute value on the pf's when computing real
     # power.
@@ -101,7 +112,8 @@ def _get_poly_from_zip(z_pct, i_pct, p_pct, z_pf, i_pf, p_pf):
                   i_pct * abs(math.sin(math.acos(i_pf))),
                   p_pct * abs(math.sin(math.acos(p_pf)))]
 
-    # Keep it simple and hard code.
+    # Keep it simple and hard code. If power factor is negative, flip
+    # the b terms (reactive power). This is how GridLAB-D does it.
     if z_pf < 0:
         poly_terms[3] *= -1
 
