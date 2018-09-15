@@ -688,5 +688,84 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
     """
 
 
+class TestClusterAndFit(unittest.TestCase):
+    """Tests for the cluster_and_fit function."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Initialize some ZIP outputs with different base powers."""
+
+        # Use 120V nominal.
+        cls.v_n = 120
+
+        # Use logarithmically varying S_n
+        cls.s_n = [1, 10, 100, 1000]
+
+        # Use four sets of ZIP coefficients that can use the default
+        # initial parameters.
+        cls.zip = [ZIP_CFL_42W, ZIP_LCD, ZIP_CFL_13W, ZIP_FAN]
+
+        # Initialize results for the 4 coefficients.
+        cls.results = [pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+
+        # Sweep voltage from 90% to 110% of nominal.
+        cls.v = np.arange(0.9 * cls.v_n, 1.1 * cls.v_n + 1)
+
+        # Loop and create output
+        for i in range(len(cls.zip)):
+            # Extract fractions and power factors
+            fractions = cls.zip[i][:3]
+            power_factors = cls.zip[i][3:]
+
+            # Compute p and q.
+            pq = zip_model._pq_from_fractions_and_power_factors(
+                fractions=fractions, power_factors=power_factors, v=cls.v,
+                v_n=cls.v_n, s_n=cls.s_n[i])
+
+            # Get into format for calling zip_fit.
+            vpq = pd.DataFrame({'v': cls.v, 'p': pq['p_predicted'],
+                                'q': pq['q_predicted']})
+
+            cls.results[i] = vpq
+
+        # Done.
+
+    def check_pq(self, expected, predicted):
+        """Helper to test P/Q"""
+
+        # Test p.
+        self.assertTrue(np.allclose(expected['p'], predicted['p_predicted'],
+                                    rtol=R_TOL_P))
+
+        # Test q.
+        self.assertTrue(np.allclose(expected['q'], predicted['q_predicted'],
+                                    rtol=R_TOL_Q))
+
+    def test_cluster_and_fit_1_cluster(self):
+        # Ensure that with 1 cluster, we get the expected answer.
+
+        # Grab some data.
+        data = self.results[0]
+        # Define inputs for actual zip fitting.
+        zip_fit_inputs = {'s_n': self.s_n[0], 'v_n': self.v_n}
+
+        # Use the 10th element for cluster selection.
+        selection_data = data.iloc[10][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=1, random_state=2)
+
+        self.check_pq(expected=data, predicted=fit_data['pq_predicted'])
+
+    def test_cluster_and_fit_2_cluster(self):
+        # TODO
+        self.assertTrue(False)
+
+
+
+
 if __name__ == '__main__':
     unittest.main()

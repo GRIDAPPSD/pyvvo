@@ -55,8 +55,8 @@ class TestCluster(unittest.TestCase):
         selection_data = pd.Series([0.5, 0.5], index=['x', 'y'])
 
         # Run, use four clusters (so each row becomes a cluster).
-        best_data, km = cluster.find_best_cluster(cluster_data,
-                                                  selection_data, 4, 42)
+        best_data, _, _ = cluster.find_best_cluster(cluster_data,
+                                                    selection_data, 4, 42)
 
         # since we're using 4 clusters, best_data should return a single
         # row.
@@ -73,8 +73,8 @@ class TestCluster(unittest.TestCase):
         selection_data = pd.Series([0.1, 0.1], index=['x', 'y'])
 
         # Run, use two clusters.
-        best_data, km = cluster.find_best_cluster(cluster_data,
-                                                  selection_data, 2, 42)
+        best_data, _, _ = cluster.find_best_cluster(cluster_data,
+                                                    selection_data, 2, 42)
 
         # Using two clusters, best_data should have two rows.
         self.assertTrue(best_data.equals(cluster_data.iloc[-2:]))
@@ -90,8 +90,8 @@ class TestCluster(unittest.TestCase):
         selection_data = pd.Series([3], index=['z'])
 
         # Run, use two clusters.
-        best_data, km = cluster.find_best_cluster(cluster_data,
-                                                  selection_data, 2, 42)
+        best_data, _, _ = cluster.find_best_cluster(cluster_data,
+                                                    selection_data, 2, 42)
 
         # Using two clusters, best_data should have two rows.
         self.assertTrue(best_data.equals(cluster_data.iloc[0:2]))

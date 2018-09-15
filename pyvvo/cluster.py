@@ -52,7 +52,7 @@ def find_best_cluster(cluster_data, selection_data,
     best_data = cluster_data[label_match]
 
     # Done. Return the KMeans object and best data.
-    return best_data, km
+    return best_data, label_match, km
 
 
 def euclidean_distance_squared(v1, v2):
