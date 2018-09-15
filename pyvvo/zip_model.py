@@ -55,6 +55,9 @@ All further modifications by Brandon Thayer.
 
 # Standard library
 import math
+import multiprocessing as mp
+from queue import Empty, Queue
+from time import process_time
 
 # Installed packages
 import numpy as np
@@ -63,6 +66,9 @@ from mystic.constraints import with_penalty
 import mystic.penalty
 from scipy.optimize import minimize
 # import mystic.solvers as my
+
+# pyvvo
+from pyvvo import cluster
 
 # Make numpy error out for floating point errors.
 np.seterr(all='raise')
@@ -556,3 +562,82 @@ def compute_rmsd(actual, predicted):
     """
     out = math.sqrt(np.sum(np.square(actual - predicted)) / actual.shape[0])
     return out
+
+
+def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
+                    min_cluster_size=4, random_state=None):
+    """Cluster data and perform ZIP fit.
+
+    Note that voltage will not be included in clustering.
+
+    :param data: pandas DataFrame containing all data needed to cluster
+                 (optional) and fit data. At the minimum, columns must
+                 include v (voltage magnitude), p (active power), and q
+                 (reactive power).
+    :param zip_fit_inputs: dictionary of key word arguments to be passed
+                           to the function zip_fit.
+    :param selection_data: pandas Series with data to be used for
+                           cluster selection. Index can only contain
+                           labels that exist in data. NOTE:
+                           selection_data should not have 'v' in it.
+                           Optional. If None, no clustering is
+                           performed.
+    :param n_clusters: Integer of clusters to create for clustering.
+                       Optional. Only required if selection_data is not
+                       None.
+    :param min_cluster_size: Minimum allowed number of data points in
+                             the selected cluster. Optional. Only
+                             required if selection_data is not None.
+    :param random_state: Integer, numpy.random RandomState object
+                         (preferred) or None. Used for random seeding of
+                         K-Means clustering.
+
+    :return: fit_outputs: outputs from ZIP fit, or None. None will be
+                          returned if we're clustering and the
+                          min_cluster_size requirement is not met.
+    """
+
+    # If we're clustering, do so.
+    if selection_data is not None:
+        fit_data, best_bool, _ = \
+            cluster.find_best_cluster(cluster_data=data.drop('v', axis=1),
+                                      selection_data=selection_data,
+                                      n_clusters=n_clusters,
+                                      random_state=random_state)
+        # Re-associate voltage data.
+        fit_data['v'] = data[best_bool]['v']
+    else:
+        # No clustering.
+        fit_data = data
+
+    # If we aren't clustering, or if we are and have enough data,
+    # perform the fit.
+    if (selection_data is None) or (fit_data.shape[0] >= min_cluster_size):
+        fit_outputs = zip_fit(fit_data[['v', 'p', 'q']], **zip_fit_inputs)
+    else:
+        # Otherwise,
+        fit_outputs = None
+
+    return fit_outputs
+
+
+class ZIPManager():
+    """Class for managing ZIP fits for a collection of meters."""
+
+    def __init__(self, meters, num_workers):
+        """
+
+        :param meters: List of meter names for this manager to track.
+        :param num_workers: Number of workers (processors) to use for
+               performing ZIP fits.
+        """
+        # Track meters.
+        self.meters = meters
+
+        # Initialize queues for performing ZIP fitting. The input queue
+        # will two slots per worker.
+        self.input_queue = mp.JoinableQueue(maxsize=num_workers * 2)
+        self.output_queue = mp.Queue()
+
+        # TODO
+        # Start processes.
