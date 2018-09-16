@@ -741,6 +741,26 @@ class TestClusterAndFit(unittest.TestCase):
         self.assertTrue(np.allclose(expected['q'], predicted['q_predicted'],
                                     rtol=R_TOL_Q))
 
+    def test_cluster_and_fit_no_cluster(self):
+        # Ensure that with no clustering, we get the expected answer.
+
+        # Grab some data.
+        data = self.results[3]
+        # Define inputs for actual zip fitting.
+        zip_fit_inputs = {'s_n': self.s_n[3], 'v_n': self.v_n}
+
+        # Use the 10th element for cluster selection.
+        selection_data = None
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=None,
+                                             random_state=None)
+
+        self.check_pq(expected=data, predicted=fit_data['pq_predicted'])
+
     def test_cluster_and_fit_1_cluster(self):
         # Ensure that with 1 cluster, we get the expected answer.
 
@@ -761,10 +781,117 @@ class TestClusterAndFit(unittest.TestCase):
         self.check_pq(expected=data, predicted=fit_data['pq_predicted'])
 
     def test_cluster_and_fit_2_cluster(self):
-        # TODO
-        self.assertTrue(False)
+        # Ensure that with 2 clusters, we get the expected answer.
 
+        # Grab data for fitting.
+        data = pd.concat([self.results[0], self.results[1]])
 
+        # Define inputs for zip fitting. We'll try to match results[1].
+        zip_fit_inputs = {'s_n': self.s_n[1], 'v_n': self.v_n}
+
+        # Use last element for cluster selection.
+        selection_data = data.iloc[-1][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=2, random_state=2)
+
+        self.check_pq(expected=self.results[1],
+                      predicted=fit_data['pq_predicted'])
+
+    def test_cluster_and_fit_3_cluster(self):
+        # Ensure that with 3 clusters, we get the expected answer.
+
+        # Grab data for fitting.
+        data = pd.concat([self.results[0], self.results[1], self.results[2]])
+
+        # Define inputs for zip fitting. We'll try to match results[1].
+        zip_fit_inputs = {'s_n': self.s_n[1], 'v_n': self.v_n}
+
+        # Use first element for cluster selection.
+        selection_data = self.results[1].iloc[0][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=3, random_state=2)
+
+        self.check_pq(expected=self.results[1],
+                      predicted=fit_data['pq_predicted'])
+
+    def test_cluster_and_fit_4_cluster(self):
+        # Ensure that with 4 clusters, we get the expected answer.
+
+        # Grab data for fitting.
+        data = pd.concat([self.results[0], self.results[1], self.results[2],
+                          self.results[3]])
+
+        # Define inputs for zip fitting. We'll try to match results[2].
+        zip_fit_inputs = {'s_n': self.s_n[2], 'v_n': self.v_n}
+
+        # Use 15th element for cluster selection.
+        selection_data = self.results[2].iloc[15][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=4, random_state=2)
+
+        self.check_pq(expected=self.results[2],
+                      predicted=fit_data['pq_predicted'])
+
+    def test_cluster_and_fit_cluster_too_small(self):
+        # If a cluster is too small, None should be returned.
+
+        # Grab data for fitting.
+        data = self.results[0]
+
+        # Define inputs for zip fitting. We'll try to match results[2].
+        zip_fit_inputs = {'s_n': self.s_n[0], 'v_n': self.v_n}
+
+        # Use 15th element for cluster selection.
+        selection_data = data.iloc[15][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = zip_model.cluster_and_fit(data=data,
+                                             zip_fit_inputs=zip_fit_inputs,
+                                             selection_data=selection_data,
+                                             n_clusters=data.shape[0],
+                                             random_state=2,
+                                             min_cluster_size=10)
+
+        self.assertEqual(None, fit_data)
+
+    def test_get_best_fit_from_clustering(self):
+        # NOTE: This is the only test for get_best_fit_from_clustering,
+        # as it can take a while to run and we don't want to bog our
+        # tests down.
+
+        # Put four different ZIP fits in, ensure it finds the best.
+
+        # Grab data for fitting.
+        data = pd.concat([self.results[0], self.results[1], self.results[2],
+                          self.results[3]])
+
+        # Define inputs for zip fitting. We'll try to match results[2].
+        zfi = {'s_n': self.s_n[2], 'v_n': self.v_n}
+
+        # Use 15th element for cluster selection.
+        sd = self.results[2].iloc[15][['p', 'q']]
+
+        # Call cluster_and_fit.
+        fit_data = \
+            zip_model.get_best_fit_from_clustering(data=data,
+                                                   zip_fit_inputs=zfi,
+                                                   selection_data=sd,
+                                                   random_state=2)
+
+        self.check_pq(expected=self.results[2],
+                      predicted=fit_data['pq_predicted'])
 
 
 if __name__ == '__main__':

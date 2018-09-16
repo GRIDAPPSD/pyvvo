@@ -599,6 +599,7 @@ def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
 
     # If we're clustering, do so.
     if selection_data is not None:
+        # Note that 'v' is dropped from the cluster_data.
         fit_data, best_bool, _ = \
             cluster.find_best_cluster(cluster_data=data.drop('v', axis=1),
                                       selection_data=selection_data,
@@ -619,6 +620,56 @@ def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
         fit_outputs = None
 
     return fit_outputs
+
+
+def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
+                                 min_cluster_size=4, random_state=None):
+    """Loop over different numbers of clusters to find the best ZIP fit.
+
+    This calls cluster_and_fit function for each loop iteratoin..
+
+    For input descriptions, see cluster_and_fit.
+
+    NOTE: data and selection_data are assumed to already be normalized.
+
+    NOTE: the 'fit_data' field of zip_fit_inputs will be overridden to
+    be true, as this function won't work otherwise.
+
+    :returns: best_fit. 'Best' output (smallest rmsd_p + rmsd_q) from
+              calling cluster_and_fit
+    """
+
+    # Override zip_fit_inputs
+    zip_fit_inputs['fit_data'] = True
+
+    # Track best coefficients and minimum root mean square deviation.
+    best_fit = None
+    min_rmsd = np.inf
+
+    # Compute maximum possible number of clusters.
+    n = np.floor(data.shape[0] / min_cluster_size).astype(int)
+
+    # Loop over different cluster sizes from maximum to minimum (1).
+    for k in range(n, 0, -1):
+        # Call cluster_and_fit
+        fit_outputs = \
+            cluster_and_fit(data=data, zip_fit_inputs=zip_fit_inputs,
+                            selection_data=selection_data, n_clusters=k,
+                            min_cluster_size=min_cluster_size,
+                            random_state=random_state)
+
+        # If None was returned, the cluster was too small. Move along.
+        if fit_outputs is None:
+            continue
+
+        # Check to rmsd.
+        rmsd = fit_outputs['rmsd_p'] + fit_outputs['rmsd_q']
+        if rmsd < min_rmsd:
+            min_rmsd = rmsd
+            best_fit = fit_outputs
+
+    # That's it. Return the best fit.
+    return best_fit
 
 
 class ZIPManager():
