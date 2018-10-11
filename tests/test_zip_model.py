@@ -330,6 +330,36 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
 
         # Done.
 
+    '''
+    def save_files_for_indra(self):
+        """Save P, Q, and V data to file. Add dummy columns for time,
+        temperature, and solar flux.
+        """
+        # Initialize time range.
+        T = pd.date_range('2016-01-01 00:00:00', periods=self.v.shape[0],
+                          freq='15min')
+        # Initialize dummy temperature and flux.
+        temperature = np.zeros(T.shape[0])
+        solar_flux = np.zeros(T.shape[0])
+
+        # Loop over ZIP models.
+        for key in ZIP_DICT.keys():
+            # Grab vpq.
+            vpq = getattr(self, key)['vpq']
+
+            # Build DataFrame to save to file.
+            d = {'P': vpq['p'].values, 'Q': vpq['q'].values, 'V': vpq[
+                'v'].values, 'temperature': temperature,
+                 'solar_flux': solar_flux}
+            df = pd.DataFrame(d, index=T)
+            df.to_csv(key + '.csv')
+
+
+    def test_dummy(self):
+        """Dummy test to run save_files_for_indra"""
+        self.save_files_for_indra()
+    '''
+
     def run_zip_fit(self, test, solver, use_answer, par_0=None, a_tol=A_TOL):
         """Helper to perform and test fit."""
 
