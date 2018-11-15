@@ -557,8 +557,7 @@ def compute_rmsd(actual, predicted):
     :param actual: nx1 Pandas Series or numpy array with the 'actual'
                    data
     :param predicted: "..." with the 'predicted' data
-    :return: root mean square deviation, scaled by the number of
-             elements.
+    :return: root mean square deviation.
     """
     out = math.sqrt(np.sum(np.square(actual - predicted)) / actual.shape[0])
     return out
@@ -626,7 +625,7 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
                                  min_cluster_size=4, random_state=None):
     """Loop over different numbers of clusters to find the best ZIP fit.
 
-    This calls cluster_and_fit function for each loop iteratoin..
+    This calls cluster_and_fit function for each loop iteration.
 
     For input descriptions, see cluster_and_fit.
 

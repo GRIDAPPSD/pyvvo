@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from pyvvo import cluster
 
+
 class TestCluster(unittest.TestCase):
 
     def test_euclidean_distance_sum_squared_array(self):

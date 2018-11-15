@@ -1,8 +1,9 @@
-# Use the latest slim python.
-FROM python:slim
+# Use stretch, which is build on the latest Debian.
+FROM python:stretch
 
 # Work from pyvvo.
-WORKDIR /pyvvo
+ENV PYVVO=/pyvvo
+WORKDIR $PYVVO
 
 # Copy requirements.
 COPY requirements.txt /pyvvo/requirements.txt
