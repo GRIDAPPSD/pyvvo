@@ -1,0 +1,142 @@
+// Basic model for ZIP testing.
+
+clock {
+	starttime '2018-01-01 00:00:00';
+	stoptime '2018-01-01 00:41:00';
+}
+
+#set minimum_timestep=60.0
+#set profiler=0
+#set relax_naming_rules=1
+#set randomseed=10
+#set suppress_repeat_messages=1
+
+module tape {
+}
+
+module powerflow {
+    solver_method NR;
+    line_limits FALSE;
+    line_capacitance FALSE;
+}
+
+// Swing node.
+object triplex_node {
+    name swing_node;
+    phases AS;
+    bustype SWING;
+    nominal_voltage 120;
+}
+
+// Vary the voltage.
+object player {
+    name swing_player_1;
+    parent swing_node;
+    property voltage_1;
+    file voltage.player;
+    loop 100;
+}
+
+object player {
+    name swing_player_2;
+    parent swing_node;
+    property voltage_2;
+    file voltage.player;
+    loop 100;
+}
+
+// Triplex conductors.
+object triplex_line_conductor {
+	name tc;
+	resistance 0.48;
+	geometric_mean_radius 0.0158;
+}
+
+// Triplex configuration
+object triplex_line_configuration {
+	name tl;
+	diameter 0.522;
+	insulation_thickness 0.08;
+	conductor_1 tc;
+	conductor_2 tc;
+	conductor_N tc;
+}
+
+// Line, meter, and load 1
+object triplex_line {
+    name line_1;
+    phases AS;
+    from swing_node;
+    to load_1;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_1;
+    phases AS;
+    nominal_voltage 120;
+}
+
+object triplex_load {
+    name load_1;
+    parent meter_1;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 1000;
+    power_pf_12 0.98;
+    current_pf_12 0.98;
+    impedance_pf_12 0.98;
+    power_fraction_12 0.5;
+    current_fraction_12 0.25;
+    impedance_fraction_12 0.25;
+}
+
+// Line, meter, and load 2
+object triplex_line {
+    name line_2;
+    phases AS;
+    from swing_node;
+    to load_2;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_2;
+    phases AS;
+    nominal_voltage 120;
+}
+
+object triplex_load {
+    name load_2;
+    parent meter_2;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 2500;
+    power_pf_12 -0.98;
+    current_pf_12 0.80;
+    impedance_pf_12 -0.95;
+    power_fraction_12 0.1;
+    current_fraction_12 -0.25;
+    impedance_fraction_12 1.15;
+}
+
+// Recorders
+object recorder {
+    name recorder_1;
+    parent meter_1;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_1.csv;
+    interval 60;
+    limit -1;
+}
+
+object recorder {
+    name recorder_2;
+    parent meter_2;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_2.csv;
+    interval 60;
+    limit -1;
+}

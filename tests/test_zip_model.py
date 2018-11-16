@@ -1,16 +1,28 @@
 import unittest
+import subprocess
 from pyvvo import zip_model
+from pyvvo import manage_glm
+from pyvvo import utils
 import pandas as pd
 import numpy as np
 
-# TODO: Create testing class to test _p_q_from_v_zip_gld. This class
-# should actually call GridLAB-D, get output, and compare.
+# Determine if GridLAB-D is at our disposal
+GLD_PRESENT = subprocess.run("gridlabd --version", shell=True,
+                             stderr=subprocess.PIPE,
+                             stdout=subprocess.PIPE).returncode
+
+TEST_FILE = 'test_zip.glm'
 
 # Define tolerances for using numpy's isclose function. Use different
 # tolerances for P and Q.
 R_TOL_P = 0.02
 R_TOL_Q = 0.06
 A_TOL = 0
+
+# More tolerances, but same tolerance for P and Q. This will be used for
+# comparing GridLAB-D and zip_model for the same parameters.
+R_TOL = 0.0001
+
 # NOTE: fmin_powell tests have been commented out, as it doesn't work
 # well and is slow.
 # TODO: if worth it, pursue fmin_powell. Though SLSQP seems to be doing
@@ -923,6 +935,137 @@ class TestClusterAndFit(unittest.TestCase):
         self.check_pq(expected=self.results[2],
                       predicted=fit_data['pq_predicted'])
 
+
+@unittest.skipIf(condition=(GLD_PRESENT != 0),
+                 reason='gridlabd could not be found.')
+class TestGLDZIP(unittest.TestCase):
+    """Compare outputs between GridLAB-D ZIP load outputs and pyvvo."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Read and run GridLAB-D model, store ZIP parameters."""
+        # Read GridLAB-D model.
+        glm_manager = manage_glm.GLMManager(TEST_FILE, True)
+
+        # Run GridLAB-D model.
+        result = subprocess.run(args=['gridlabd', TEST_FILE],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
+
+        # Raise an error if the model didn't successfully run.
+        if result.returncode != 0:
+            raise UserWarning('Failed to run model, {}'.format(TEST_FILE))
+
+        # Get a listing of the recorders.
+        recorders = glm_manager.get_objects_by_type('recorder')
+
+        # Grab triplex_loads, keyed by name.
+        load_data = glm_manager.get_items_of_type(item_type='object',
+                                                  object_type='triplex_load')
+
+        # Extract file and load names from the recorder dictionaries.
+        load_dict = {}
+
+        # Get lists of ZIP terms to use. zip_model.py doesn't have the
+        # '_12' at the end.
+        zip_terms = ['base_power_12', 'impedance_fraction_12',
+                     'current_fraction_12', 'power_fraction_12',
+                     'impedance_pf_12', 'current_pf_12', 'power_pf_12']
+        zip_keys = [s.replace('_12', '') for s in zip_terms]
+
+        for r in recorders:
+            # Grab the meter the recorder is associated with.
+            meter_name = r['parent']
+
+            # Loop over the nodes and figure out which one is the child
+            # of this meter.
+            # TODO: This is terrible. While it'll be very fast for this
+            # toy example, it's an expensive lookup when we have a
+            # large number of nodes. We may want to add graph
+            # functionality to the GLMManager.
+            for name, data in load_data.items():
+                if data['parent'] == meter_name:
+                    # Track this load name.
+                    load_name = name
+
+            # Initialize entry.
+            load_dict[load_name] = {}
+
+            # Read the file into a DataFrame.
+            gld_out = utils.read_gld_csv(r['file'])
+
+            # Rename columns.
+            gld_out.rename(columns={'measured_real_power': 'p',
+                                    'measured_reactive_power': 'q'},
+                           inplace=True)
+
+            # Combine the two voltage measurements, get the magnitude.
+            v = (gld_out['measured_voltage_1']
+                 + gld_out['measured_voltage_2']).abs()
+
+            # Add v to the DataFrame.
+            gld_out['v'] = v
+
+            # Drop the "measured_voltage" columns.
+            gld_out.drop(['measured_voltage_1', 'measured_voltage_2'], axis=1,
+                         inplace=True)
+
+            # Add the data to the dictionary.
+            load_dict[load_name]['gld_out'] = gld_out
+
+            # Add the ZIP terms.
+            zip_gld = {}
+            for idx in range(len(zip_terms)):
+                # Map the zip_term in the model into a zip_key in the
+                # load_dict.
+                zip_gld[zip_keys[idx]] = \
+                    float(load_data[load_name][zip_terms[idx]])
+
+            load_dict[load_name]['zip_gld'] = zip_gld
+
+            # Set the nominal voltage. Note that GridLAB-D nominal
+            # voltage is phase to neutral, but we want line to line.
+            v_n = float(load_data[load_name]['nominal_voltage']) * 2
+
+            load_dict[load_name]['v_n'] = v_n
+
+            # Use zip_model.py to compute P and Q.
+            load_dict[load_name]['zip_model_out'] = \
+                zip_model._pq_from_v_zip_gld(v=gld_out['v'], v_n=v_n,
+                                             zip_gld=zip_gld)
+            pass
+
+        # Assign the final load dictionary.
+        cls.load_dict = load_dict
+
+    # TODO: Might be better to automatically create these functions
+    # rather than manual hard-coding.
+
+    def test_load_1(self):
+        f = 'load_1'
+        # Loop over p, q
+        for col in ['p', 'q']:
+            # Grab data
+            d1 = self.load_dict[f]['zip_model_out'][col + '_predicted']
+            d2 = self.load_dict[f]['gld_out'][col]
+            with self.subTest(msg=col):
+                self.assertTrue(np.allclose(d1.values, d2.values, atol=A_TOL,
+                                            rtol=R_TOL))
+
+    def test_load_2(self):
+        f = 'load_2'
+        # Loop over p, q
+        for col in ['p', 'q']:
+            # Grab data
+            d1 = self.load_dict[f]['zip_model_out'][col + '_predicted']
+            d2 = self.load_dict[f]['gld_out'][col]
+            with self.subTest(msg=col):
+                self.assertTrue(np.allclose(d1.values, d2.values, atol=A_TOL,
+                                            rtol=R_TOL))
+
+    def test_load_3(self):
+        # TODO
+        self.assertTrue(False)
 
 if __name__ == '__main__':
     unittest.main()
