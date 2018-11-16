@@ -47,6 +47,28 @@ class TestParseComplexStr(unittest.TestCase):
         expected_num = 1.2e-003 + 1j * 1.8e-2
         self.assertEqual(num, expected_num)
 
+    def test_non_complex_num(self):
+        self.assertRaises(ValueError, utils.parse_complex_str, '15')
+
+    def test_weird_string(self):
+        self.assertRaises(ValueError, utils.parse_complex_str,
+                          'Look mom, a string!')
+
+    def test_wrong_format(self):
+        self.assertRaises(ValueError, utils.parse_complex_str, '1+1i')
+
+
+class TestReadGLDCsv(unittest.TestCase):
+    """Test utils.read_gld_csv.
+
+    TODO: Once the GridLAB-D tests in test_zip_model.py are wrapped,
+    put the .csv files in git, read one or more here, and test.
+    """
+
+    def test_1(self):
+        df = utils.read_gld_csv('test_zip_1.csv')
+        self.assertTrue(False)
+
 
 if __name__ == '__main__':
     unittest.main()
