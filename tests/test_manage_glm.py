@@ -453,5 +453,49 @@ class TestGLMManagerRemove(unittest.TestCase):
                           {'object': 'overhead_line'})
 
 
+class TestGLMManagerMisc(unittest.TestCase):
+    """Test functions in the GLMManager class which can't be run with
+    the primary testing class. For example, the function
+    get_objects_by_type can't easily be tested when other methods are
+    adding or removing objects from the model.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Get a GLMManager object
+        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
+
+    def test_get_object_by_type_loads(self):
+        # Grab a listing of loads
+        load_list = self._GLMManager.get_objects_by_type(object_type='load')
+
+        # Ensure we have three.
+        self.assertEqual(3, len(load_list))
+
+        # Ensure all are dictionaries, and that they have a name.
+        for load_dict in load_list:
+            self.assertIsInstance(load_dict, dict)
+            self.assertIn('name', load_dict)
+
+    def test_get_object_by_type_recorders(self):
+        # Grab a listing of loads
+        recorder_list = \
+            self._GLMManager.get_objects_by_type(object_type='load')
+
+        # Ensure we have three.
+        self.assertEqual(3, len(recorder_list))
+
+        # Ensure all are dictionaries, and that they have a name.
+        for recorder_dict in recorder_list:
+            self.assertIsInstance(recorder_dict, dict)
+            self.assertIn('name', recorder_dict)
+
+    def test_get_object_by_type_clock(self):
+        # There should be no clock in the "objects" listing.
+        clock = self._GLMManager.get_objects_by_type(object_type='clock')
+
+        self.assertIsNone(clock)
+
+
 if __name__ == '__main__':
     unittest.main()

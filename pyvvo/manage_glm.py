@@ -350,8 +350,11 @@ class GLMManager:
     Primary capabilities:
         - Add item to model
         - Modify item in model
-        - TODO: remove item from model
-        - TODO: remove properties from items
+        - Remove item from model
+        - Remove properties from items
+        - TODO: Get list of objects by type
+
+    TODO: list all the "public" class methods here.
 
     """
 
@@ -836,6 +839,35 @@ class GLMManager:
             raise UserWarning('Clock does not exist!')
         else:
             return clock
+
+    def get_objects_by_type(self, object_type):
+        """Return a listing of objects by type, e.g. 'triplex_line.'
+
+        These will simply be looked up in the model_map.
+
+        :param object_type: string of desired object type to look up.
+        :returns object_list: list of dictionaries for the given object
+                 type. Will return None if the object type isn't in the
+                 model.
+        """
+
+        # Get dictionary of objects by type.
+        try:
+            object_dict = self.model_map['object'][object_type]
+        except KeyError:
+            # This object type isn't in the model map.
+            return None
+        else:
+            # Initialize listing of object dictionaries.
+            object_list = []
+
+        # Loop over the dictionary, add objects to the list.
+        for key, value in object_dict.items():
+            object_list.append(value[1])
+
+        return object_list
+
+
 
 def _test():
     import time
