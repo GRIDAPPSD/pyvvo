@@ -198,11 +198,11 @@ def _parse_token_list(token_list):
             for line in tree[key]:
                 tree[key][line] = tree[key][line].replace(':', '_')
 
-            # deleting all recorders from the files
-            if tree[key]['object'] == 'recorder' or \
-                    tree[key]['object'] == 'group_recorder' or \
-                    tree[key]['object'] == 'collector':
-                objects_to_delete.append(key)
+            # # deleting all recorders from the files
+            # if tree[key]['object'] == 'recorder' or \
+            #         tree[key]['object'] == 'group_recorder' or \
+            #         tree[key]['object'] == 'collector':
+            #     objects_to_delete.append(key)
 
             # if we are working with fuses let's set the mean replace time to 1
             # hour if not specified. Then we aviod a warning!

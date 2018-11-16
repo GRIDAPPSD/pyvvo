@@ -5,11 +5,12 @@ import unittest
 from pyvvo import manage_glm
 
 # Define our test file.
-test_file = 'test.glm'
+TEST_FILE = 'test.glm'
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
 # This can't be done until we have a Docker container with GridLAB-D
 # installed and configured.
+
 
 class TestParseFile(unittest.TestCase):
     """Test parsing a test file."""
@@ -17,14 +18,14 @@ class TestParseFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Call parse
-        cls._parsed_tokens = manage_glm.parse(test_file, True)
+        cls._parsed_tokens = manage_glm.parse(TEST_FILE, True)
 
     def test_parse_returns_dict(self):
         self.assertIsInstance(self._parsed_tokens, dict)
 
-    def test_parse_dict_length_is_18(self):
-        # Note that recorders get removed
-        self.assertTrue(len(self._parsed_tokens) == 18)
+    def test_parse_dict_length_is_21(self):
+        # Recorders are no longer removed.
+        self.assertTrue(len(self._parsed_tokens) == 21)
 
     def test_parse_item_1_has_omftype(self):
         self.assertIn('omftype', self._parsed_tokens[1])
@@ -51,6 +52,7 @@ class TestParseFile(unittest.TestCase):
         self.assertEqual("'2001-01-01 00:00:00'",
                          self._parsed_tokens[4]['starttime'])
 
+
 class TestGLMManager(unittest.TestCase):
     """Test the GLMManager class.
 
@@ -63,7 +65,7 @@ class TestGLMManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get a GLMManager object
-        cls._GLMManager = manage_glm.GLMManager(test_file, True)
+        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
 
     '''
     def test_prepend_key_is_neg_1(self):
@@ -392,13 +394,14 @@ class TestGLMManager(unittest.TestCase):
     # property from, because we modify the powerflow solver_method, and
     # cannot count on tests to run in order.
 
+
 class TestGLMManagerRemove(unittest.TestCase):
     """Test the removal methods of the GLMManager class."""
 
     @classmethod
     def setUpClass(cls):
         # Get a GLMManager object
-        cls._GLMManager = manage_glm.GLMManager(test_file, True)
+        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
 
     def test_remove_clock(self):
         # Remove clock.
