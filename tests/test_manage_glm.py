@@ -496,6 +496,14 @@ class TestGLMManagerMisc(unittest.TestCase):
 
         self.assertIsNone(clock)
 
+    def test_find_object(self):
+        # Test the find_object method.
+        # TODO
+        self.assertTrue(False)
+
+    def test_get_objects_of_type(self):
+        # TODO
+        self.assertTrue(False)
 
 if __name__ == '__main__':
     unittest.main()

@@ -578,7 +578,7 @@ class GLMManager:
         # Update append key.
         self._update_append_key()
 
-    def _find_object(self, obj_type, obj_name):
+    def find_object(self, obj_type, obj_name):
         """Find object by name in the model_map, if it exists.
 
         :param: obj_type: type of the object to look up.
@@ -594,6 +594,49 @@ class GLMManager:
             obj = None
 
         return obj
+
+    def get_items_of_type(self, item_type, object_type=None):
+        """Get data for all objects of the given type.
+
+        :param item_type: string, item type. e.g. 'clock' or 'object'
+        :param object_type: string, object type. Only used if item_type
+               is 'object.' E.g. 'triplex_load'
+        :return: dictionary, keyed by object name. Each sub-dict
+                 contains all the object properties. If the object type
+                 doesn't exist in the model, None is returned.
+        """
+        # Check to see if the item_type is in the map.
+        try:
+            self.model_map[item_type]
+        except KeyError:
+            return None
+
+        # If we're working with objects,
+        if item_type == 'object':
+            # See if we have this object_type.
+            if object_type is not None:
+                try:
+                    self.model_map['object'][object_type]
+                except KeyError:
+                    return None
+            else:
+                # Require and object_type for item_type of 'object'
+                raise ValueError("If item_type is 'object', then " +
+                                 "object_type must not be None.")
+
+            # Since we're working with objects of a specific type,
+            # grab the appropriate dictionary.
+            item_dict = self.model_map['object'][object_type]
+        else:
+            # Not working with objects, pull top level item_dict.
+            item_dict = self.model_map[item_type]
+
+        # Loop over the items in the dictionary, and extract just their
+        # property dictionary (we don't need the key into the
+        # model_dict)
+        return {k: v[1] for k, v in item_dict.items()}
+
+
 
     def _add_non_object(self, item_type, item_dict):
         """Add a non-object to the model.
@@ -866,7 +909,6 @@ class GLMManager:
             object_list.append(value[1])
 
         return object_list
-
 
 
 def _test():
