@@ -1,0 +1,2 @@
+# Ignore testing outputs.
+test_zip_*.csv 

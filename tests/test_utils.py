@@ -61,13 +61,41 @@ class TestParseComplexStr(unittest.TestCase):
 class TestReadGLDCsv(unittest.TestCase):
     """Test utils.read_gld_csv.
 
-    TODO: Once the GridLAB-D tests in test_zip_model.py are wrapped,
-    put the .csv files in git, read one or more here, and test.
+    TODO: Test failures, more interesting cases?
+    Maybe not worth it, read_gld_csv is really a utility for
+    unit testing, and won't be used in the actual application.
     """
 
-    def test_1(self):
-        df = utils.read_gld_csv('test_zip_1.csv')
-        self.assertTrue(False)
+    @classmethod
+    def setUpClass(cls):
+        """Read the file"""
+        cls.df = utils.read_gld_csv('test_zip_1.csv')
+
+    def test_shape_0(self):
+        self.assertEqual(self.df.shape[0], 41)
+
+    def test_shape_1(self):
+        self.assertEqual(self.df.shape[1], 5)
+
+    def test_headings_0(self):
+        self.assertEqual(self.df.columns[0], 'timestamp')
+
+    def test_headings_end(self):
+        self.assertEqual(self.df.columns[-1], 'measured_reactive_power')
+
+    def test_values_1(self):
+        self.assertAlmostEqual(self.df['measured_reactive_power'].iloc[0],
+                               5.71375e-07)
+
+    def test_values_2(self):
+        val1 = self.df['measured_voltage_2'].iloc[-1]
+        val2, _ = utils.parse_complex_str('+139.988-0.00164745d')
+        self.assertAlmostEqual(val1.real, val2.real)
+        self.assertAlmostEqual(val1.imag, val2.imag)
+
+    def test_values_3(self):
+        self.assertEqual(self.df['timestamp'].iloc[-2],
+                         '2018-01-01 00:39:00 UTC')
 
 
 if __name__ == '__main__':
