@@ -1,11 +1,11 @@
 // Basic model for ZIP testing.
 
 clock {
-	starttime '2018-01-01 00:00:00';
+	starttime '2017-12-31 23:59:00';
 	stoptime '2018-01-01 00:41:00';
 }
 
-#set minimum_timestep=60.0
+#set minimum_timestep=30.0
 #set profiler=0
 #set relax_naming_rules=1
 #set randomseed=10
@@ -78,18 +78,19 @@ object triplex_meter {
     nominal_voltage 120;
 }
 
+// ZIP_INCANDESCENT (see test_zip_model.py)
 object triplex_load {
     name load_1;
     parent meter_1;
     phases AS;
     nominal_voltage 120;
     base_power_12 1000;
-    power_pf_12 0.98;
-    current_pf_12 0.98;
-    impedance_pf_12 0.98;
-    power_fraction_12 0.5;
-    current_fraction_12 0.25;
-    impedance_fraction_12 0.25;
+    impedance_fraction_12 0.5711;
+    current_fraction_12 0.4257;
+    power_fraction_12 0.0032;
+    impedance_pf_12 1;
+    current_pf_12 -1;
+    power_pf_12 1;
 }
 
 // Line, meter, and load 2
@@ -108,18 +109,144 @@ object triplex_meter {
     nominal_voltage 120;
 }
 
+// ZIP_LCD_2 (test_zip_model.py)
 object triplex_load {
     name load_2;
     parent meter_2;
     phases AS;
     nominal_voltage 120;
     base_power_12 2500;
-    power_pf_12 -0.98;
-    current_pf_12 0.80;
-    impedance_pf_12 -0.95;
-    power_fraction_12 0.1;
-    current_fraction_12 -0.25;
-    impedance_fraction_12 1.15;
+    impedance_fraction_12 -0.0383;
+    current_fraction_12 0.0396;
+    power_fraction_12 0.9987;
+    impedance_pf_12 0.61;
+    current_pf_12 -0.54;
+    power_pf_12 -1;
+}
+
+// Line, meter, and load 3
+object triplex_line {
+    name line_3;
+    phases AS;
+    from swing_node;
+    to load_3;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_3;
+    phases AS;
+    nominal_voltage 120;
+}
+
+// ZIP_FAN (test_zip_model.py)
+object triplex_load {
+    name load_3;
+    parent meter_3;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 300;
+    impedance_fraction_12 0.7332;
+    current_fraction_12 0.2534;
+    power_fraction_12 0.0135;
+    impedance_pf_12 0.97;
+    current_pf_12 0.95;
+    power_pf_12 -1;
+}
+
+// Line, meter, and load 4
+object triplex_line {
+    name line_4;
+    phases AS;
+    from swing_node;
+    to load_4;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_4;
+    phases AS;
+    nominal_voltage 120;
+}
+
+// ZIP_CFL_42W (test_zip_model.py)
+object triplex_load {
+    name load_4;
+    parent meter_4;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 42;
+    impedance_fraction_12 0.4867;
+    current_fraction_12 -0.3752;
+    power_fraction_12 0.8884;
+    impedance_pf_12 -0.97;
+    current_pf_12 -0.70;
+    power_pf_12 -0.79;
+}
+
+// Line, meter, and load 5
+object triplex_line {
+    name line_5;
+    phases AS;
+    from swing_node;
+    to load_5;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_5;
+    phases AS;
+    nominal_voltage 120;
+}
+
+// Put each component in a different part of the Q-P plane
+// zip_model.py has an illustration in _get_fractions_and_power_factors
+object triplex_load {
+    name load_5;
+    parent meter_5;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 100000;
+    impedance_fraction_12 0.333333333333333;
+    current_fraction_12 1;
+    power_fraction_12 -0.333333333333333;
+    impedance_pf_12 0.1;
+    current_pf_12 -0.50;
+    power_pf_12 0.98;
+}
+
+// Line, meter, and load 6
+object triplex_line {
+    name line_6;
+    phases AS;
+    from swing_node;
+    to load_6;
+    length 30 ft;
+    configuration tl;
+}
+
+object triplex_meter {
+    name meter_6;
+    phases AS;
+    nominal_voltage 120;
+}
+
+// Get one item in the upper left of Q-P plane
+object triplex_load {
+    name load_6;
+    parent meter_6;
+    phases AS;
+    nominal_voltage 120;
+    base_power_12 100;
+    impedance_fraction_12 -1;
+    current_fraction_12 2;
+    power_fraction_12 0;
+    impedance_pf_12 -0.9;
+    current_pf_12 1;
+    power_pf_12 0;
 }
 
 // Recorders
@@ -130,6 +257,7 @@ object recorder {
     file test_zip_1.csv;
     interval 60;
     limit -1;
+    in "2018-01-01 00:00:00";
 }
 
 object recorder {
@@ -139,4 +267,45 @@ object recorder {
     file test_zip_2.csv;
     interval 60;
     limit -1;
+    in "2018-01-01 00:00:00";
+}
+
+object recorder {
+    name recorder_3;
+    parent meter_3;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_3.csv;
+    interval 60;
+    limit -1;
+    in "2018-01-01 00:00:00";
+}
+
+object recorder {
+    name recorder_4;
+    parent meter_4;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_4.csv;
+    interval 60;
+    limit -1;
+    in "2018-01-01 00:00:00";
+}
+
+object recorder {
+    name recorder_5;
+    parent meter_5;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_5.csv;
+    interval 60;
+    limit -1;
+    in "2018-01-01 00:00:00";
+}
+
+object recorder {
+    name recorder_6;
+    parent meter_6;
+    property measured_voltage_1, measured_voltage_2, measured_real_power, measured_reactive_power;
+    file test_zip_6.csv;
+    interval 60;
+    limit -1;
+    in "2018-01-01 00:00:00";
 }

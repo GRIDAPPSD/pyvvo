@@ -495,6 +495,16 @@ def _pq_from_fractions_and_power_factors(fractions, power_factors, v, v_n,
     f = np.array(fractions)
     pf = np.array(power_factors)
 
+    # TODO: May want to file a ticket to get this behavior fixed in
+    # GridLAB-D.
+    # TODO: Uncomment the code below, and investigate test failures.
+    # GridLAB-D has a gross hard-coded reset of the power fraction if
+    # the terms don't sum exactly to 1. Check out
+    # "triplex_load_update_fxn()" in
+    # https://github.com/gridlab-d/gridlab-d/blob/develop/powerflow/triplex_load.cpp
+    # if np.sum(f) != 1.0:
+    #     f[2] = 1.0 - f[0] - f[1]
+
     # Initialize arrays for holding p and q terms.
     p_terms = np.zeros_like(f)
     q_terms = np.zeros_like(f)
