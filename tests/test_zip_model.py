@@ -21,7 +21,9 @@ A_TOL = 0
 
 # More tolerances, but same tolerance for P and Q. This will be used for
 # comparing GridLAB-D and zip_model for the same parameters.
-R_TOL = 0.0001
+R_TOL = 0.001
+# When checking if a value is close to 0, just use the absolute tolerance
+A_TOL_0 = 1e-4
 
 # NOTE: fmin_powell tests have been commented out, as it doesn't work
 # well and is slow.
@@ -1038,34 +1040,63 @@ class TestGLDZIP(unittest.TestCase):
         # Assign the final load dictionary.
         cls.load_dict = load_dict
 
+    def compare_results(self, f):
+        """Helper for comparing results"""
+        # Loop over p, q
+        for col in ['p', 'q']:
+            # Grab data
+            d1 = self.load_dict[f]['zip_model_out'][col + '_predicted']
+            d2 = self.load_dict[f]['gld_out'][col]
+
+            # If both arrays are near to zero, we need to handle this
+            # differently (np.allclose doesn't behave well).
+            if (np.allclose(d1, 0, rtol=0, atol=A_TOL_0)
+                    and np.allclose(d2, 0, rtol=0, atol=A_TOL_0)):
+                # Both arrays are quite close to 0, call it a day.
+                bool_val = True
+                # For reporting, the arrays have a 0% pct diff.
+                diff_str = '0%'
+            else:
+                # Ensure both arrays are close.
+                bool_val = np.allclose(d1.values, d2.values, atol=A_TOL,
+                                       rtol=R_TOL)
+
+                # Get string of max pct diff for reporting.
+                pct_diff = ((d2 - d1) / d2) * 100
+                max_pct_diff = pct_diff[np.argmax(np.abs(pct_diff))]
+                diff_str = '{:.2f}%'.format(max_pct_diff)
+
+            # Actually run the test.
+            with self.subTest(load=f, type=col, max_pct_diff=diff_str):
+                self.assertTrue(bool_val)
+
     # TODO: Might be better to automatically create these functions
     # rather than manual hard-coding.
 
     def test_load_1(self):
         f = 'load_1'
-        # Loop over p, q
-        for col in ['p', 'q']:
-            # Grab data
-            d1 = self.load_dict[f]['zip_model_out'][col + '_predicted']
-            d2 = self.load_dict[f]['gld_out'][col]
-            with self.subTest(msg=col):
-                self.assertTrue(np.allclose(d1.values, d2.values, atol=A_TOL,
-                                            rtol=R_TOL))
+        self.compare_results(f)
 
     def test_load_2(self):
         f = 'load_2'
-        # Loop over p, q
-        for col in ['p', 'q']:
-            # Grab data
-            d1 = self.load_dict[f]['zip_model_out'][col + '_predicted']
-            d2 = self.load_dict[f]['gld_out'][col]
-            with self.subTest(msg=col):
-                self.assertTrue(np.allclose(d1.values, d2.values, atol=A_TOL,
-                                            rtol=R_TOL))
+        self.compare_results(f)
 
     def test_load_3(self):
-        # TODO
-        self.assertTrue(False)
+        f = 'load_3'
+        self.compare_results(f)
+
+    def test_load_4(self):
+        f = 'load_4'
+        self.compare_results(f)
+
+    def test_load_5(self):
+        f = 'load_5'
+        self.compare_results(f)
+
+    def test_load_6(self):
+        f = 'load_6'
+        self.compare_results(f)
+
 
 if __name__ == '__main__':
     unittest.main()
