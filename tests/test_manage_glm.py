@@ -496,14 +496,59 @@ class TestGLMManagerMisc(unittest.TestCase):
 
         self.assertIsNone(clock)
 
-    def test_find_object(self):
-        # Test the find_object method.
-        # TODO
-        self.assertTrue(False)
+    def test_find_object_nonexistent(self):
+        # Try finding a non-existent object. Should return None.
+        obj = self._GLMManager.find_object(obj_type='meter',
+                                           obj_name='Not there')
+        self.assertIsNone(obj)
 
-    def test_get_objects_of_type(self):
-        # TODO
-        self.assertTrue(False)
+    def test_find_object_bad_type(self):
+        # Try finding an object type which isn't in the model
+        obj = self._GLMManager.find_object(obj_type='nonexistent',
+                                           obj_name='meter_1')
+        self.assertIsNone(obj)
+
+    def test_find_object_load(self):
+        # Test finding a load.
+        obj = self._GLMManager.find_object(obj_type='load', obj_name='load_2')
+
+        # Ensure it's a dictionary.
+        self.assertIsInstance(obj, dict)
+
+        # Ensure it has the 'object' property and it evaluates to 'load'
+        self.assertIn('object', obj)
+        self.assertEqual(obj['object'], 'load')
+
+        # Ensure it's name evaluates to 'load_2'
+        self.assertIn('name', obj)
+        self.assertEqual(obj['name'], 'load_2')
+
+    def test_get_objects_by_type_nonexistent(self):
+        # Try looking up an object type which isn't present
+        obj_list = self._GLMManager.get_objects_by_type('bananas')
+        self.assertIsNone(obj_list)
+
+    def test_get_objects_by_type_overhead_line(self):
+        # Look up overhead lines.
+        obj_list = self._GLMManager.get_objects_by_type('overhead_line')
+
+        # Ensure we received a list.
+        self.assertIsInstance(obj_list, list)
+
+        # Ensure we received 3 elements.
+        self.assertEqual(len(obj_list), 3)
+
+        # Ensure all elements are dictionaries.
+        for d in obj_list:
+            with self.subTest():
+                self.assertIsInstance(d, dict)
+
+        # Ensure all objects have a 'from' and 'to'
+        for d in obj_list:
+            with self.subTest():
+                self.assertIn('from', d)
+                self.assertIn('to', d)
+
 
 if __name__ == '__main__':
     unittest.main()

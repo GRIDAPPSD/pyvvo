@@ -636,8 +636,6 @@ class GLMManager:
         # model_dict)
         return {k: v[1] for k, v in item_dict.items()}
 
-
-
     def _add_non_object(self, item_type, item_dict):
         """Add a non-object to the model.
 
@@ -690,7 +688,7 @@ class GLMManager:
                                       object_name=item_dict.pop('name'))
 
             # Successfully grabbed object. Update it.
-            obj = self._modify_item(obj, item_dict)
+            self._modify_item(obj, item_dict)
 
         elif item_type == 'clock':
             # No need to modify clock definition.
@@ -700,7 +698,7 @@ class GLMManager:
             clock = self._lookup_clock()
 
             # Update the clock.
-            clock = self._modify_item(clock, item_dict)
+            self._modify_item(clock, item_dict)
 
         elif item_type == 'module':
             # Get module
@@ -714,7 +712,7 @@ class GLMManager:
                 module.pop('argument')
 
             # Modify it.
-            module = self._modify_item(module, item_dict)
+            self._modify_item(module, item_dict)
 
         else:
             s = 'Cannot modify item of type {}'.format(item_type)
@@ -758,13 +756,13 @@ class GLMManager:
             clock = self._lookup_clock()
 
             # Remove properties.
-            clock = self._remove_from_item(clock, property_list)
+            self._remove_from_item(clock, property_list)
 
         elif item_type == 'module':
             # Get module.
             module = self._lookup_module(module_name=item_dict['module'])
 
-            module = self._remove_from_item(module, property_list)
+            self._remove_from_item(module, property_list)
 
         else:
             s = 'Cannot remove properties from items of type {}'.format(
@@ -920,8 +918,8 @@ def _test():
     for i in range(20):
         print(model_manager.model_dict[i])
 
-    for i in range(model_manager.append_key - 1, model_manager.append_key -
-                                                 21, -1):
+    for i in range(model_manager.append_key - 1, (model_manager.append_key
+                                                  - 21), -1):
         print(model_manager.model_dict[i])
 
     model_manager.write_model('R2_out.glm')
