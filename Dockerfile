@@ -1,8 +1,15 @@
-# Use slim, which is built on a slim Debian image.
-FROM python:slim
+# Build on top of the base application container for GridAPPS-D, which
+# is a Debian-based Python container and contains some GridAPPS-D
+# utilities.
+FROM gridappsd/app-container-base:pyvvo
 
 # Work from pyvvo.
 ENV PYVVO=/pyvvo
+
+# TODO: In an ideal world, there would be a seperate docker container
+# which contains GridLAB-D, rather than installing GridLAB-D into the
+# pyvvo container. However, the level of effort to get that going simply
+# isn't worth it right now.
 
 # Setup other environment variables:
 # MSCC --> MySQL Connector/C
