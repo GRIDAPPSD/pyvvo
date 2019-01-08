@@ -1,7 +1,13 @@
+# NOTE: Do not directly call docker build. Instead run build.sh.
+
 # Build on top of the base application container for GridAPPS-D, which
 # is a Debian-based Python container and contains some GridAPPS-D
 # utilities.
 FROM gridappsd/app-container-base:pyvvo
+
+# Arguments for MySQL Connector/C (MSCC) and GridLAB-D (GLD) locations.
+ARG MSCC
+ARG GLD
 
 # Work from pyvvo.
 ENV PYVVO=/pyvvo
@@ -14,20 +20,18 @@ ENV PYVVO=/pyvvo
 # Setup other environment variables:
 # MSCC --> MySQL Connector/C
 # All libs are going into /pyvvo/lib except MSCC
-ENV MSCC_VERSION=6.1.11 \
-    TEMP_DIR=/tmp/source \
+ENV TEMP_DIR=/tmp/source \
     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PYVVO}/lib:/usr/local/mysql/lib \
     PATH=${PATH}:/${PYVVO}/bin \
     GLPATH=${PYVVO}/lib/gridlabd:${PYVVO}/share/gridlabd \
     CXXFLAGS=-I${PYVVO}/share/gridlabd \
-    PACKAGES="autoconf automake g++ gcc git libtool make wget"
+    PACKAGES="autoconf automake g++ gcc libtool make"
 
-# Define the MSCC archive name.
-ENV MSCC_DIR=mysql-connector-c-${MSCC_VERSION}-linux-glibc2.12-x86_64
-ENV MSCC_ARCHIVE=${MSCC_DIR}.tar.gz
+# Copy MSCC into image.
+COPY $MSCC /usr/local/mysql
 
-# Define full MSCC download URL.
-ENV MSCC_DOWNLOAD=https://dev.mysql.com/get/Downloads/Connector-C/${MSCC_ARCHIVE}
+# Copy GLD into image.
+COPY $GLD ${TEMP_DIR}/gridlab-d
 
 # Work in temporary directory.
 WORKDIR ${TEMP_DIR}
@@ -35,20 +39,15 @@ WORKDIR ${TEMP_DIR}
 # Install packages needed for software builds/installation
 RUN perl -E "print '*' x 80" \
     && printf '\nInstalling packages for software builds/installation...\n' \
-    && apt-get update && apt-get -y install ${PACKAGES} \
+    && apt-get update && apt-get -y install --no-install-recommends ${PACKAGES} \
     && rm -rf /var/lib/opt/lists/* \
-# Install MySQL Connector/C.
-    && perl -E "print '*' x 80" \
-    && printf '\nInstalling MySQL Connector/C...\n' \
-    && wget ${MSCC_DOWNLOAD} \
-    && tar -C /usr/local -zxf  ${MSCC_ARCHIVE} \
 # Symlinks for MSCC. /usr/local/mysql is standard, GridLAB-D might need
 # the mysql-connector-c as well?
-    && ln -s /usr/local/${MSCC_DIR} /usr/local/mysql \
-    && ln -s /usr/local/${MSCC_DIR} /usr/local/mysql-connector-c \
+    && perl -E "print '*' x 80" \
+    && printf '\nCreating symlink for MySQL Connector/C...' \
+    && ln -s /usr/local/mysql /usr/local/mysql-connector-c \
+    && printf 'done.\n' \
 # Install Xerces
-    && cd $TEMP_DIR \
-    && git clone https://github.com/gridlab-d/gridlab-d.git -b develop --single-branch \
     && perl -E "print '*' x 80" \
     && printf '\nInstalling Xerces...\n' \
     && cd ${TEMP_DIR}/gridlab-d/third_party \
@@ -91,5 +90,5 @@ COPY pyvvo /pyvvo/pyvvo
 # Copy tests.
 COPY tests /pyvvo/tests
 
-# Work from code directory
+# Work from code directory.
 WORKDIR /pyvvo/pyvvo
