@@ -3,7 +3,7 @@
 # Build on top of the base application container for GridAPPS-D, which
 # is a Debian-based Python container and contains some GridAPPS-D
 # utilities.
-FROM gridappsd/app-container-base:pyvvo
+FROM gridappsd/app-container-base:latest
 
 # Arguments for MySQL Connector/C (MSCC) and GridLAB-D (GLD) locations.
 ARG MSCC

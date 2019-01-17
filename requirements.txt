@@ -3,3 +3,4 @@ pandas
 scipy
 sklearn
 mystic
+simplejson
