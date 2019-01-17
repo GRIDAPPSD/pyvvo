@@ -98,5 +98,17 @@ class TestReadGLDCsv(unittest.TestCase):
                          '2018-01-01 00:39:00 UTC')
 
 
+class ListToStringTestCase(unittest.TestCase):
+    """Test list_to_string.
+
+    Keeping testing very minimal as this isn't a critical function.
+    """
+
+    def test_string_list(self):
+        actual = utils.list_to_string(in_list=['A', 'b', 'C'],
+                                      conjunction='and')
+        self.assertEqual('A, b, and C', actual)
+
+
 if __name__ == '__main__':
     unittest.main()

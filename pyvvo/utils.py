@@ -123,3 +123,15 @@ def read_gld_csv(f):
         df[c] = s
 
     return df
+
+
+def list_to_string(in_list, conjunction):
+    """Simple helper for formatting lists contaings strings as strings.
+
+    This is intended for simple lists that contain strings. Input will
+    not be checked.
+
+    :param in_list: List to be converted to a string.
+    :param conjunction: String - conjunction to be used (e.g. and, or).
+    """
+    return ", ".join(in_list[:-1]) + ", {} {}".format(conjunction, in_list[-1])
