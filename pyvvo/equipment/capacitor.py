@@ -26,8 +26,10 @@ class CapacitorSinglePhase:
     # Allowed states (case insensitive)
     STATES = ('OPEN', 'CLOSED')
 
-    def __init__(self, name, mrid, phase, state, name_prefix='cap_'):
-        """Initialize single phase capacitor."""
+    def __init__(self, name, mrid, phase, state=None, name_prefix='cap_'):
+        """Initialize single phase capacitor.
+        TODO: Document parameters.
+        """
         # Assign the name prefix.
         self.name_prefix = name_prefix
         # Assign the name. NOTE: the name_prefix will be prepended to
@@ -118,31 +120,33 @@ class CapacitorSinglePhase:
 
     @property
     def state(self):
-        """State capacitor is in."""
+        """State capacitor is in. OPEN/CLOSED/None. None --> unknown."""
         return self._state
 
     @state.setter
     def state(self, state):
-        """State must be a string, and must be in STATES.
+        """State must be None or a string, and must be in STATES.
 
          State is case insensitive.
          """
-        if not isinstance(state, str):
-            raise TypeError('state must be a string.')
+        # If state is None, simply set and return.
+        if state is None:
+            self._state = None
+            return
+        elif isinstance(state, str):
+            # Cast to upper case.
+            upper_state = state.upper()
 
-        # Cast to upper case.
-        upper_state = state.upper()
+            # Ensure it's valid.
+            if upper_state not in self.STATES:
+                state_str = list_to_string(self.STATES, 'or')
+                m = 'state must be {} (case insensitive).'.format(state_str)
+                raise ValueError(m)
 
-        # Ensure it's valid.
-        if upper_state not in self.STATES:
-            state_str = list_to_string(self.STATES, 'or')
-            m = 'state must be {} (case insensitive).'.format(state_str)
-            raise ValueError(m)
+            # Assign and return.
+            self._state = upper_state
+            return
+        else:
+            raise TypeError('state must None or be a string.')
 
-        # Assign.
-        self._state = upper_state
-
-
-
-
-
+        # That's it.

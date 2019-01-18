@@ -29,6 +29,13 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """State should be cast to upper case."""
         self.assertEqual('OPEN', self.cap.state)
 
+    def test_state_none(self):
+        """None is a valid state to initialize a capacitor."""
+        cap = \
+            capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
+                                           state=None, name_prefix='cap_')
+        self.assertIsNone(cap.state)
+
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     """Test bad inputs to CapacitorSinglePhase"""
