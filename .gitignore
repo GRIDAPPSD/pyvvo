@@ -1,6 +1,10 @@
 # Environment file for PyCharm run configuration.
 pyvvo/env.json
 
+# Ignore log files.
+*.log
+*.log.*
+
 # .idea directories are made by PyCharm.
 *.idea
 
