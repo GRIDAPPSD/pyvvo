@@ -1,6 +1,6 @@
 """Module for all things capacitors."""
+import logging
 from pyvvo.utils import list_to_string
-
 
 # class CapacitorMultiPhase:
 #     """Multi-phase capacitor - collection of single phase capacitors.
@@ -13,6 +13,7 @@ from pyvvo.utils import list_to_string
 #         self.mrid = mrid
 #         self.phases = phases
 #
+
 
 class CapacitorSinglePhase:
     """Single phase capacitor.
@@ -30,6 +31,9 @@ class CapacitorSinglePhase:
         """Initialize single phase capacitor.
         TODO: Document parameters.
         """
+        # Get log.
+        self.log = logging.getLogger()
+
         # Assign the name prefix.
         self.name_prefix = name_prefix
         # Assign the name. NOTE: the name_prefix will be prepended to
@@ -41,10 +45,11 @@ class CapacitorSinglePhase:
         self.phase = phase
         self.state = state
 
+        self.log.debug('CapacitorSinglePhase {} initialized.'.format(self.name))
+
     ####################################################################
     # PROPERTY GETTERS AND SETTERS
     ####################################################################
-
     @property
     def name_prefix(self):
         """Prefix prepended to the given name."""
