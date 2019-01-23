@@ -32,7 +32,7 @@ class CapacitorSinglePhase:
         TODO: Document parameters.
         """
         # Get log.
-        self.log = logging.getLogger()
+        self.log = logging.getLogger(__name__)
 
         # Assign the name prefix.
         self.name_prefix = name_prefix

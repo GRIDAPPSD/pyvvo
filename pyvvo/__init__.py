@@ -6,7 +6,7 @@ Setup logging application-wide.
 """
 import logging
 import logging.handlers
-import json
+import simplejson as json
 import os
 from logging.config import dictConfig
 

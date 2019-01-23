@@ -33,9 +33,10 @@ if [ ! -d "${mscc_path}" ]; then
 fi
 
 # Clone GridLAB-D, or pull the latest.
-echo "Getting the latest GridLAB-D (develop branch).\n\n"
+printf "Getting the latest GridLAB-D (develop branch).\n\n"
 git clone https://github.com/gridlab-d/gridlab-d.git -b develop --single-branch "${gld_dir}" 2> /dev/null || (cd "${gld_dir}" ; git pull)
 
 # Build pyvvo.
-echo "Building pyvvo container...\n"
+printf "Building pyvvo container...\n"
 docker build -t pyvvo:${tag} --build-arg MSCC=${mscc_path} --build-arg GLD=${gld_dir} .
+

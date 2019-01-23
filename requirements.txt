@@ -1,6 +1,9 @@
+mystic
 numpy
 pandas
 scipy
-sklearn
-mystic
 simplejson
+sklearn
+# stomp isn't directly used by PyVVO, but rather the GridAPPS-D base
+# container. However, we have to import exceptions for testing.
+stomp.py>=4.1.20

@@ -25,7 +25,13 @@ ENV TEMP_DIR=/tmp/source \
     PATH=${PATH}:/${PYVVO}/bin \
     GLPATH=${PYVVO}/lib/gridlabd:${PYVVO}/share/gridlabd \
     CXXFLAGS=-I${PYVVO}/share/gridlabd \
-    PACKAGES="autoconf automake g++ gcc libtool make"
+    BUILD_PACKAGES="autoconf automake g++ libtool make" \
+    PYTHON_BUILD_PACKAGES="gcc"
+
+# BUILD_PACKAGES are for building external software,
+# PYTHON_BUILD_PACKAGES are specifically required for building
+# third-party Python packages.
+ENV ALL_PACKAGES="${BUILD_PACKAGES} ${PYTHON_BUILD_PACKAGES}"
 
 # Copy MSCC into image.
 COPY $MSCC /usr/local/mysql
@@ -39,7 +45,7 @@ WORKDIR ${TEMP_DIR}
 # Install packages needed for software builds/installation
 RUN perl -E "print '*' x 80" \
     && printf '\nInstalling packages for software builds/installation...\n' \
-    && apt-get update && apt-get -y install --no-install-recommends ${PACKAGES} \
+    && apt-get update && apt-get -y install --no-install-recommends ${ALL_PACKAGES} \
     && rm -rf /var/lib/opt/lists/* \
 # Symlinks for MSCC. /usr/local/mysql is standard, GridLAB-D might need
 # the mysql-connector-c as well?
@@ -83,6 +89,12 @@ COPY requirements.txt $PYVVO/requirements.txt
 
 # Install requirements.
 RUN pip install -r requirements.txt
+
+# Remove software for building.
+RUN perl -E "print '*' x 80" \
+    && printf '\nRemoving packages for building Python packages...\n' \
+    && apt-get purge -y --auto-remove ${PYTHON_BUILD_PACKAGES} \
+    && apt-get -y clean
 
 # Copy application code.
 COPY pyvvo /pyvvo/pyvvo

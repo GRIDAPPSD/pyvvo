@@ -1,0 +1,33 @@
+{
+  "level": "DEBUG",
+  "version": 1,
+  "formatters": {
+    "console_formatter": {
+      "format": "%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
+      "datefmt": "%H:%M:%S"
+    },
+    "file_formatter": {
+      "format": "%(asctime)s [%(levelname)s] [%(module)s:%(funcName)s:%(lineno)d]: %(message)s",
+      "datefmt": "%H:%M:%S"
+    }
+  },
+  "handlers": {
+    "console_handler": {
+      "class": "logging.StreamHandler",
+      "formatter": "console_formatter"
+    },
+    "file_handler": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "formatter": "file_formatter",
+      "filename": "pyvvo.log",
+      "mode": "w",
+      "backupCount": 3
+    }
+  },
+  "root": {
+    "handlers": [
+      "console_handler",
+      "file_handler"
+    ]
+  }
+}
