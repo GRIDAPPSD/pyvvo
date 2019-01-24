@@ -1,5 +1,5 @@
 {
-  "level": "DEBUG",
+  "level": "WARN",
   "version": 1,
   "formatters": {
     "console_formatter": {
