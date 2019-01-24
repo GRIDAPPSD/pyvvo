@@ -1,7 +1,7 @@
 """Module for performing K-means clustering on data.
 
 In the context of pyvvo, functions here are used before performing fits
-to the ZIP load model (see zip_model.py).
+to the ZIP load model (see zip.py).
 """
 import numpy as np
 import pandas as pd

@@ -1,6 +1,6 @@
 import unittest
 import subprocess
-from pyvvo import zip_model
+from pyvvo import zip
 from pyvvo import glm
 from pyvvo import utils
 import pandas as pd
@@ -72,7 +72,7 @@ class TestZipModelHelpers(unittest.TestCase):
         median_expected = abs(vpq.iloc[0]['p'] + 1j * vpq.iloc[0]['q'])
 
         # Call function.
-        median_actual = zip_model._estimate_nominal_power(vpq)
+        median_actual = zip._estimate_nominal_power(vpq)
 
         self.assertEqual(median_expected, median_actual)
 
@@ -83,8 +83,8 @@ class TestZipModelHelpers(unittest.TestCase):
 
         poly_terms = (1,) * 6
 
-        self.assertAlmostEqual(0, zip_model._zip_objective(poly_terms,
-                                                           vpq_bar))
+        self.assertAlmostEqual(0, zip._zip_objective(poly_terms,
+                                                     vpq_bar))
 
     def test_zip_objective_with_error(self):
         vpq_bar = pd.DataFrame({'v_bar': (1, 1, 0), 'p_bar': (3, 3, 3),
@@ -92,83 +92,83 @@ class TestZipModelHelpers(unittest.TestCase):
 
         poly_terms = (1,) * 6
 
-        self.assertAlmostEqual(8/3, zip_model._zip_objective(poly_terms,
-                                                             vpq_bar))
+        self.assertAlmostEqual(8 / 3, zip._zip_objective(poly_terms,
+                                                         vpq_bar))
 
     def test_zip_constraint_par_0(self):
 
-        poly_terms = zip_model.PAR_0
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        poly_terms = zip.PAR_0
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_incandescent_bulb(self):
         # Incandescent light bulb (70W)
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_INCANDESCENT)
+        poly_terms = zip._get_poly_from_zip(*ZIP_INCANDESCENT)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_crt_tv(self):
         # Magnavox Television (Cathode Ray Tube)
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CRT_TV)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CRT_TV)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_oscillating_fan(self):
         # Oscillating Fan
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_FAN)
+        poly_terms = zip._get_poly_from_zip(*ZIP_FAN)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_lcd(self):
         # Liquid Crystal Display (LCD) Dell
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_LCD)
+        poly_terms = zip._get_poly_from_zip(*ZIP_LCD)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_plasma(self):
         # Plasma TV - Sony
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_PLASMA)
+        poly_terms = zip._get_poly_from_zip(*ZIP_PLASMA)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_lcd_2(self):
         # Liquid Crystal Display (LCD) - Clarity TV
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_LCD_2)
+        poly_terms = zip._get_poly_from_zip(*ZIP_LCD_2)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_cfl_13w(self):
         # Compact Fluorescent Light (CFL) 13W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_13W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_13W)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_cfl_20w(self):
         # Compact Fluorescent Light (CFL) 20W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_20W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_20W)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_constraint_cfl_42w(self):
         # Compact Fluorescent Light (CFL) 42W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_42W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_42W)
 
-        self.assertAlmostEqual(0, zip_model._zip_constraint(poly_terms),
+        self.assertAlmostEqual(0, zip._zip_constraint(poly_terms),
                                places=1)
 
     def test_zip_get_fractions_and_power_factors_par_0(self):
 
-        poly_terms = zip_model.PAR_0
+        poly_terms = zip.PAR_0
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
 
         # pf of -1 == pf of 1. For testing, cast last term to -1
         power_factors = np.array(power_factors)
@@ -176,14 +176,14 @@ class TestZipModelHelpers(unittest.TestCase):
             power_factors[2] = -1
 
         zip_terms = (*fractions, *power_factors)
-        self.assertTrue(np.allclose(zip_terms, zip_model.PAR_0_ZIP))
+        self.assertTrue(np.allclose(zip_terms, zip.PAR_0_ZIP))
 
     def test_get_fractions_and_power_factors_incandescent_bulb(self):
         # Incandescent light bulb (70W)
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_INCANDESCENT)
+        poly_terms = zip._get_poly_from_zip(*ZIP_INCANDESCENT)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
 
         # pf of -1 == pf of 1. For testing, cast to match.
         power_factors = np.array(power_factors)
@@ -201,10 +201,10 @@ class TestZipModelHelpers(unittest.TestCase):
 
     def test_get_fractions_and_power_factors_crt_tv(self):
         # Magnavox Television (Cathode Ray Tube)
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CRT_TV)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CRT_TV)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
 
         # pf of -1 == pf of 1. For testing, cast -1 to 1.
         power_factors = np.array(power_factors)
@@ -216,71 +216,71 @@ class TestZipModelHelpers(unittest.TestCase):
 
     def test_get_fractions_and_power_factors_oscillating_fan(self):
         # Oscillating Fan
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_FAN)
+        poly_terms = zip._get_poly_from_zip(*ZIP_FAN)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_FAN))
 
     def test_get_fractions_and_power_factors_lcd(self):
         # Liquid Crystal Display (LCD) Dell
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_LCD)
+        poly_terms = zip._get_poly_from_zip(*ZIP_LCD)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_LCD))
 
     def test_get_fractions_and_power_factors_plasma(self):
         # Plasma TV - Sony
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_PLASMA)
+        poly_terms = zip._get_poly_from_zip(*ZIP_PLASMA)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_PLASMA))
 
     def test_get_fractions_and_power_factors_lcd_2(self):
         # Liquid Crystal Display (LCD) - Clarity TV
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_LCD_2)
+        poly_terms = zip._get_poly_from_zip(*ZIP_LCD_2)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_LCD_2))
 
     def test_get_fractions_and_power_factors_cfl_13w(self):
         # Compact Fluorescent Light (CFL) 13W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_13W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_13W)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_CFL_13W))
 
     def test_get_fractions_and_power_factors_cfl_20w(self):
         # Compact Fluorescent Light (CFL) 20W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_20W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_20W)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_CFL_20W))
 
     def test_get_fractions_and_power_factors_cfl_42w(self):
         # Compact Fluorescent Light (CFL) 42W
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_42W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_42W)
 
         fractions, power_factors = \
-            zip_model._get_fractions_and_power_factors(poly_terms)
+            zip._get_fractions_and_power_factors(poly_terms)
         zip_terms = (*fractions, *power_factors)
         self.assertTrue(np.allclose(zip_terms, ZIP_CFL_42W))
 
     def test_poly_to_gld_cfl_42w(self):
         # Since we heavily tested get_fractions_and_power_factors, one
         # test for _poly_to_gld will be sufficient.
-        poly_terms = zip_model._get_poly_from_zip(*ZIP_CFL_42W)
+        poly_terms = zip._get_poly_from_zip(*ZIP_CFL_42W)
 
         expected = {'impedance_fraction': ZIP_CFL_42W[0],
                     'current_fraction': ZIP_CFL_42W[1],
@@ -289,7 +289,7 @@ class TestZipModelHelpers(unittest.TestCase):
                     'current_pf': ZIP_CFL_42W[4],
                     'power_pf': ZIP_CFL_42W[5]}
 
-        actual = zip_model._poly_to_gld(poly_terms)
+        actual = zip._poly_to_gld(poly_terms)
 
         # Loop through terms, ensure they're close.
         for k in expected:
@@ -329,10 +329,10 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
             power_factors = value[3:]
 
             # Get the polynomial form.
-            poly_terms = zip_model._get_poly_from_zip(*value)
+            poly_terms = zip._get_poly_from_zip(*value)
 
             # Compute p and q.
-            pq = zip_model._pq_from_fractions_and_power_factors(
+            pq = zip._pq_from_fractions_and_power_factors(
                 fractions=fractions, power_factors=power_factors, v=cls.v,
                 v_n=cls.v_n, s_n=cls.s_n)
 
@@ -386,8 +386,8 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
             par_0 = getattr(self, test)['poly_terms']
 
         # Perform ZIP fit.
-        results = zip_model.zip_fit(vpq=vpq, v_n=self.v_n, par_0=par_0,
-                                    s_n=self.s_n, solver=solver)
+        results = zip.zip_fit(vpq=vpq, v_n=self.v_n, par_0=par_0,
+                              s_n=self.s_n, solver=solver)
 
         # Ensure it converged.
         self.assertTrue(results['success'],
@@ -461,7 +461,7 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
         # This one needs help - get a better starting point.
         # Didn't work:
         # fan, incandescent,
-        par_0 = zip_model._get_poly_from_zip(*ZIP_LCD)
+        par_0 = zip._get_poly_from_zip(*ZIP_LCD)
 
         self.run_zip_fit(test, solver, use_answer, par_0)
 
@@ -566,7 +566,7 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
         use_answer = False
 
         # This one needs help - get a better starting point.
-        par_0 = zip_model._get_poly_from_zip(*ZIP_LCD_2)
+        par_0 = zip._get_poly_from_zip(*ZIP_LCD_2)
         # Didn't work:
         # fan, crt_tv, lcd
 
@@ -605,7 +605,7 @@ class TestZipModelSolversPNNLZIP(unittest.TestCase):
         use_answer = False
 
         # This one needs help - get a better starting point.
-        par_0 = zip_model._get_poly_from_zip(*ZIP_LCD)
+        par_0 = zip._get_poly_from_zip(*ZIP_LCD)
         # Didn't work:
         # fan, crt_tv,
 
@@ -762,7 +762,7 @@ class TestClusterAndFit(unittest.TestCase):
             power_factors = cls.zip[i][3:]
 
             # Compute p and q.
-            pq = zip_model._pq_from_fractions_and_power_factors(
+            pq = zip._pq_from_fractions_and_power_factors(
                 fractions=fractions, power_factors=power_factors, v=cls.v,
                 v_n=cls.v_n, s_n=cls.s_n[i])
 
@@ -797,11 +797,11 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = None
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=None,
-                                             random_state=None)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=None,
+                                       random_state=None)
 
         self.check_pq(expected=data, predicted=fit_data['pq_predicted'])
 
@@ -817,10 +817,10 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = data.iloc[10][['p', 'q']]
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=1, random_state=2)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=1, random_state=2)
 
         self.check_pq(expected=data, predicted=fit_data['pq_predicted'])
 
@@ -837,10 +837,10 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = data.iloc[-1][['p', 'q']]
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=2, random_state=2)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=2, random_state=2)
 
         self.check_pq(expected=self.results[1],
                       predicted=fit_data['pq_predicted'])
@@ -858,10 +858,10 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = self.results[1].iloc[0][['p', 'q']]
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=3, random_state=2)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=3, random_state=2)
 
         self.check_pq(expected=self.results[1],
                       predicted=fit_data['pq_predicted'])
@@ -880,10 +880,10 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = self.results[2].iloc[15][['p', 'q']]
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=4, random_state=2)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=4, random_state=2)
 
         self.check_pq(expected=self.results[2],
                       predicted=fit_data['pq_predicted'])
@@ -901,12 +901,12 @@ class TestClusterAndFit(unittest.TestCase):
         selection_data = data.iloc[15][['p', 'q']]
 
         # Call cluster_and_fit.
-        fit_data = zip_model.cluster_and_fit(data=data,
-                                             zip_fit_inputs=zip_fit_inputs,
-                                             selection_data=selection_data,
-                                             n_clusters=data.shape[0],
-                                             random_state=2,
-                                             min_cluster_size=10)
+        fit_data = zip.cluster_and_fit(data=data,
+                                       zip_fit_inputs=zip_fit_inputs,
+                                       selection_data=selection_data,
+                                       n_clusters=data.shape[0],
+                                       random_state=2,
+                                       min_cluster_size=10)
 
         self.assertEqual(None, fit_data)
 
@@ -929,10 +929,10 @@ class TestClusterAndFit(unittest.TestCase):
 
         # Call cluster_and_fit.
         fit_data = \
-            zip_model.get_best_fit_from_clustering(data=data,
-                                                   zip_fit_inputs=zfi,
-                                                   selection_data=sd,
-                                                   random_state=2)
+            zip.get_best_fit_from_clustering(data=data,
+                                             zip_fit_inputs=zfi,
+                                             selection_data=sd,
+                                             random_state=2)
 
         self.check_pq(expected=self.results[2],
                       predicted=fit_data['pq_predicted'])
@@ -968,7 +968,7 @@ class TestGLDZIP(unittest.TestCase):
         # Extract file and load names from the recorder dictionaries.
         load_dict = {}
 
-        # Get lists of ZIP terms to use. zip_model.py doesn't have the
+        # Get lists of ZIP terms to use. zip.py doesn't have the
         # '_12' at the end.
         zip_terms = ['base_power_12', 'impedance_fraction_12',
                      'current_fraction_12', 'power_fraction_12',
@@ -1031,10 +1031,10 @@ class TestGLDZIP(unittest.TestCase):
 
             load_dict[load_name]['v_n'] = v_n
 
-            # Use zip_model.py to compute P and Q.
+            # Use zip.py to compute P and Q.
             load_dict[load_name]['zip_model_out'] = \
-                zip_model._pq_from_v_zip_gld(v=gld_out['v'], v_n=v_n,
-                                             zip_gld=zip_gld)
+                zip._pq_from_v_zip_gld(v=gld_out['v'], v_n=v_n,
+                                       zip_gld=zip_gld)
             pass
 
         # Assign the final load dictionary.
