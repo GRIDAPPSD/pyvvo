@@ -2,7 +2,7 @@
 import unittest
 
 # Import module to test
-from pyvvo import manage_glm
+from pyvvo import glm
 
 # Define our test file.
 TEST_FILE = 'test.glm'
@@ -18,7 +18,7 @@ class TestParseFile(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Call parse
-        cls._parsed_tokens = manage_glm.parse(TEST_FILE, True)
+        cls._parsed_tokens = glm.parse(TEST_FILE, True)
 
     def test_parse_returns_dict(self):
         self.assertIsInstance(self._parsed_tokens, dict)
@@ -65,7 +65,7 @@ class TestGLMManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get a GLMManager object
-        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
+        cls._GLMManager = glm.GLMManager(TEST_FILE, True)
 
     '''
     def test_prepend_key_is_neg_1(self):
@@ -401,7 +401,7 @@ class TestGLMManagerRemove(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get a GLMManager object
-        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
+        cls._GLMManager = glm.GLMManager(TEST_FILE, True)
 
     def test_remove_clock(self):
         # Remove clock.
@@ -463,7 +463,7 @@ class TestGLMManagerMisc(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get a GLMManager object
-        cls._GLMManager = manage_glm.GLMManager(TEST_FILE, True)
+        cls._GLMManager = glm.GLMManager(TEST_FILE, True)
 
     def test_get_object_by_type_loads(self):
         # Grab a listing of loads

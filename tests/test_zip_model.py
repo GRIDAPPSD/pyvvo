@@ -1,7 +1,7 @@
 import unittest
 import subprocess
 from pyvvo import zip_model
-from pyvvo import manage_glm
+from pyvvo import glm
 from pyvvo import utils
 import pandas as pd
 import numpy as np
@@ -947,7 +947,7 @@ class TestGLDZIP(unittest.TestCase):
     def setUpClass(cls):
         """Read and run GridLAB-D model, store ZIP parameters."""
         # Read GridLAB-D model.
-        glm_manager = manage_glm.GLMManager(TEST_FILE, True)
+        glm_manager = glm.GLMManager(TEST_FILE, True)
 
         # Run GridLAB-D model.
         result = subprocess.run(args=['gridlabd', TEST_FILE],
