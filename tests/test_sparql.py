@@ -155,6 +155,32 @@ class SPARQLManagerTestCase(unittest.TestCase):
                     feeder_mrid=self.sparql.feeder_mrid))
             self.assertEqual('success', cap_return)
 
+    def test_sparql_manager_query_regulators(self):
+        """Ensure we get the expected return."""
+        actual = self.sparql.query_regulators()
+
+        # Uncomment stuff below to re-create the expected output.
+        # with open('query_regulators.json', 'w') as f:
+        #     json.dump(actual, f)
+
+        # Load expected result.
+        with open('query_regulators.json', 'r') as f:
+            expected = json.load(f)
+
+        self.assertDictEqual(actual, expected)
+
+    def test_sparql_manager_query_regulators_calls_query_named_objects(self):
+        """query_regulators must call query_named_objects."""
+
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            reg_return = self.sparql.query_regulators()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.REGULATOR_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid))
+            self.assertEqual('success', reg_return)
+
 
 if __name__ == '__main__':
     unittest.main()
