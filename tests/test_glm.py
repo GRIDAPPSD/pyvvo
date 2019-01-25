@@ -4,8 +4,9 @@ import unittest
 # Import module to test
 from pyvvo import glm
 
-# Define our test file.
+# Define our test files.
 TEST_FILE = 'test.glm'
+TEST_FILE2 = 'test2.glm'
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
 # This can't be done until we have a Docker container with GridLAB-D
@@ -51,6 +52,29 @@ class TestParseFile(unittest.TestCase):
     def test_parse_item_4_starttime_is_correct(self):
         self.assertEqual("'2001-01-01 00:00:00'",
                          self._parsed_tokens[4]['starttime'])
+
+
+class TestParseFile2(unittest.TestCase):
+    """Second class for testing parsing. Adding this after the regular
+    expression for tokenizing was updated to allow for parameter
+    expansions. See:
+        http://gridlab-d.shoutwiki.com/wiki/Creating_GLM_Files
+    """
+    def setUp(self):
+        self.parsed_tokens = glm.parse(TEST_FILE2, True)
+
+    def test_parse2_dict_length_is_4(self):
+        self.assertEqual(len(self.parsed_tokens), 4)
+
+    def test_parse2_define(self):
+        self.assertEqual(self.parsed_tokens[0]['omftype'], '#define')
+
+    def test_parse2_define_value(self):
+        self.assertEqual(self.parsed_tokens[0]['argument'], 'VSOURCE=66400')
+
+    def test_parse2_substation_voltage(self):
+        self.assertEqual(self.parsed_tokens[3]['positive_sequence_voltage'],
+                         '${VSOURCE}')
 
 
 class TestGLMManager(unittest.TestCase):

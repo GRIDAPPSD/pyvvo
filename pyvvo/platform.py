@@ -16,8 +16,9 @@ LOG = logging.getLogger(__name__)
 
 # Compile regular expressions for fixing bad json return.
 # TODO: remove when the platform is fixed.
-REGEX_1 = re.compile('^\s*\{\s*"data"\s*:\s*')
-REGEX_2 = re.compile('\s*,\s*"responseComplete".+$')
+REGEX_1 = re.compile(r'^\s*\{\s*"data"\s*:\s*')
+REGEX_2 = re.compile(r'\s*,\s*"responseComplete".+$')
+
 
 def get_platform_env_var():
     """Helper to get the 'platform' environment variable."""

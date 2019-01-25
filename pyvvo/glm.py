@@ -71,8 +71,8 @@ def _tokenize_glm(input_str, file_path=True):
     data = re.sub(r'\/\/.*(\s*)', '', data)
     # Also strip non-single whitespace because it's only for humans:
     data = data.replace('\r', '').replace('\t', ' ')
-    # Tokenize around semicolons, braces and whitespace.
-    tokenized = re.split(r'(;|\}|\{|\s)', data)
+    # Tokenize around semicolons, braces, whitespace, and ${<stuff>}.
+    tokenized = re.split(r'(;|\}|\{|\s|\$\{.*\})', data)
     # Get rid of whitespace strings.
     basic_list = [x for x in tokenized if x != '' and x != ' ']
     return basic_list
