@@ -14,14 +14,33 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-def get_gad_object(platform, **kwargs):
+def get_platform_env_var():
+    """Helper to get the 'platform' environment variable."""
+    # Assign platform input.
+    try:
+        platform = os.environ['platform']
+    except KeyError:
+        m = ("Within the pyvvo Docker container, the 'platform' "
+             "environment variable must be set. It should be '0' "
+             "or '1' indicating whether or not the container is "
+             "inside the platform's docker-compose network.")
+        raise KeyError(m)
+    else:
+        if (platform != '0') and (platform != '1'):
+            m = ("The 'platform' environment variable must be '0' or"
+                 "'1.' It currently evaluates to {}").format(platform)
+            raise ValueError(m)
+
+    return platform
+
+
+def get_gad_object(**kwargs):
     """Helper to get a GridAPPSD object.
 
-    :param platform: See input to 'get_gad_address.' '1' or '0'
     :param **kwargs: Passed directly to the GridAPPSD constructor.
     """
     # Get platform address
-    address = get_gad_address(platform)
+    address = get_gad_address()
 
     # TODO: handle connection failures?
     # TODO: flexibility for different username/password?
@@ -32,17 +51,17 @@ def get_gad_object(platform, **kwargs):
     return gad
 
 
-def get_gad_address(platform):
+def get_gad_address():
     """Helper to get GRIDAPPS-D address.
 
     The address is different depending on whether we're operating
     inside or outside the platform.
 
-    :param platform: '1' or '0' indicating if pyvvo is running inside
-        the GridAPPS-D platform or apart from it, respectively.
-
     TODO: logging
     """
+    # Determine whether or not we're running in the platform.
+    platform = get_platform_env_var()
+
     if platform == '1':
         # We're in the platform. Use the API helper.
         address = gad_utils.get_gridappsd_address()

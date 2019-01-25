@@ -11,27 +11,27 @@ class SPARQLManager:
     defining them at the bottom since the SPARQL queries are huge.
     """
 
-    def __init__(self, platform, feeder_mrid, timeout=30):
+    def __init__(self, feeder_mrid, timeout=30):
         """Connect to the platform.
 
-        :param platform: see input to get_gad_address. '0' or '1'
         :param feeder_mrid: unique identifier for the feeder in
             question. Since pyvvo works on a per feeder basis, this is
             required, and all queries will be executed for the specified
             feeder.
+        :param timeout: timeout for querying the blazegraph database.
         """
         # Configure log.
         self.log = logging.getLogger(__name__)
 
         # Connect to the platform.
-        self.gad = get_gad_object(platform)
+        self.gad = get_gad_object()
         self.log.debug('Connected to GridAPPS-D.')
 
         # Assign feeder mrid.
         self.feeder_mrid = feeder_mrid
 
         # Timeout for SPARQL queries.
-        self.timeout=timeout
+        self.timeout = timeout
 
     ####################################################################
     # QUERY METHODS

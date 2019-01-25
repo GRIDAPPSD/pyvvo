@@ -28,16 +28,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def setUp(self):
         """Attempt to connect to the platform."""
         try:
-            platform_var = os.environ['platform']
-        except KeyError:
-            m = ('Environment variable "platform" must be defined to connect '
-                 + 'to the GridAPPS-D platform. With PyCharm, you can use the '
-                 + 'EnvFile plugin to make things easier.')
-            raise KeyError(m)
-
-        try:
-            self.sparql = sparql.SPARQLManager(platform=platform_var,
-                                               feeder_mrid=FEEDER_MRID)
+            self.sparql = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
         except ConnectFailedException:
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
