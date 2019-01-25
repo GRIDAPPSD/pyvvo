@@ -34,12 +34,13 @@ class GetGADAddressTestCase(unittest.TestCase):
 
 
 class GetGADObjectTestCase(unittest.TestCase):
-    """Test get_gad_object."""
+    """Test get_gad_object. NOTE: Requires the GridAPPS-D platform to be
+    up and running. Also, the 'platform' environment variable must be
+    set.
+    """
 
     def setUp(self):
         """Attempt to connect to the platform."""
-        platform_var = platform.get_platform_env_var()
-
         try:
             self.gad = platform.get_gad_object()
         except ConnectFailedException:
@@ -87,8 +88,31 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
 
 
 class PlatformManagerTestCase(unittest.TestCase):
-    """Test the PlatformManager."""
-    pass
+    """Test the PlatformManager. Requires the GridAPPS-D platform to
+    be up and running, and the 'platform' environment variable to be
+    set.
+    """
+    def setUp(self):
+        # Initialize a platform manager.
+        self.platform = platform.PlatformManager()
+
+    def test_platform_manager_gad(self):
+        self.assertIsInstance(self.platform.gad, GridAPPSD)
+
+    def test_platform_manager_get_glm(self):
+        # TODO: update when platform is fixed.
+        m = '{"data":"model123456","responseComplete":true,"id": "bigID"}'
+        platform_return = {
+            'error': 'Invalid json returned',
+            'header': {'stuff': 'I do not need'}, 'message': m}
+
+        with patch('gridappsd.GridAPPSD.get_response',
+                   return_value=platform_return) as mock:
+            glm = self.platform.get_glm(model_id="someID")
+            mock.assert_called_once()
+
+        self.assertEqual(glm, '"model123456"')
+
 
 
 if __name__ == '__main__':

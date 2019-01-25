@@ -91,9 +91,12 @@ class SPARQLManagerTestCase(unittest.TestCase):
         """
         # Mock the silly-deep return from the platform.
         config = \
-            {'return_value': {'data': {'results': {'bindings':
-                                                       [{'name': {
-                                                           'value': 'object1'}}]}}}}
+            {'return_value':
+                {'data':
+                    {'results':
+                        {'bindings':
+                            [{'name': {
+                                'value': 'object1'}}]}}}}
 
         with patch('pyvvo.sparql.SPARQLManager.query_data', **config) as mock:
             result = self.sparql.query_named_objects('some query')

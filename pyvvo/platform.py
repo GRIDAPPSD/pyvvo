@@ -9,10 +9,15 @@ from gridappsd import utils as gad_utils
 import simplejson as json
 import os
 import logging
+import re
 
 # Setup log.
 LOG = logging.getLogger(__name__)
 
+# Compile regular expressions for fixing bad json return.
+# TODO: remove when the platform is fixed.
+REGEX_1 = re.compile('^\s*\{\s*"data"\s*:\s*')
+REGEX_2 = re.compile('\s*,\s*"responseComplete".+$')
 
 def get_platform_env_var():
     """Helper to get the 'platform' environment variable."""
@@ -31,6 +36,7 @@ def get_platform_env_var():
                  "'1.' It currently evaluates to {}").format(platform)
             raise ValueError(m)
 
+    LOG.debug("Retrieved 'platform' environment variable.")
     return platform
 
 
@@ -87,68 +93,80 @@ def get_gad_address():
     return address
 
 
-# class PlatformManager:
-#     """Class for interfacing with the GridAPPS-D platform."""
-#
-#     def __init__(self, platform, model_name):
-#         """Gather environment variables, etc.
-#
-#         :param platform: 1/0 whether or not application is running
-#             inside the platform.
-#         """
-#         # Setup logging.
-#         self.log = logging.getLogger(__name__)
-#
-#         # Assign platform input.
-#         self.platform = platform
-#
-#         # Get GridAPPSD object.
-#         self.gad = get_gad_object(self.platform)
-#
-#         self.log.info('Connected to GridAPPS-D platform.')
-#
-#         # # If running outside the platform, listen for a simulation
-#         # # request.
-#         # if not self.platform:
-#         #     self.gad_object.subscribe(topics.LOGS,
-#         #                               callback=self._parse_simulation_request)
-#
-#         # # Get information on available models.
-#         # self.platform_model_info = self.gad_object.query_model_info()
-#         #
-#         # # Ensure the query succeeded.
-#         # if not self.platform_model_info['responseComplete']:
-#         #     # TODO: Try again?
-#         #     # TODO: Exception handling, etc.
-#         #     raise UserWarning('GridAPPS-D query failed.')
-#         #
-#         # # Assign model name.
-#         # self.model_name = model_name
-#         # # Get the ID for the given model name.
-#         # self.model_id = self._get_model_id(self.model_name)
-#
-#         pass
-#
-#     def _parse_simulation_request(self, *args, **kwargs):
-#         """Parse request to start a simulation."""
-#         print('_parse_simulation_request has been called!', flush=True)
-#         pass
-#
-#     def _get_model_id(self, model_name):
-#         """Given a model's name, get it's ID."""
-#         # Loop over the models until we find our model_name, and get its ID.
-#         model_id = None
-#         for model in self.platform_model_info['data']['models']:
-#             if model['modelName'] == model_name:
-#                 model_id = model['modelId']
-#
-#         # Raise exception if the model_id could not be found.
-#         # TODO: Exception management.
-#         if model_id is None:
-#             m = 'Could not find the model ID for {}.'.format(model_name)
-#             raise UserWarning(m)
-#
-#         return model_id
+class PlatformManager:
+    """Class for interfacing with the GridAPPS-D platform API.
+
+    Note that this class is really intended for subscribing, etc. For
+    querying the Blazegraph database (with SPARQL queries), see
+    sparql.py
+    """
+
+    def __init__(self, timeout=30):
+        """Gather environment variables, etc.
+
+        :param timeout: Timeout for GridAPPS-D API requests.
+        """
+        # Setup logging.
+        self.log = logging.getLogger(__name__)
+
+        # Assign timeout.
+        self.timeout = timeout
+
+        # Get GridAPPSD object.
+        self.gad = get_gad_object()
+
+        self.log.info('Connected to GridAPPS-D platform.')
+
+        # # Get information on available models.
+        # self.platform_model_info = self.gad_object.query_model_info()
+        #
+        # # Ensure the query succeeded.
+        # if not self.platform_model_info['responseComplete']:
+        #     # TODO: Try again?
+        #     # TODO: Exception handling, etc.
+        #     raise UserWarning('GridAPPS-D query failed.')
+        #
+        # # Assign model name.
+        # self.model_name = model_name
+        # # Get the ID for the given model name.
+        # self.model_id = self._get_model_id(self.model_name)
+
+        pass
+
+    def get_glm(self, model_id):
+        """Given a model ID, get a GridLAB-D (.glm) model."""
+        payload = {'configurationType': 'GridLAB-D Base GLM',
+                   'parameters': {'model_id': model_id}}
+        response = self.gad.get_response(topic=topics.CONFIG, message=payload,
+                                         timeout=self.timeout)
+
+        self.log.info('GridLAB-D model received from platform.')
+
+        # Fix bad json return.
+        # TODO: remove when platform is fixed.
+        glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
+        return glm
+
+    # def _parse_simulation_request(self, *args, **kwargs):
+    #     """Parse request to start a simulation."""
+    #     print('_parse_simulation_request has been called!', flush=True)
+    #     pass
+    #
+    # def _get_model_id(self, model_name):
+    #     """Given a model's name, get it's ID."""
+    #     # Loop over the models until we find our model_name, and get its ID.
+    #     model_id = None
+    #     for model in self.platform_model_info['data']['models']:
+    #         if model['modelName'] == model_name:
+    #             model_id = model['modelId']
+    #
+    #     # Raise exception if the model_id could not be found.
+    #     # TODO: Exception management.
+    #     if model_id is None:
+    #         m = 'Could not find the model ID for {}.'.format(model_name)
+    #         raise UserWarning(m)
+    #
+    #     return model_id
 #
 #
 # if __name__ == '__main__':
