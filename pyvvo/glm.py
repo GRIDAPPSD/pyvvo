@@ -933,6 +933,9 @@ class GLMManager:
             wish to modify the timezone, set it to None.
 
         NOTE: Aside from type-checking, inputs are NOT validated.
+        NOTE: This method has certainly not been optimized. However,
+            I'm going for convenient and readable rather than efficient.
+            Also avoiding over optimization for silly things.
         """
         # Initialize the item dictionary.
         clock = {'clock': 'clock'}
@@ -968,7 +971,15 @@ class GLMManager:
         try:
             self.modify_item(item_dict=clock)
         except (KeyError, IndexError):
-            # No clock, add it instead.
+            # No clock, add it instead. Note that the 'modify_item'
+            # method 'popped' our 'clock' key.
+            clock['clock'] = 'clock'
+            # NOTE: A GridLAB-D clock MUST have starttime, stoptime, and
+            # timezone defined.
+            if len(clock) != 4:
+                raise ValueError('To add a new clock, no input can be None. '
+                                 + 'Be sure to define starttime, stoptime, '
+                                 + 'and timezone.')
             self.add_item(item_dict=clock)
 
         # All done.

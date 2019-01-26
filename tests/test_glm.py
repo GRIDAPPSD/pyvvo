@@ -1,5 +1,6 @@
 # Standard library imports
 import unittest
+from datetime import datetime
 
 # Import module to test
 from pyvvo import glm
@@ -575,8 +576,61 @@ class TestGLMManagerMisc(unittest.TestCase):
 
 
 class AddOrModifyClockTestCase(unittest.TestCase):
-    def test_one(self):
-        self.assertTrue(False)
+    """Test GLMManager.add_or_modify_clock."""
+    def setUp(self):
+        """Get a GLMManager. Use the simpler model for speed."""
+        self.glm = glm.GLMManager(model=TEST_FILE2, model_is_path=True)
+
+    def test_add_or_modify_clock_bad_starttime_type(self):
+        self.assertRaises(TypeError, self.glm.add_or_modify_clock,
+                          starttime='2012-07-21 20:00:00')
+
+    def test_add_or_modify_clock_bad_stoptime_type(self):
+        self.assertRaises(TypeError, self.glm.add_or_modify_clock,
+                          stoptime='2012-07-21 20:00:00')
+
+    def test_add_or_modify_clock_bad_timezone(self):
+        self.assertRaises(TypeError, self.glm.add_or_modify_clock,
+                          timezone=-8)
+
+    def test_add_or_modify_clock_all_inputs_None(self):
+        self.assertRaises(ValueError, self.glm.add_or_modify_clock,
+                          starttime=None, stoptime=None, timezone=None)
+
+    def test_add_or_modify_clock_change_all(self):
+        st = datetime(year=2012, month=1, day=1)
+        et = datetime(year=2017, month=6, day=10, hour=8, minute=35,
+                      second=12)
+        # Timezone doesn't have to be valid... oh well.
+        tz = 'Pacific'
+        self.glm.add_or_modify_clock(starttime=st, stoptime=et, timezone=tz)
+
+        # Lookup the clock item.
+        actual = self.glm._lookup_clock()
+
+        expected = {'clock': 'clock', 'starttime': '2012-01-01 00:00:00',
+                    'stoptime': '2017-06-10 08:35:12', 'timezone': tz}
+        self.assertDictEqual(actual, expected)
+
+    def test_add_or_modify_clock_add_clock(self):
+        # Start by removing the clock.
+        self.glm.remove_item({'clock': 'clock'})
+
+        # Cheat and simply call another test method.
+        self.test_add_or_modify_clock_change_all()
+
+    def test_add_or_modify_clock_add_clock_incomplete_inputs(self):
+        # To avoid interfering with other tests, we'll create our own
+        # manager here.
+        glm_manager = glm.GLMManager(model=TEST_FILE2, model_is_path=True)
+        # Remove the clock.
+        glm_manager.remove_item({'clock': 'clock'})
+        # Add new one, but don't include all inputs.
+        st = datetime(year=2016, month=12, day=6)
+        et = None
+        tz = 'Central'
+        self.assertRaises(ValueError, glm_manager.add_or_modify_clock,
+                          starttime=st, stoptime=et, timezone=tz)
 
 
 if __name__ == '__main__':
