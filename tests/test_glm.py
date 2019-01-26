@@ -200,11 +200,11 @@ class TestGLMManager(unittest.TestCase):
         # This model already has a clock.
         # TODO: should probably get a barebones model and test making a
         # bunch of additions.
-        self.assertRaises(UserWarning, self._GLMManager.add_item,
+        self.assertRaises(glm.ItemExistsError, self._GLMManager.add_item,
                           {'clock': 'clock'})
 
     def test_add_nonexistent_item_type_fails(self):
-        self.assertRaises(UserWarning, self._GLMManager.add_item,
+        self.assertRaises(TypeError, self._GLMManager.add_item,
                           {'foo': 'bar', 'baz': 42})
 
     def test_update_append_key(self):
@@ -231,7 +231,7 @@ class TestGLMManager(unittest.TestCase):
         # Try to find object that doesn't exist.
         item = {'object': 'foo', 'name': 'bar'}
 
-        self.assertRaises(UserWarning, self._GLMManager.modify_item, item)
+        self.assertRaises(KeyError, self._GLMManager.modify_item, item)
 
     def test_modify_powerflow(self):
         # Change solver to FBS.
@@ -315,7 +315,7 @@ class TestGLMManager(unittest.TestCase):
     def test_modify_bad_item_type(self):
         item = {'#set': 'minimum_timestep=30.0'}
 
-        self.assertRaises(UserWarning, self._GLMManager.modify_item,
+        self.assertRaises(TypeError, self._GLMManager.modify_item,
                           item)
 
     def test_remove_properties_from_ol_3(self):
@@ -432,7 +432,7 @@ class TestGLMManagerRemove(unittest.TestCase):
         self._GLMManager.remove_item({'clock': 'clock'})
 
         # Ensure it's gone in the map.
-        self.assertRaises(UserWarning, self._GLMManager._lookup_clock)
+        self.assertRaises(IndexError, self._GLMManager._lookup_clock)
 
         # Make sure its gone in the model.
         self.assertNotIn(4, self._GLMManager.model_dict)
@@ -442,7 +442,7 @@ class TestGLMManagerRemove(unittest.TestCase):
         self._GLMManager.remove_item({'module': 'powerflow'})
 
         # Ensure it's gone in the map.
-        self.assertRaises(UserWarning, self._GLMManager._lookup_module,
+        self.assertRaises(KeyError, self._GLMManager._lookup_module,
                           'powerflow')
 
         # Ensure it's gone in the model.
@@ -453,7 +453,7 @@ class TestGLMManagerRemove(unittest.TestCase):
         self._GLMManager.remove_item({'module': 'mysql'})
 
         # Ensure it's gone in the map.
-        self.assertRaises(UserWarning, self._GLMManager._lookup_module,
+        self.assertRaises(KeyError, self._GLMManager._lookup_module,
                           'mysql')
 
         # Ensure its gone in the model.
@@ -465,7 +465,7 @@ class TestGLMManagerRemove(unittest.TestCase):
                                       'name': 'line_spacing_1'})
 
         # Ensure it's gone in the map.
-        self.assertRaises(UserWarning, self._GLMManager._lookup_object,
+        self.assertRaises(KeyError, self._GLMManager._lookup_object,
                           'line_spacing', 'line_spacing_1')
 
         # Ensure its gone in the model.
@@ -473,7 +473,7 @@ class TestGLMManagerRemove(unittest.TestCase):
 
     def test_remove_unnamed_object(self):
         # Not currently allowed.
-        self.assertRaises(UserWarning, self._GLMManager.remove_item,
+        self.assertRaises(KeyError, self._GLMManager.remove_item,
                           {'object': 'overhead_line'})
 
 
@@ -572,6 +572,11 @@ class TestGLMManagerMisc(unittest.TestCase):
             with self.subTest():
                 self.assertIn('from', d)
                 self.assertIn('to', d)
+
+
+class AddOrModifyClockTestCase(unittest.TestCase):
+    def test_one(self):
+        self.assertTrue(False)
 
 
 if __name__ == '__main__':

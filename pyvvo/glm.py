@@ -30,6 +30,7 @@ Government contractors.
 import re
 import warnings
 from functools import reduce
+from datetime import datetime
 
 
 def parse(input_str, file_path=True):
@@ -357,6 +358,9 @@ class GLMManager:
     TODO: list all the "public" class methods here.
 
     """
+    # Date format for GridLAB-D models. See:
+    #   http://gridlab-d.shoutwiki.com/wiki/Clock
+    DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
     def __init__(self, model, model_is_path=True):
         """Initialize by parsing given model.
@@ -440,7 +444,7 @@ class GLMManager:
 
             else:
                 # Unexpected type, raise warning.
-                raise UserWarning('Unimplemented item: {}'.format(item_dict))
+                raise ValueError('Unimplemented item: {}'.format(item_dict))
 
         # That's it. Easy, isn't it?
 
@@ -453,7 +457,7 @@ class GLMManager:
         """
         # Only allow one clock.
         if len(self.model_map['clock']) > 0:
-            raise UserWarning('Multiple clocks defined!')
+            raise ItemExistsError('The model already has a clock!')
 
         # Map it.
         self.model_map['clock'] = [model_key, clock_dict]
@@ -473,12 +477,12 @@ class GLMManager:
             module_name = module_dict['argument']
         else:
             # Bad dict.
-            raise UserWarning('Malformed module_dict: {}'.format(module_dict))
+            raise ValueError('Malformed module_dict: {}'.format(module_dict))
 
         # Ensure we aren't over-writing existing module.
         if module_name in self.model_map['module']:
             s = 'Module {} is already present!'.format(module_name)
-            raise UserWarning(s)
+            raise ItemExistsError(s)
 
         # Map it by name.
         self.model_map['module'][module_name] = [model_key, module_dict]
@@ -507,7 +511,7 @@ class GLMManager:
             # Never try to map an already existing named object.
             if object_dict['name'] in object_map[obj_type]:
                 s = '{} already exists in the {} map!'
-                raise UserWarning(s.format(object_dict['name'], obj_type))
+                raise ItemExistsError(s.format(object_dict['name'], obj_type))
 
         except KeyError:
             # Unnamed object. Add it to the unnamed list.
@@ -546,7 +550,7 @@ class GLMManager:
         for k in item_dict:
             # Check key.
             if not isinstance(k, str):
-                raise UserWarning('All keys must be strings!')
+                raise TypeError('All keys must be strings!')
 
             # Make sure value is string.
             item_dict[k] = str(item_dict[k])
@@ -558,8 +562,15 @@ class GLMManager:
             # Use _add_non_object method to map and add the item.
             self._add_non_object(item_type, item_dict)
         else:
+            # From the docs, we should raise a TypeError:
+            #
+            # "This exception may be raised by user code to indicate
+            # that an attempted operation on an object is not supported,
+            # and is not meant to be."
+            #
+            # https://docs.python.org/3.7/library/exceptions.html#TypeError
             s = 'No add method for item type {}'.format(item_type)
-            raise UserWarning(s)
+            raise TypeError(s)
 
     def _add_object(self, object_dict):
         """Add and map object.
@@ -567,8 +578,9 @@ class GLMManager:
         :param object_dict:
         :type object_dict: dict
         """
-        # Attempt to map the object first. This will raise a UserWarning
-        # if a named object of the same type already exists.
+        # Attempt to map the object first. This will raise an
+        # ItemExistsError if a named object of the same type already
+        # exists.
         self._add_object_to_map(self.append_key, object_dict)
 
         # Add the object to the end of the model.
@@ -662,7 +674,7 @@ class GLMManager:
 
         else:
             s = 'No add method for {} item type.'.format(item_type)
-            raise UserWarning(s)
+            raise TypeError(s)
 
         # Add to beginning of model.
         self.model_dict[self.prepend_key] = item_dict
@@ -682,8 +694,8 @@ class GLMManager:
 
         if item_type == 'object':
             if 'name' not in item_dict:
-                raise UserWarning('To update an object, its name is needed.')
-            # Look up object. Raises UserWarning if not found.
+                raise ValueError('To update an object, its name is needed.')
+            # Look up object. Raises KeyError if not found.
             obj = self._lookup_object(object_type=item_dict.pop('object'),
                                       object_name=item_dict.pop('name'))
 
@@ -716,7 +728,7 @@ class GLMManager:
 
         else:
             s = 'Cannot modify item of type {}'.format(item_type)
-            raise UserWarning(s)
+            raise TypeError(s)
 
     @staticmethod
     def _modify_item(item, update_dict):
@@ -742,9 +754,9 @@ class GLMManager:
         if item_type == 'object':
             # Check for name.
             if 'name' not in item_dict:
-                raise UserWarning('To update an object, its name is needed.')
+                raise ValueError('To update an object, its name is needed.')
 
-            # Get object. Raises UserWarning if not found.
+            # Get object. Raises KeyError if not found.
             obj = self._lookup_object(object_type=item_dict['object'],
                                       object_name=item_dict['name'])
 
@@ -767,7 +779,7 @@ class GLMManager:
         else:
             s = 'Cannot remove properties from items of type {}'.format(
                 item_type)
-            raise UserWarning(s)
+            raise TypeError(s)
 
     def remove_item(self, item_dict):
         """Remove item from both the model_dict and model_map.
@@ -784,7 +796,7 @@ class GLMManager:
                 obj_name = item_dict['name']
             except KeyError:
                 s = 'Cannot remove unnamed objects!'
-                raise UserWarning(s)
+                raise KeyError(s)
 
             # Remove from model.
             obj_type = item_dict['object']
@@ -816,7 +828,7 @@ class GLMManager:
             self.model_map['module'].pop(module_name)
         else:
             s = 'Cannot remove item of type {}'.format(item_type)
-            raise UserWarning(s)
+            raise TypeError(s)
 
     def _lookup_object(self, object_type, object_name):
         # Simply look it up and update it.
@@ -825,7 +837,7 @@ class GLMManager:
         except KeyError:
             s = ('Object of type {} and name {} does not exist in the '
                  + 'model map!').format(object_type, object_name)
-            raise UserWarning(s)
+            raise KeyError(s)
         else:
             return obj
 
@@ -835,7 +847,7 @@ class GLMManager:
             module = self.model_map['module'][module_name][1]
         except KeyError:
             s = 'Module {} does not exist!'.format(module_name)
-            raise UserWarning(s)
+            raise KeyError(s)
         else:
             return module
 
@@ -848,7 +860,7 @@ class GLMManager:
                 item.pop(k)
             except KeyError:
                 s = 'Could not remove nonexistent field {}'.format(k)
-                raise UserWarning(s)
+                raise KeyError(s)
 
         return item
 
@@ -869,15 +881,17 @@ class GLMManager:
         elif 'omftype' in item_dict:
             item_type = 'omftype'
         else:
-            raise UserWarning('Unknown type! Item: {}'.format(item_dict))
+            raise TypeError('Unknown type! Item: {}'.format(item_dict))
 
         return item_type
 
     def _lookup_clock(self):
         try:
             clock = self.model_map['clock'][1]
+        except KeyError:
+            raise KeyError('Clock does not exist!')
         except IndexError:
-            raise UserWarning('Clock does not exist!')
+            raise IndexError('Clock does not exist!')
         else:
             return clock
 
@@ -907,6 +921,71 @@ class GLMManager:
             object_list.append(value[1])
 
         return object_list
+
+    def add_or_modify_clock(self, starttime=None,
+                            stoptime=None, timezone='UTC'):
+        """Add clock to the model if it exists, otherwise modify clock.
+
+        :param starttime: datetime.datetime object
+        :param stoptime: datetime.datetime object
+        :param timezone: string, should be valid timezone. See here:
+            http://gridlab-d.shoutwiki.com/wiki/Timezone. If you do not
+            wish to modify the timezone, set it to None.
+
+        NOTE: Aside from type-checking, inputs are NOT validated.
+        """
+        # Initialize the item dictionary.
+        clock = {'clock': 'clock'}
+
+        # Check inputs.
+        # NOTE: for the starttime/stoptime, I would prefer to use a
+        # try/catch construct, attempting to use the strftime format.
+        # However, if starttime/stoptime are not datetime objects
+        # (e.g. date or time), we would get some unexpected times.
+        if isinstance(starttime, datetime):
+            clock['starttime'] = starttime.strftime(self.DATE_FORMAT)
+        elif starttime is not None:
+            raise TypeError('starttime must be datetime.datetime or None.')
+
+        if isinstance(stoptime, datetime):
+            clock['stoptime'] = stoptime.strftime(self.DATE_FORMAT)
+        elif stoptime is not None:
+            raise TypeError('stoptime must be datetime.datetime or None.')
+
+        if isinstance(timezone, str):
+            # NOTE: There isn't any validity check going on here...
+            clock['timezone'] = timezone
+        elif timezone is not None:
+            raise TypeError('timezone must be a string or None.')
+
+        # If all inputs are None, there's nothing to do. However, there
+        # is no logical reason one would provide all three as None, so
+        # raise an exception.
+        if len(clock) == 1:
+            raise ValueError('All inputs are None!')
+
+        # Attempt to modify the clock first.
+        try:
+            self.modify_item(item_dict=clock)
+        except (KeyError, IndexError):
+            # No clock, add it instead.
+            self.add_item(item_dict=clock)
+
+        # All done.
+        return None
+
+
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class ItemExistsError(Error):
+    """Raised when a GLMManager attempts to create a new item, but an
+    instance of that item already exists and must be unique. E.g.,
+    attempting to add a second clock to a model.
+    """
+    pass
 
 
 def _test():
