@@ -1,6 +1,6 @@
 """Module for querying and parsing SPARQL through GridAPPS-D"""
 import logging
-from pyvvo.platform import get_gad_object
+from pyvvo.gridappsd_platform import get_gad_object
 
 
 class SPARQLManager:
