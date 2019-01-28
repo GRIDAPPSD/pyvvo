@@ -2,8 +2,13 @@
 import re
 import math
 import cmath
+import subprocess
+import logging
 
 import pandas as pd
+
+# Setup log.
+LOG = logging.getLogger(__name__)
 
 # Regular expressions for complex number parsing (from GridLAB-D).
 RECT_EXP = re.compile(r'[+-]*([0-9])+(\.)*([0-9])*(e[+-]*([0-9])+)*[+-]'
@@ -135,3 +140,18 @@ def list_to_string(in_list, conjunction):
     :param conjunction: String - conjunction to be used (e.g. and, or).
     """
     return ", ".join(in_list[:-1]) + ", {} {}".format(conjunction, in_list[-1])
+
+
+def gld_installed(env=None):
+    """Test if GridLAB-D is installed or not."""
+    # Attempt to run GridLAB-D.
+    result = subprocess.run("gridlabd --version", shell=True,
+                            stderr=subprocess.STDOUT,
+                            stdout=subprocess.PIPE, env=env)
+
+    LOG.debug('"gridlabd --version" result:\n{}'.format(result.stdout))
+
+    if result.returncode == 0:
+        return True
+    else:
+        return False

@@ -7,9 +7,7 @@ import pandas as pd
 import numpy as np
 
 # Determine if GridLAB-D is at our disposal
-GLD_PRESENT = subprocess.run("gridlabd --version", shell=True,
-                             stderr=subprocess.PIPE,
-                             stdout=subprocess.PIPE).returncode
+GLD_PRESENT = utils.gld_installed()
 
 TEST_FILE = 'test_zip.glm'
 
@@ -938,7 +936,7 @@ class TestClusterAndFit(unittest.TestCase):
                       predicted=fit_data['pq_predicted'])
 
 
-@unittest.skipIf(condition=(GLD_PRESENT != 0),
+@unittest.skipIf(condition=(not GLD_PRESENT),
                  reason='gridlabd could not be found.')
 class TestGLDZIP(unittest.TestCase):
     """Compare outputs between GridLAB-D ZIP load outputs and pyvvo."""

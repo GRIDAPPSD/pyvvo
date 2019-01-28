@@ -110,5 +110,19 @@ class ListToStringTestCase(unittest.TestCase):
         self.assertEqual('A, b, and C', actual)
 
 
+class GLDInstalledTestCase(unittest.TestCase):
+    """Test gld_installed."""
+
+    def test_gld_installed_simple(self):
+        """Simply put, GridLAB-D should be installed in the docker
+        container, so should always evaluate to True.
+        """
+        self.assertTrue(utils.gld_installed(env=None))
+
+    def test_gld_installed_bad_path(self):
+        """Override the path so we can't find GridLAB-D."""
+        self.assertFalse(utils.gld_installed(env={'PATH': '/usr/bin'}))
+
+
 if __name__ == '__main__':
     unittest.main()
