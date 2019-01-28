@@ -1,13 +1,22 @@
 # Standard library imports
 import unittest
+from unittest.mock import patch
 from datetime import datetime
+import os
+import subprocess
+import logging
 
 # Import module to test
 from pyvvo import glm
+from pyvvo.utils import gld_installed
+
+# Setup log.
+LOG = logging.getLogger(__name__)
 
 # Define our test files.
 TEST_FILE = 'test.glm'
 TEST_FILE2 = 'test2.glm'
+TEST_FILE3 = 'test3.glm'
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
 # This can't be done until we have a Docker container with GridLAB-D
@@ -608,8 +617,8 @@ class AddOrModifyClockTestCase(unittest.TestCase):
         # Lookup the clock item.
         actual = self.glm._lookup_clock()
 
-        expected = {'clock': 'clock', 'starttime': '2012-01-01 00:00:00',
-                    'stoptime': '2017-06-10 08:35:12', 'timezone': tz}
+        expected = {'clock': 'clock', 'starttime': "'2012-01-01 00:00:00'",
+                    'stoptime': "'2017-06-10 08:35:12'", 'timezone': tz}
         self.assertDictEqual(actual, expected)
 
     def test_add_or_modify_clock_add_clock(self):
@@ -631,6 +640,118 @@ class AddOrModifyClockTestCase(unittest.TestCase):
         tz = 'Central'
         self.assertRaises(ValueError, glm_manager.add_or_modify_clock,
                           starttime=st, stoptime=et, timezone=tz)
+
+
+class AddRunComponentsBadInputsTestCase(unittest.TestCase):
+    """Test add_run_components function with bad inputs."""
+
+    def setUp(self):
+        """Load a model."""
+        self.glm = glm.GLMManager(TEST_FILE3, model_is_path=True)
+
+    def test_add_run_components_add_or_modify_clock_is_called(self):
+        """add_or_modify_clock will handle input checking for starttime,
+        stoptime, and timezone, so we need to ensure it gets called.
+        """
+        with patch('pyvvo.glm.GLMManager.add_or_modify_clock',
+                   return_value=None) as mock:
+            self.glm.add_run_components(starttime='bleh', stoptime='blah',
+                                        timezone='Eastern')
+            mock.assert_called_once()
+            mock.assert_called_with(starttime='bleh', stoptime='blah',
+                                    timezone='Eastern')
+
+        self.assertTrue(True)
+
+    def test_add_run_components_v_source_bad_type(self):
+        self.assertRaises(ValueError, self.glm.add_run_components,
+                          starttime=datetime(2012, 1, 1),
+                          stoptime=datetime(2012, 1, 1, 0, 15),
+                          timezone='UTC0', v_source='one thousand')
+
+    def test_add_run_components_profiler_bad_type(self):
+        self.assertRaises(TypeError, self.glm.add_run_components,
+                          starttime=datetime(2012, 1, 1),
+                          stoptime=datetime(2012, 1, 1, 0, 15),
+                          timezone='UTC0', profiler='0')
+
+    def test_add_run_components_profiler_bad_value(self):
+        self.assertRaises(ValueError, self.glm.add_run_components,
+                          starttime=datetime(2012, 1, 1),
+                          stoptime=datetime(2012, 1, 1, 0, 15),
+                          timezone='UTC0', profiler=2)
+
+    def test_add_run_components_minimum_timestep_bad_type(self):
+        self.assertRaises(TypeError, self.glm.add_run_components,
+                          starttime=datetime(2012, 1, 1),
+                          stoptime=datetime(2012, 1, 1, 0, 15),
+                          timezone='UTC0', minimum_timestep=60.1)
+
+
+class AddRunComponentsTestCase(unittest.TestCase):
+    """Call add_run_components with no arguments, model should run.
+
+    We already have a test ensuring add_or_modify_clock is called, so
+    no need to check clock values. However, we need to ensure the clock
+    is present, and also need to check the other parameters.
+    """
+    def setUp(self):
+        """Load model, add components."""
+        self.glm = glm.GLMManager(TEST_FILE3, model_is_path=True)
+
+        self.out_file = 'tmp.glm'
+        self.glm.add_run_components(starttime=datetime(2012, 1, 1),
+                                    stoptime=datetime(2012, 1, 1, 0, 15),
+                                    timezone='UTC0', v_source=None,
+                                    profiler=0, minimum_timestep=60)
+
+        self.glm.write_model(out_path=self.out_file)
+
+    def tearDown(self):
+        os.remove(self.out_file)
+
+    @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+    def test_add_run_components_model_runs(self):
+        result = subprocess.run(args=['gridlabd', self.out_file],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT)
+
+        if result.returncode != 0:
+            LOG.error(result.stdout)
+
+        self.assertEqual(0, result.returncode)
+
+    def test_add_run_components_clock(self):
+        """Ensure the clock is there."""
+        clock = self.glm.model_dict[-6]
+
+        self.assertIn('clock', clock)
+
+    def test_add_run_components_minimum_timestep(self):
+        minimum_timestep = self.glm.model_dict[-5]
+
+        self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
+
+    def test_add_run_components_profiler(self):
+        profiler = self.glm.model_dict[-4]
+
+        self.assertDictEqual(profiler, {'#set': 'profiler=0'})
+
+    def test_add_run_components_relax_naming_rules(self):
+        rnr = self.glm.model_dict[-3]
+
+        self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
+
+    def test_add_run_components_powerflow(self):
+        pf = self.glm.model_dict[-2]
+
+        self.assertDictEqual(pf, {'module': 'powerflow', 'solver_method': 'NR',
+                                  'line_capacitance': 'TRUE'})
+
+    def test_add_run_components_v_source(self):
+        vs = self.glm.model_dict[-1]
+
+        self.assertDictEqual(vs, {'#define': 'VSOURCE=66395.28'})
 
 
 if __name__ == '__main__':

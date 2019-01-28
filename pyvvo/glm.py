@@ -361,6 +361,10 @@ class GLMManager:
     # Date format for GridLAB-D models. See:
     #   http://gridlab-d.shoutwiki.com/wiki/Clock
     DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+    # Define items we won't include in the model_map.
+    NO_MAP = ('set', 'include', 'define')
+    # Define non-object items.
+    NON_OBJECTS = ('clock', 'module', 'include', 'set', 'define', 'omftype')
 
     def __init__(self, model, model_is_path=True):
         """Initialize by parsing given model.
@@ -382,11 +386,6 @@ class GLMManager:
         # Set keys for adding items to beginning or end of model.
         self.append_key = max(keys) + 1
         self.prepend_key = min(keys) - 1
-
-        # Define items we won't include in the model_map.
-        self.no_map = ('set', 'include')
-        # Define non-object items.
-        self.non_objects = ('clock', 'module', 'include', 'set', 'omftype')
 
         # Initialize model_map.
         self.model_map = {'clock': [], 'module': {}, 'object': {},
@@ -438,7 +437,7 @@ class GLMManager:
                 if item_dict['omftype'] == 'module':
                     self._add_module_to_map(model_key, item_dict)
 
-            elif item_type in self.no_map:
+            elif item_type in self.NO_MAP:
                 # No mapping for now.
                 pass
 
@@ -558,7 +557,7 @@ class GLMManager:
         if item_type == 'object':
             # Use _add_object method to map and add the object.
             self._add_object(item_dict)
-        elif item_type in self.non_objects:
+        elif item_type in self.NON_OBJECTS:
             # Use _add_non_object method to map and add the item.
             self._add_non_object(item_type, item_dict)
         else:
@@ -651,7 +650,7 @@ class GLMManager:
     def _add_non_object(self, item_type, item_dict):
         """Add a non-object to the model.
 
-        non-objects are listed in self.non_objects.
+        non-objects are listed in self.NON_OBJECTS.
 
         :param item_type: type of object to be added.
         :type item_type: str
@@ -668,7 +667,7 @@ class GLMManager:
             # Map module.
             self._add_module_to_map(self.prepend_key, item_dict)
 
-        elif item_type in self.no_map:
+        elif item_type in self.NO_MAP:
             # No mapping.
             pass
 
@@ -878,6 +877,8 @@ class GLMManager:
             item_type = 'include'
         elif '#set' in item_dict:
             item_type = 'set'
+        elif '#define' in item_dict:
+            item_type = 'define'
         elif 'omftype' in item_dict:
             item_type = 'omftype'
         else:
@@ -923,7 +924,7 @@ class GLMManager:
         return object_list
 
     def add_or_modify_clock(self, starttime=None,
-                            stoptime=None, timezone='UTC'):
+                            stoptime=None, timezone='UTC0'):
         """Add clock to the model if it exists, otherwise modify clock.
 
         :param starttime: datetime.datetime object
@@ -946,12 +947,14 @@ class GLMManager:
         # However, if starttime/stoptime are not datetime objects
         # (e.g. date or time), we would get some unexpected times.
         if isinstance(starttime, datetime):
-            clock['starttime'] = starttime.strftime(self.DATE_FORMAT)
+            clock['starttime'] = ("'" + starttime.strftime(self.DATE_FORMAT)
+                                  + "'")
         elif starttime is not None:
             raise TypeError('starttime must be datetime.datetime or None.')
 
         if isinstance(stoptime, datetime):
-            clock['stoptime'] = stoptime.strftime(self.DATE_FORMAT)
+            clock['stoptime'] = ("'" + stoptime.strftime(self.DATE_FORMAT)
+                                 + "'")
         elif stoptime is not None:
             raise TypeError('stoptime must be datetime.datetime or None.')
 
@@ -984,6 +987,77 @@ class GLMManager:
 
         # All done.
         return None
+
+    def add_run_components(self, starttime, stoptime, timezone='UTC0',
+                           v_source=None, profiler=0,
+                           minimum_timestep=60):
+        """Add components to make model runnable. This is CIM-specific.
+
+        When a .glm is requested from the platform (requested on the
+        configuration topic, with the configuration type being
+        'GridLAB-D Base GLM'), it doesn't have all the requisite
+        components required to actually run the model. This function
+        adds these components.
+
+        :param starttime: datetime.datetime, gets passed directly to
+            add_or_modify_clock
+        :param stoptime: see starttime.
+        :param timezone: string, gets passed directly to
+            add_or_modify_clock.
+        :param v_source: Voltage at swing bus. Must be number, string,
+            or None. If None, the nominal_voltage from the 'substation'
+            object will be used.
+        :param profiler: Whether or not to use the model profiler. 0/1.
+        :param minimum_timestep: Minimum simulation timestep for running
+            the model. Should be an integer for simplicity.
+        """
+        # Handle inputs, starting with v_source.
+        if v_source is None:
+            # Use the nominal voltage from the substation object.
+            substation = \
+                self.find_object(obj_type='substation', obj_name='"sourcebus"')
+            v_source = float(substation['nominal_voltage'])
+        else:
+            # Ensure input is valid to avoid surprises later.
+            try:
+                float(v_source)
+            except ValueError:
+                raise ValueError('v_source must be castable to a float.')
+
+        # Profiler should be 0/1.
+        if (profiler != 0) and (profiler != 1):
+            m = 'profiler must be either 0 or 1.'
+            if isinstance(profiler, int):
+                raise ValueError(m)
+            else:
+                raise TypeError(m)
+
+        # Minimum timestep should be an integer.
+        if not isinstance(minimum_timestep, int):
+            raise TypeError('minimum_timestep must be an integer.')
+
+        # Add the source voltage.
+        self.add_item({'#define': 'VSOURCE={}'.format(v_source)})
+
+        # Ensure the powerflow module is included.
+        self.add_item({'module': 'powerflow', 'solver_method': 'NR',
+                       'line_capacitance': 'TRUE'})
+
+        # Relax naming rules.
+        self.add_item({'#set': 'relax_naming_rules=1'})
+
+        # Set profiler.
+        self.add_item({'#set': 'profiler={}'.format(profiler)})
+
+        # Minimum timestep of one minute.
+        self.add_item({'#set': 'minimum_timestep={}'.format(minimum_timestep)})
+
+        # Add the clock.
+        self.add_or_modify_clock(starttime=starttime, stoptime=stoptime,
+                                 timezone=timezone)
+
+        # Done.
+        return
 
 
 class Error(Exception):
