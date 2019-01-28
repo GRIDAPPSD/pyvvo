@@ -124,5 +124,21 @@ class GLDInstalledTestCase(unittest.TestCase):
         self.assertFalse(utils.gld_installed(env={'PATH': '/usr/bin'}))
 
 
+@unittest.skipUnless(utils.gld_installed(),
+                     reason='GridLAB-D is not installed.')
+class RunGLDTestCase(unittest.TestCase):
+    """Test run_gld."""
+
+    def test_run_gld_simple(self):
+        """Ensure the model runs."""
+        self.assertTrue(utils.run_gld('test2.glm'))
+
+    def test_run_gld_bad_model(self):
+        self.assertFalse(utils.run_gld('/some/model.glm'))
+
+    def test_run_gld_bad_env(self):
+        self.assertFalse(utils.run_gld('test2.glm', env={'PATH': '/usr/bin'}))
+
+
 if __name__ == '__main__':
     unittest.main()

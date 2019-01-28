@@ -155,3 +155,29 @@ def gld_installed(env=None):
         return True
     else:
         return False
+
+
+def run_gld(model_path, env=None):
+    """Helper to run a GRIDLAB-D model. Returns True for success, False
+    for failure.
+
+    If needed, run options can be added in the future.
+
+    :param model_path: path (preferably full path) to GridLAB-D model.
+    :param env: used to override the environment for subprocess. Leave
+        this as None.
+    """
+    result = subprocess.run("gridlabd {}".format(model_path), shell=True,
+                            stderr=subprocess.PIPE, stdout=subprocess.PIPE,
+                            env=env)
+
+    if result.returncode == 0:
+        # TODO: Do we want to log GridLAB-D output? It would really clog
+        #   up the main log, so we might want a different handler.
+        LOG.debug('GridLAB-D model {} ran successfully.'.format(model_path))
+        return True
+    else:
+        m = ('GridLAB-D model {} failed to run.\n\tstdout:{}\n\t'
+             + 'stderr:{}').format(model_path, result.stdout, result.stderr)
+        LOG.error(m)
+        return False

@@ -8,7 +8,7 @@ import logging
 
 # Import module to test
 from pyvvo import glm
-from pyvvo.utils import gld_installed
+from pyvvo.utils import gld_installed, run_gld
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -712,14 +712,9 @@ class AddRunComponentsTestCase(unittest.TestCase):
 
     @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
     def test_add_run_components_model_runs(self):
-        result = subprocess.run(args=['gridlabd', self.out_file],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT)
+        result = run_gld(model_path=self.out_file)
 
-        if result.returncode != 0:
-            LOG.error(result.stdout)
-
-        self.assertEqual(0, result.returncode)
+        self.assertTrue(result)
 
     def test_add_run_components_clock(self):
         """Ensure the clock is there."""
