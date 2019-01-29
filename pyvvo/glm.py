@@ -32,6 +32,9 @@ import warnings
 from functools import reduce
 from datetime import datetime
 
+# List of object properties which will have '-' replaced with '_'
+RENAME = ['name', 'parent', 'from', 'to', 'configuration']
+
 
 def parse(input_str, file_path=True):
     """
@@ -182,7 +185,11 @@ def _parse_token_list(token_list):
                                      guid_stack)
 
     # this section will catch old glm format and translate it. Not in the most
-    # robust way but should work for now
+    # robust way but should work for now.
+    # NOTE: In an ideal world, double-looping would be avoided by doing
+    # the work below while looping through the token list. Oh well -
+    # the point of borrowing someone else's work is to avoid doing it
+    # yourself.
     objects_to_delete = []
     for key in list(tree.keys()):
         if 'object' in list(tree[key].keys()):
@@ -214,15 +221,14 @@ def _parse_token_list(token_list):
                 tree[key]['mean_replacement_time'] = 3600.0
 
             # FNCS is not able to handle names that include "-" so we will
-            # replace that with "_"
-            if 'name' in list(tree[key].keys()):
-                tree[key]['name'] = tree[key]['name'].replace('-', '_')
-            if 'parent' in list(tree[key].keys()):
-                tree[key]['parent'] = tree[key]['parent'].replace('-', '_')
-            if 'from' in list(tree[key].keys()):
-                tree[key]['from'] = tree[key]['from'].replace('-', '_')
-            if 'to' in list(tree[key].keys()):
-                tree[key]['to'] = tree[key]['to'].replace('-', '_')
+            # replace that with "_".
+            for prop in RENAME:
+                try:
+                    # Attempt to fix the property.
+                    tree[key][prop] = tree[key][prop].replace('-', '_')
+                except KeyError:
+                    # Property isn't present - move along.
+                    pass
 
     # deleting all recorders from the files
     for keys in objects_to_delete:
