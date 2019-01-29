@@ -11,6 +11,14 @@ from gridappsd import GridAPPSD
 from stomp.exception import ConnectFailedException
 import simplejson as json
 
+# Attempt to connect to the GridAPPS-D platform.
+try:
+    gridappsd_platform.get_gad_object()
+except ConnectFailedException:
+    PLATFORM_RUNNING = False
+else:
+    PLATFORM_RUNNING = True
+
 
 class GetGADAddressTestCase(unittest.TestCase):
     """Test get_gad_address."""
@@ -35,6 +43,8 @@ class GetGADAddressTestCase(unittest.TestCase):
             self.assertEqual(('gridappsd', 61613), address)
 
 
+@unittest.skipUnless(PLATFORM_RUNNING,
+                     reason='Could not connect to the GridAPPS-D platform.')
 class GetGADObjectTestCase(unittest.TestCase):
     """Test get_gad_object. NOTE: Requires the GridAPPS-D platform to be
     up and running. Also, the 'platform' environment variable must be
@@ -42,12 +52,8 @@ class GetGADObjectTestCase(unittest.TestCase):
     """
 
     def setUp(self):
-        """Attempt to connect to the platform."""
-        try:
-            self.gad = gridappsd_platform.get_gad_object()
-        except ConnectFailedException:
-            # We cannot connect to the platform.
-            raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
+        """Connect to the platform."""
+        self.gad = gridappsd_platform.get_gad_object()
 
     def test_get_gad_object_is_gad_object(self):
         self.assertIsInstance(self.gad, GridAPPSD)
