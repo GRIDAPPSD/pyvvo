@@ -62,8 +62,8 @@ from time import process_time
 # Installed packages
 import numpy as np
 import pandas as pd
-from mystic.constraints import with_penalty
-import mystic.penalty
+# from mystic.constraints import with_penalty
+# import mystic.penalty
 from scipy.optimize import minimize
 # import mystic.solvers as my
 
@@ -354,10 +354,10 @@ def _zip_constraint(poly_terms):
     return np.sum(fractions) - 1
 
 
-@with_penalty(mystic.penalty.quadratic_equality)
-def _zip_constraint_fmin_powell(poly_terms):
-    """Penalty construction for fmin_powell solver."""
-    return _zip_constraint(poly_terms)
+# @with_penalty(mystic.penalty.quadratic_equality)
+# def _zip_constraint_fmin_powell(poly_terms):
+#     """Penalty construction for fmin_powell solver."""
+#     return _zip_constraint(poly_terms)
 
 
 def _get_fractions_and_power_factors(poly_terms):

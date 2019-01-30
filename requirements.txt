@@ -1,4 +1,5 @@
-mystic
+# Uncomment mystic if trying to setup the fmin_powell stuff in zip.py
+# mystic
 numpy
 pandas
 scipy

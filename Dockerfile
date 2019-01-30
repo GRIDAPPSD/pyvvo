@@ -84,6 +84,10 @@ RUN perl -E "print '*' x 80" \
 
 WORKDIR $PYVVO
 
+# Update pip (it's annoying the Python container doesn't always come
+# with the latest pip)
+RUN pip install --upgrade pip
+
 # Copy requirements.
 COPY requirements.txt $PYVVO/requirements.txt
 

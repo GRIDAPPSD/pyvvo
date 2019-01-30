@@ -7,6 +7,12 @@
 #   - tag: tag for image. Image name will be pyvvo:<tag>. Defaults to
 #          "latest"
 
+# Constants:
+# NOTE: When updating this branch, you probably should delete the
+# GridLAB-D directory ($gld_dir) first - the behavior of using
+# --single-branch with git clone does some weird stuff.
+gld_branch=release/RC4.1
+
 # Collect arguments.
 tag=${1:-latest}
 
@@ -33,8 +39,8 @@ if [ ! -d "${mscc_path}" ]; then
 fi
 
 # Clone GridLAB-D, or pull the latest.
-printf "Getting the latest GridLAB-D (develop branch).\n\n"
-git clone https://github.com/gridlab-d/gridlab-d.git -b develop --single-branch "${gld_dir}" 2> /dev/null || (cd "${gld_dir}" ; git pull)
+printf "Getting the latest GridLAB-D (${gld_branch} branch).\n\n"
+git clone https://github.com/gridlab-d/gridlab-d.git -b ${gld_branch} --single-branch "${gld_dir}" 2> /dev/null || (cd "${gld_dir}"  ; git pull)
 
 # Build pyvvo.
 printf "Building pyvvo container...\n"
