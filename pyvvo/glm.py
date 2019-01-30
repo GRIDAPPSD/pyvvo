@@ -1002,6 +1002,23 @@ class GLMManager:
         # All done.
         return None
 
+    def object_type_present(self, object_type):
+        """Detect if a type of object (e.g. inverter) is present.
+
+        Returns True if the object_type is found, False otherwise.
+
+        NOTE: This only check in self.model_map['object'].
+
+        :param object_type: string, object type to check for. Note
+            the validity of the object type will not be checked.
+        """
+        # Check input.
+        if not isinstance(object_type, str):
+            raise TypeError('object_type must be a string.')
+
+        # Lookup object type and return.
+        return object_type in self.model_map['object']
+
     def add_run_components(self, starttime, stoptime, timezone='UTC0',
                            v_source=None, profiler=0,
                            minimum_timestep=60):

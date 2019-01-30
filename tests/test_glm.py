@@ -17,6 +17,7 @@ LOG = logging.getLogger(__name__)
 TEST_FILE = 'test.glm'
 TEST_FILE2 = 'test2.glm'
 TEST_FILE3 = 'test3.glm'
+IEEE_13 = 'ieee_13.glm'
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
 # This can't be done until we have a Docker container with GridLAB-D
@@ -325,8 +326,7 @@ class TestGLMManager(unittest.TestCase):
     def test_modify_bad_item_type(self):
         item = {'#set': 'minimum_timestep=30.0'}
 
-        self.assertRaises(TypeError, self._GLMManager.modify_item,
-                          item)
+        self.assertRaises(TypeError, self._GLMManager.modify_item, item)
 
     def test_remove_properties_from_ol_3(self):
         item = {'object': 'overhead_line', 'name': 'ol_3'}
@@ -423,6 +423,18 @@ class TestGLMManager(unittest.TestCase):
                                    'clock in the model_dict')
         else:
             self.assertTrue(True)
+
+    def test_object_present_bad_type(self):
+        self.assertRaises(TypeError, self._GLMManager.object_type_present, 10)
+
+    def test_object_present_not_there(self):
+        """This model doesn't have inverters."""
+        self.assertFalse(self._GLMManager.object_type_present('inverter'))
+
+    def test_object_present_there(self):
+        """This model has line_configurations."""
+        self.assertTrue(
+            self._GLMManager.object_type_present('line_configuration'))
 
     # TODO: model doesn't currently have a module which we can remove a
     # property from, because we modify the powerflow solver_method, and
