@@ -717,9 +717,12 @@ class AddRunComponentsTestCase(unittest.TestCase):
     no need to check clock values. However, we need to ensure the clock
     is present, and also need to check the other parameters.
     """
+    # Define the model we'll use.
+    MODEL = TEST_FILE3
+
     def setUp(self):
         """Load model, add components."""
-        self.glm = glm.GLMManager(TEST_FILE3, model_is_path=True)
+        self.glm = glm.GLMManager(self.MODEL, model_is_path=True)
 
         self.out_file = 'tmp.glm'
         self.glm.add_run_components(starttime=datetime(2012, 1, 1),
@@ -740,7 +743,7 @@ class AddRunComponentsTestCase(unittest.TestCase):
 
     def test_add_run_components_clock(self):
         """Ensure the clock is there."""
-        clock = self.glm.model_dict[-6]
+        clock = self.glm._lookup_clock()
 
         self.assertIn('clock', clock)
 
@@ -769,6 +772,37 @@ class AddRunComponentsTestCase(unittest.TestCase):
         vs = self.glm.model_dict[-1]
 
         self.assertDictEqual(vs, {'#define': 'VSOURCE=66395.28'})
+
+    def test_add_run_components_generators(self):
+        """This model should not have the generators added."""
+        self.assertFalse(self.glm.module_present('generators'))
+
+
+class AddRunComponentsIEEE13NodeTestCase(AddRunComponentsTestCase):
+    """Run tests in AddRunComponentsTestCase, but use IEEE 13 bus model.
+
+    Some methods are overridden intentionally.
+    """
+    MODEL = IEEE_13
+
+    def test_add_run_components_generators(self):
+        """This model should have the generators added."""
+        self.assertTrue(self.glm.module_present('generators'))
+
+    def test_add_run_components_minimum_timestep(self):
+        minimum_timestep = self.glm.model_dict[-6]
+
+        self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
+
+    def test_add_run_components_profiler(self):
+        profiler = self.glm.model_dict[-5]
+
+        self.assertDictEqual(profiler, {'#set': 'profiler=0'})
+
+    def test_add_run_components_relax_naming_rules(self):
+        rnr = self.glm.model_dict[-4]
+
+        self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
 
 
 if __name__ == '__main__':

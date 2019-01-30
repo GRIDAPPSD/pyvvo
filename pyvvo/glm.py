@@ -35,6 +35,13 @@ from datetime import datetime
 # List of object properties which will have '-' replaced with '_'
 RENAME = ['name', 'parent', 'from', 'to', 'configuration']
 
+# List of classes in GridLAB-D's module, generators. NOTE: intentionally
+# ordering this so the most likely to appear show up first.
+# http://gridlab-d.shoutwiki.com/wiki/Generators_(module)
+GEN_CLASSES = ['inverter', 'battery', 'diesel_dg', 'dc_dc_converter',
+               'energy_storage', 'microturbine', 'power_electronics',
+               'rectifier', 'solar', 'windturb_dg']
+
 
 def parse(input_str, file_path=True):
     """
@@ -1090,6 +1097,12 @@ class GLMManager:
         # Ensure the powerflow module is included.
         self.add_item({'module': 'powerflow', 'solver_method': 'NR',
                        'line_capacitance': 'TRUE'})
+
+        # If necessary, add the generators module.
+        for gen in GEN_CLASSES:
+            if self.object_type_present(gen):
+                self.add_item({'module': 'generators'})
+                break
 
         # Relax naming rules.
         self.add_item({'#set': 'relax_naming_rules=1'})
