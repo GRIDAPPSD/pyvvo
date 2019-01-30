@@ -9,6 +9,10 @@ FROM gridappsd/app-container-base:latest
 ARG MSCC
 ARG GLD
 
+# Update pip (it's annoying the Python container doesn't always come
+# with the latest pip)
+RUN pip install --upgrade pip
+
 # Work from pyvvo.
 ENV PYVVO=/pyvvo
 
@@ -83,10 +87,6 @@ RUN perl -E "print '*' x 80" \
     && apt-get -y clean
 
 WORKDIR $PYVVO
-
-# Update pip (it's annoying the Python container doesn't always come
-# with the latest pip)
-RUN pip install --upgrade pip
 
 # Copy requirements.
 COPY requirements.txt $PYVVO/requirements.txt
