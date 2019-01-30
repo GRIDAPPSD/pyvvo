@@ -411,8 +411,18 @@ class GLMManager:
         # Initialize model_map.
         self.model_map = {'clock': [], 'module': {}, 'object': {},
                           'object_unnamed': []}
+
         # Map objects in the model.
-        self._map_model_dict()
+        parallel_dict = self._map_model_dict(self.model_dict, parallel_dict={})
+        # Merge the nested items into the top-level dict.
+        for k, v in parallel_dict.items():
+            # NOTE: this check isn't efficient, but it brings peace of
+            # mind.
+            if k in self.model_dict:
+                m = 'The key {} already exists in self.model_dict!'.format(k)
+                raise ItemExistsError(m)
+            else:
+                self.model_dict[k] = v
 
     def _update_append_key(self):
         """Add one to the append_key."""
@@ -422,8 +432,9 @@ class GLMManager:
         """Subtract one from the prepend_key."""
         self.prepend_key -= 1
 
-    def _map_model_dict(self):
-        """Generate mapping of model_dict by object type.
+    def _map_model_dict(self, model_dict, parallel_dict):
+        """Generate mapping of model_dict by object type, and "un-nest"
+            nested objects.
 
         Dictionary hierarchy will be as follows:
         <object type>
@@ -433,11 +444,19 @@ class GLMManager:
         NOTE: each item will be stored as [model_key, item_dict] in the
             map.
 
-        :returns: map_dict
+        :param model_dict: dictionary with numeric mappings to
+            dictionaries resembling GridLAB-D objects.
+        :param parallel_dict: Same as model_dict, but used to build up
+            dictionary of items to be "un-nested" after recursion is
+            complete.
+
+        :returns: parallel_dict: The contents of parallel_dict should be
+            merged into the model_dict after the function nesting is
+            complete.
         """
 
         # Loop over the model_dict.
-        for model_key, item_dict in self.model_dict.items():
+        for model_key, item_dict in model_dict.items():
 
             # Get the item type.
             item_type = self._get_item_type(item_dict)
@@ -466,7 +485,42 @@ class GLMManager:
                 # Unexpected type, raise warning.
                 raise ValueError('Unimplemented item: {}'.format(item_dict))
 
-        # That's it. Easy, isn't it?
+            # If the item's dictionary contains a numeric key mapped to
+            # a dictionary, we have a nested item which should be
+            # mapped. This will be done recursively.
+            to_pop = []
+            for k, v in item_dict.items():
+                if isinstance(k, int):
+                    if isinstance(v, dict):
+                        # Recurse.
+                        parallel_dict = \
+                            self._map_model_dict(model_dict={k: v},
+                                                 parallel_dict=parallel_dict)
+
+                        # Mark that we need to pop this (can't pop
+                        # while looping over the dict)
+                        to_pop.append(k)
+                    else:
+                        m = ('The model_dict has a numeric key that does not '
+                             + 'map to a dictionary!')
+                        raise TypeError(m)
+
+            # Remove nested objects, move to top-level.
+            for k in to_pop:
+                # Pop the object, and add the 'parent' property.
+                nested_item = item_dict.pop(k)
+                try:
+                    nested_item['parent'] = item_dict['name']
+                except KeyError:
+                    m = ('Nested item was nested within another item '
+                         + 'that does not have a name!')
+                    raise KeyError(m)
+
+                # Put item in the parallel dictionary.
+                parallel_dict[k] = nested_item
+
+        # Return the parallel dictionary.
+        return parallel_dict
 
     def _add_clock_to_map(self, model_key, clock_dict):
         """Add clock to the model map.

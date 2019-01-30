@@ -3,7 +3,6 @@ import unittest
 from unittest.mock import patch
 from datetime import datetime
 import os
-import subprocess
 import logging
 
 # Import module to test
@@ -17,6 +16,7 @@ LOG = logging.getLogger(__name__)
 TEST_FILE = 'test.glm'
 TEST_FILE2 = 'test2.glm'
 TEST_FILE3 = 'test3.glm'
+TEST_FILE4 = 'test4.glm'
 IEEE_13 = 'ieee_13.glm'
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
@@ -803,6 +803,46 @@ class AddRunComponentsIEEE13NodeTestCase(AddRunComponentsTestCase):
         rnr = self.glm.model_dict[-4]
 
         self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
+
+
+class NestedObjectsIEEE13TestCase(unittest.TestCase):
+    """Ensure that nested objects get properly mapped."""
+
+    # Define the model we'll use.
+    MODEL = IEEE_13
+
+    def setUp(self):
+        """Load model, add components."""
+        self.glm = glm.GLMManager(self.MODEL, model_is_path=True)
+
+    def test_nested_objects_ieee_13_solar_in_map(self):
+        self.assertTrue(self.glm.object_type_present('solar'))
+
+    def test_nested_objects_ieee_13_solar_in_dict(self):
+        self.assertEqual(self.glm.model_dict[13]['name'],
+                         '"pv_school_PVPanels"')
+
+
+class NestedObjectsDoubleNestTestCase(unittest.TestCase):
+    """Check that double-nesting works."""
+
+    def setUp(self):
+        """Load, save to file."""
+        self.glm = glm.GLMManager(TEST_FILE4, model_is_path=True)
+        self.glm.write_model('tmp.glm')
+
+    def tearDown(self):
+        os.remove('tmp.glm')
+
+    def test_nested_objects_double_nesting(self):
+
+        with open('tmp.glm', 'r') as f:
+            actual = f.read()
+
+        with open('test4_expected.glm', 'r') as f:
+            expected = f.read()
+
+        self.assertEqual(actual, expected)
 
 
 if __name__ == '__main__':
