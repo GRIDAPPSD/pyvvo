@@ -190,7 +190,15 @@ def _parse_token_list(token_list):
     # the work below while looping through the token list. Oh well -
     # the point of borrowing someone else's work is to avoid doing it
     # yourself.
-    objects_to_delete = []
+    _fix_old_syntax(tree)
+
+    return tree
+
+
+def _fix_old_syntax(tree):
+    """Function for 'catching old glm format and translating it.'
+    This is intended to work recursively to catch nested objects.
+    """
     for key in list(tree.keys()):
         if 'object' in list(tree[key].keys()):
             # if no name is present and the object name is the old syntax we
@@ -202,22 +210,25 @@ def _parse_token_list(token_list):
             # strip the old syntax from the object name
             tree[key]['object'] = tree[key]['object'].split(':')[0]
 
-            # for the remaining sytax we will replace ':' with '_'
+            # for the remaining syntax we will replace ':' with '_'
             for line in tree[key]:
-                tree[key][line] = tree[key][line].replace(':', '_')
-
-            # # deleting all recorders from the files
-            # if tree[key]['object'] == 'recorder' or \
-            #         tree[key]['object'] == 'group_recorder' or \
-            #         tree[key]['object'] == 'collector':
-            #     objects_to_delete.append(key)
+                try:
+                    tree[key][line] = tree[key][line].replace(':', '_')
+                except AttributeError:
+                    # If we've hit a dict, recurse.
+                    if isinstance(tree[key][line], dict):
+                        # Since dicts are mutable, and tree[key][line]
+                        # is a dict, this should work just fine for
+                        # updating in place.
+                        _fix_old_syntax(tree={line: tree[key][line]})
+                    else:
+                        raise TypeError("Something weird is going on.")
 
             # if we are working with fuses let's set the mean replace time to 1
             # hour if not specified. Then we aviod a warning!
             if tree[key][
                 'object'] == 'fuse' and 'mean_replacement_time' not in list(
-                    tree[key].keys()):
-
+                tree[key].keys()):
                 tree[key]['mean_replacement_time'] = 3600.0
 
             # FNCS is not able to handle names that include "-" so we will
@@ -230,11 +241,8 @@ def _parse_token_list(token_list):
                     # Property isn't present - move along.
                     pass
 
-    # deleting all recorders from the files
-    for keys in objects_to_delete:
-        del tree[keys]
-
-    return tree
+    # No return, as we're modifying in place.
+    return None
 
 
 def sorted_write(in_tree):
