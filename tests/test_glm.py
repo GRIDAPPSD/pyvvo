@@ -436,6 +436,16 @@ class TestGLMManager(unittest.TestCase):
         self.assertTrue(
             self._GLMManager.object_type_present('line_configuration'))
 
+    def test_module_present_bad_type(self):
+        self.assertRaises(TypeError, self._GLMManager.module_present,
+                          {'not': 'a string'})
+
+    def test_module_present_powerflow(self):
+        self.assertTrue(self._GLMManager.module_present('powerflow'))
+
+    def test_module_present_generators(self):
+        self.assertFalse(self._GLMManager.module_present('generators'))
+
     # TODO: model doesn't currently have a module which we can remove a
     # property from, because we modify the powerflow solver_method, and
     # cannot count on tests to run in order.

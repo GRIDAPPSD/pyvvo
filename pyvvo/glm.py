@@ -854,8 +854,25 @@ class GLMManager:
         else:
             return obj
 
+    def module_present(self, module_name):
+        """Check if named module is present in the model.
+
+        :param module_name: Name of module, must be a string.
+        """
+        # Check input.
+        if not isinstance(module_name, str):
+            raise TypeError('module_name must be a string.')
+
+        # Lookup module, return True/False based on whether it's found.
+        try:
+            self._lookup_module(module_name)
+        except KeyError:
+            return False
+        else:
+            return True
+
     def _lookup_module(self, module_name):
-        # Ensure named module is present.
+        """Lookup named module."""
         try:
             module = self.model_map['module'][module_name][1]
         except KeyError:
