@@ -50,19 +50,25 @@ class SPARQLManagerTestCase(unittest.TestCase):
                           'I am a thing.': {'things': 17,
                                             'name': 'I am a thing.'}}
 
-        self.assertEqual(self.sparql._bindings_to_dict(bindings),
-                         expected_value)
+        # Ensure _check_bindings is called.
+        with patch('pyvvo.sparql.SPARQLManager._check_bindings',
+                   return_value=None) as mock:
+            # Check the return value.
+            self.assertEqual(self.sparql._bindings_to_dict(bindings),
+                             expected_value)
 
-    def test_sparql_manager_bindings_to_dict_no_name(self):
-        self.assertRaises(KeyError, self.sparql._bindings_to_dict,
+            mock.assert_called_once()
+
+    def test_sparql_manager_check_bindings_no_name(self):
+        self.assertRaises(KeyError, self.sparql._check_bindings,
                           bindings=[{'I have no name': 'agh'}])
 
     def test_sparql_manager_bindings_to_dict_no_value(self):
         self.assertRaises(KeyError, self.sparql._bindings_to_dict,
                           bindings=[{'name': {'type': 'literal'}}])
 
-    def test_sparql_manager_bindings_to_dict_bad_binding_type(self):
-        self.assertRaises(TypeError, self.sparql._bindings_to_dict,
+    def test_sparql_manager_check_bindings_bad_binding_type(self):
+        self.assertRaises(TypeError, self.sparql._check_bindings,
                           bindings={'name': {'value': 'device',
                                              'type': 'stuff'}})
 
@@ -146,7 +152,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
             mock.assert_called_once()
             mock.assert_called_with(
                 self.sparql.CAPACITOR_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid))
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=False)
             self.assertEqual('success', cap_return)
 
     def test_sparql_manager_query_regulators(self):
@@ -172,8 +178,51 @@ class SPARQLManagerTestCase(unittest.TestCase):
             mock.assert_called_once()
             mock.assert_called_with(
                 self.sparql.REGULATOR_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid))
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
             self.assertEqual('success', reg_return)
+
+    def test_sparql_manager_bindings_to_dict_of_lists_valid_input(self):
+        bindings = [
+            {'name': {'type': 'literal', 'value': 'obj1'},
+             'stuff': {'value': '2'}
+             },
+            {'things': {'type': 2, 'value': 17},
+             'name': {'value': 'obj1'}
+             },
+            {'name': {'type': 'stuff', 'value': 'obj2'},
+             'property': {'value': 'yay'}}
+        ]
+
+        expected_value = {'obj1': [{'name': 'obj1', 'stuff': '2'},
+                                   {'name': 'obj1', 'things': 17}],
+                          'obj2': [{'name': 'obj2', 'property': 'yay'}]
+                          }
+
+        # Ensure _check_bindings is called.
+        with patch('pyvvo.sparql.SPARQLManager._check_bindings',
+                   return_value=None) as mock:
+            # Check the return value.
+            self.assertEqual(self.sparql._bindings_to_dict_of_lists(bindings),
+                             expected_value)
+
+            mock.assert_called_once()
+
+    def test_sparql_manager_bindings_to_dict_of_lists_bad_mapping(self):
+        bindings = [{'name': {'value': 'object'},
+                     'attribute': 7}]
+
+        # This will raise a TypeError since:
+        # "'int' object is not subscriptable"
+        self.assertRaises(TypeError, self.sparql._bindings_to_dict_of_lists,
+                          bindings=bindings)
+
+    def test_sparql_manager_bindings_to_dict_of_lists_no_value(self):
+        bindings = [{'name': {'value': 'object'},
+                     'attribute': {'type': 'attribute'}}]
+
+        # This will raise a KeyError since there's no 'value' key.
+        self.assertRaises(KeyError, self.sparql._bindings_to_dict_of_lists,
+                          bindings=bindings)
 
 
 if __name__ == '__main__':

@@ -68,18 +68,27 @@ class SPARQLManager:
         # Done.
         return result
 
-    def query_named_objects(self, query_string):
+    def query_named_objects(self, query_string, one_to_many=False):
         """Helper to perform a data query for named objects.
 
         NOTE: All queries MUST return an object name. If this is too
         restrictive it can be modified later.
+
+        :param query_string: Fully formatted SPARQL query.
+        :param one_to_many: Boolean, True/False. If True, each named
+            object could have multiple returns. Otherwise, each named
+            object only has one return.
         """
         # Perform query.
         result = self.query_data(query_string)
 
-        # Get dictionary of objects.
-        output = \
-            self._bindings_to_dict(result['data']['results']['bindings'])
+        if one_to_many:
+            output = self._bindings_to_dict_of_lists(
+                result['data']['results']['bindings'])
+        else:
+            # Get dictionary of objects.
+            output = \
+                self._bindings_to_dict(result['data']['results']['bindings'])
 
         return output
 
@@ -87,7 +96,8 @@ class SPARQLManager:
         """Get information on capacitors in the feeder."""
         # Perform the query.
         result = self.query_named_objects(
-            self.CAPACITOR_QUERY.format(feeder_mrid=self.feeder_mrid))
+            self.CAPACITOR_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=False)
         self.log.info('Capacitor data obtained.')
 
         # Done.
@@ -97,7 +107,8 @@ class SPARQLManager:
         """Get information on capacitors in the feeder."""
         # Perform the query.
         result = self.query_named_objects(
-            self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid))
+            self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True)
         self.log.info('Regulator data obtained.')
 
         # Done.
@@ -113,7 +124,66 @@ class SPARQLManager:
         The dictionary will be keyed by 'name,' so all bindings must
         have a 'name' attribute. So the upstream SPARQL query should be
         naming the name variable 'name.'
+
+        NOTE: If two bindings contain the same 'name,' a KeyError will
+        be raised.
         """
+        self._check_bindings(bindings)
+
+        # Loop over the bindings and simplify to dictionary keyed by
+        # object name, and only includes attribute names and values.
+        output = dict()
+        for obj in bindings:
+            key = obj['name']['value']
+            # Attempt to access the item in the dictionary.
+            try:
+                output[key]
+            except KeyError:
+                # This object doesn't have a dict entry. Use dictionary
+                # comprehension to create it.
+                output[key] = {k: v['value'] for (k, v) in obj.items()}
+            else:
+                # This object already exists in the dictionary, and we
+                # don't want to overwrite it.
+                raise KeyError(
+                    'Item {} is already in the dictionary!'.format(key))
+
+        self.log.debug("Bindings mapped into 1:1 dictionary.")
+        return output
+
+    def _bindings_to_dict_of_lists(self, bindings):
+        """Given list of bindings, map them into a dictionary of lists.
+
+        As in _bindings_to_dict, the dictionary will be keyed by 'name,'
+        so all bindings must have the 'name' attribute.
+
+        Each item of the dictionary will be mapped to a list. In
+        contrast to _bindings_to_dict, the bindings can contain
+        duplicates of the same 'name.'
+        """
+        # Perform simple checks on the bindings.
+        self._check_bindings(bindings)
+
+        # Loop over the bindings and simplify to dictionary keyed by
+        # object name, and only includes attribute names and values.
+        output = dict()
+        for obj in bindings:
+            key = obj['name']['value']
+            # Attempt to access the item in the dictionary.
+            try:
+                output[key]
+            except KeyError:
+                # This object doesn't have an entry. Create it.
+                output[key] = []
+            finally:
+                # Put this dictionary in the list.
+                output[key].append({k: v['value'] for (k, v) in obj.items()})
+
+        self.log.debug("Bindings mapped into dictionary of lists.")
+        return output
+
+    def _check_bindings(self, bindings):
+        """Simple helper to do primitive checks on returned bindings."""
         # Ensure bindings is a list.
         if not isinstance(bindings, list):
             self.log.error(("'Bindings' is not a list:"
@@ -129,18 +199,6 @@ class SPARQLManager:
                  + "{}".format(bindings))
             self.log.error(m)
             raise KeyError("All bindings must have a 'name' attribute.")
-
-        # Loop over the bindings and simplify to dictionary keyed by
-        # object name, and only includes attribute names and values.
-        output = dict()
-        for obj in bindings:
-            # Perform the simplification using dictionary comprehension.
-            # Note we'll get a KeyError if
-            output[obj['name']['value']] = \
-                {k: v['value'] for (k, v) in obj.items()}
-
-        self.log.debug("Bindings mapped into dictionary.")
-        return output
 
     ####################################################################
     # SPARQL QUERY TEXT
