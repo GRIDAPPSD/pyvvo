@@ -2,7 +2,7 @@ import unittest
 import math
 import cmath
 from pyvvo import utils
-
+from datetime import datetime
 
 class TestParseComplexStr(unittest.TestCase):
     """Test utils.parse_complex_str.
@@ -138,6 +138,20 @@ class RunGLDTestCase(unittest.TestCase):
 
     def test_run_gld_bad_env(self):
         self.assertFalse(utils.run_gld('test2.glm', env={'PATH': '/usr/bin'}))
+
+
+class DTToUSFromEpochTestCase(unittest.TestCase):
+    """Test dt_to_us_from_epoch"""
+
+    def test_datetime_to_microseconds_from_epoch_bad_type(self):
+        self.assertRaises(AttributeError,
+                          utils.dt_to_us_from_epoch,
+                          '2012-01-01 00:00:00')
+
+    def test_datetime_to_microseconds_from_epoch_1(self):
+        # Source: https://www.epochconverter.com/
+        self.assertEqual("1356998400000000",
+                         utils.dt_to_us_from_epoch(datetime(2013, 1, 1)))
 
 
 if __name__ == '__main__':

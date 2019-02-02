@@ -181,3 +181,13 @@ def run_gld(model_path, env=None):
              + 'stderr:{}').format(model_path, result.stdout, result.stderr)
         LOG.error(m)
         return False
+
+
+def dt_to_us_from_epoch(dt):
+    """Convert datetime.datetime object to microseconds since the epoch.
+
+    :param dt: datetime.datetime object.
+
+    :returns: microseconds since the epoch as a string.
+    """
+    return '{:.0f}'.format(dt.timestamp() * 1e6)
