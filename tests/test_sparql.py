@@ -224,6 +224,78 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertRaises(KeyError, self.sparql._bindings_to_dict_of_lists,
                           bindings=bindings)
 
+    def test_sparql_manager_query_load_nominal_voltage_calls_qno(self):
+        """query_load_nominal_voltage must call query_named_objects."""
+
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            load_nom_v = self.sparql.query_load_nominal_voltage()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.LOAD_NOMINAL_VOLTAGE_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=False)
+            self.assertEqual('success', load_nom_v)
+
+    def test_sparql_manager_query_load_nominal_voltage_expected_return(self):
+        """Check one of the elements from query_load_nominal_voltage."""
+        expected = {'name': '2127146b0', 'bus': 'sx3160864b',
+                    'basev': '208', 'conn': 'Y', 'phases': 's1,s2'}
+
+        full_actual = self.sparql.query_load_measurements()
+
+        self.assertIn(expected['name'], full_actual)
+
+        self.assertDictEqual(full_actual[expected['name']], expected)
+
+    def test_sparql_manager_query_load_measurements_calls_qno(self):
+        """query_load_measurements must call query_named_objects."""
+
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            load_meas = self.sparql.query_load_measurements()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.LOAD_MEASUREMENTS_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
+            self.assertEqual('success', load_meas)
+
+    def test_sparql_manager_query_load_measurements_expected_return(self):
+        """Check on of the elements from query_load_measurements."""
+        expected = [{'class': 'Analog', 'type': 'PNV',
+                     'name': 'EnergyConsumer_21395720c0',
+                     'node': 'sx2860492c', 'phases': 's1',
+                     'load': '21395720c0',
+                     'eqid': '_40DAA2E0-A34E-0807-6879-6D908E586EF4',
+                     'trmid': '_9E36102E-7888-11F3-D887-20E7764FFCA4',
+                     'id': '_88bcd540-33e0-444b-8393-1ea955bc72f4'},
+                    {'class': 'Analog', 'type': 'PNV',
+                     'name': 'EnergyConsumer_21395720c0',
+                     'node': 'sx2860492c', 'phases': 's2',
+                     'load': '21395720c0',
+                     'eqid': '_40DAA2E0-A34E-0807-6879-6D908E586EF4',
+                     'trmid': '_9E36102E-7888-11F3-D887-20E7764FFCA4',
+                     'id': '_a77b6a44-4960-43cb-bd11-10e7c93a0b61'},
+                    {'class': 'Analog', 'type': 'VA',
+                     'name': 'EnergyConsumer_21395720c0',
+                     'node': 'sx2860492c', 'phases': 's1',
+                     'load': '21395720c0',
+                     'eqid': '_40DAA2E0-A34E-0807-6879-6D908E586EF4',
+                     'trmid': '_9E36102E-7888-11F3-D887-20E7764FFCA4',
+                     'id': '_41ce341e-e55e-4560-809c-67df0c85c27b'},
+                    {'class': 'Analog', 'type': 'VA',
+                     'name': 'EnergyConsumer_21395720c0',
+                     'node': 'sx2860492c', 'phases': 's2',
+                     'load': '21395720c0',
+                     'eqid': '_40DAA2E0-A34E-0807-6879-6D908E586EF4',
+                     'trmid': '_9E36102E-7888-11F3-D887-20E7764FFCA4',
+                     'id': '_dbf70967-46e1-4c5e-bc83-e514f01a2142'}]
+
+        full_actual = self.sparql.query_load_measurements()
+
+        self.assertIn(expected[0]['name'], full_actual)
+
+        self.assertEqual(expected, full_actual[expected[0]['name']])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -114,6 +114,31 @@ class SPARQLManager:
         # Done.
         return result
 
+    def query_load_nominal_voltage(self):
+        """Get the nominal voltage for EnergyConsumers (loads).
+
+        The values are not altered, so division by sqrt(3) will need to
+        happen later.
+        """
+        result = \
+            self.query_named_objects(
+                self.LOAD_NOMINAL_VOLTAGE_QUERY.format(
+                    feeder_mrid=self.feeder_mrid),
+                one_to_many=False)
+        self.log.info('Load nominal voltage obtained.')
+        return result
+
+    def query_load_measurements(self):
+        """Get measurement objects attached to EnergyConsumers (loads).
+
+        Note that each load may have multiple measurements.
+        """
+        result = self.query_named_objects(
+            self.LOAD_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True)
+        self.log.info('Load measurements data obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -331,6 +356,62 @@ class SPARQLManager:
          "?inf c:TapChangerInfo.ptRatio ?ptRatio. "
          "}} "
          "ORDER BY ?name ?tname ?rname ?wnum "
+         )
+
+    # Query for getting the nominal voltage of EnergyConsumers.
+    LOAD_NOMINAL_VOLTAGE_QUERY = \
+        (PREFIX +
+         r'SELECT ?name ?bus ?basev ?conn '
+         '(group_concat(distinct ?phs;separator=",") as ?phases) '
+         "WHERE {{ "
+         "?s r:type c:EnergyConsumer. "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?s c:Equipment.EquipmentContainer ?fdr. "
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+         "?s c:IdentifiedObject.name ?name. "
+         "?s c:ConductingEquipment.BaseVoltage ?bv. "
+         "?bv c:BaseVoltage.nominalVoltage ?basev. "
+         "?s c:EnergyConsumer.phaseConnection ?connraw. "
+         'bind(strafter(str(?connraw),"PhaseShuntConnectionKind.") as ?conn) '
+         "OPTIONAL {{ "
+         "?ecp c:EnergyConsumerPhase.EnergyConsumer ?s. "
+         "?ecp c:EnergyConsumerPhase.phase ?phsraw. "
+         'bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) '
+         "}} "
+         "?t c:Terminal.ConductingEquipment ?s. "
+         "?t c:Terminal.ConnectivityNode ?cn. "
+         "?cn c:IdentifiedObject.name ?bus "
+         "}} "
+         "GROUP BY ?name ?bus ?basev ?p ?q ?conn "
+         "ORDER by ?name "
+         )
+
+    # Query for getting measurement objects attached to EnergyConsumers.
+    LOAD_MEASUREMENTS_QUERY = \
+        (PREFIX +
+         "SELECT ?class ?type ?name ?node ?phases ?load ?eqid ?trmid ?id "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr. "
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
+         'UNION '
+         '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '?s c:IdentifiedObject.name ?name . '
+         '?s c:IdentifiedObject.mRID ?id . '
+         '?s c:Measurement.PowerSystemResource ?eq . '
+         '?s c:Measurement.Terminal ?trm . '
+         '?s c:Measurement.measurementType ?type . '
+         '?trm c:IdentifiedObject.mRID ?trmid. '
+         '?eq c:IdentifiedObject.mRID ?eqid. '
+         '?eq c:IdentifiedObject.name ?load. '
+         '?eq r:type c:EnergyConsumer. '
+         '?trm c:Terminal.ConnectivityNode ?cn. '
+         '?cn c:IdentifiedObject.name ?node. '
+         '?s c:Measurement.phases ?phsraw . '
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}} '
+         '}} '
+         'ORDER BY ?load ?class ?type ?name '
          )
 
 
