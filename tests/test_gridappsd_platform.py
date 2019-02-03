@@ -164,49 +164,8 @@ class PlatformManagerTestCase(unittest.TestCase):
         actual = self.platform.get_weather(start_time=datetime(2013, 1, 1, 7),
                                            end_time=datetime(2013, 1, 1, 7))
 
-        expected = {'data': {'measurements': [{'name': 'weather', 'points': [{
-            'row': {
-                'entry': [
-                    {
-                        'key': 'Diffuse',
-                        'value': '-0.005737318200000001'},
-                    {
-                        'key': 'AvgWindSpeed',
-                        'value': '3.2234'},
-                    {
-                        'key': 'TowerRH',
-                        'value': '79.82'},
-                    {
-                        'key': 'long',
-                        'value': '105.18 W'},
-                    {
-                        'key': 'MST',
-                        'value': '01:00'},
-                    {
-                        'key': 'TowerDryBulbTemp',
-                        'value': '14.342'},
-                    {
-                        'key': 'DATE',
-                        'value': '1/1/2013'},
-                    {
-                        'key': 'DirectCH1',
-                        'value': '-0.029209525099999998'},
-                    {
-                        'key': 'GlobalCM22',
-                        'value': '-0.039957869300000004'},
-                    {
-                        'key': 'AvgWindDirection',
-                        'value': '271.0'},
-                    {
-                        'key': 'time',
-                        'value': '1357023600'},
-                    {
-                        'key': 'place',
-                        'value': 'Solar Radiation Research Laboratory'},
-                    {
-                        'key': 'lat',
-                        'value': '39.74 N'}]}}]}]},
-                    'responseComplete': True, 'id': '1226667814'}
+        with open('weather_simple.json', 'r') as f:
+            expected = json.load(f)
 
         # Pop the IDs from actual and expected.
         actual.pop('id')
