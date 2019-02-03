@@ -153,16 +153,19 @@ class PlatformManagerTestCase(unittest.TestCase):
                           start_time=datetime(2013, 1, 1, 0))
 
     def test_platform_manager_get_weather_no_data(self):
-        # NOTE: There should be data for 2013-01-01 00:00:00, but I
-        # believe there was a timezone problem when it was loaded.
+        # NOTE: data starts 2013-01-01 00:00:00 Mountain Time.
         self.assertRaises(gridappsd_platform.QueryReturnEmptyError,
                           self.platform.get_weather,
-                          start_time=datetime(2013, 1, 1, 0),
-                          end_time=datetime(2013, 1, 1, 0, 15))
+                          start_time=datetime(2013, 1, 1, 5, 59),
+                          end_time=datetime(2013, 1, 1, 5, 59))
 
     def test_platform_manager_get_weather_valid(self):
-        actual = self.platform.get_weather(start_time=datetime(2013, 1, 1, 7),
-                                           end_time=datetime(2013, 1, 1, 7))
+        actual = self.platform.get_weather(start_time=datetime(2013, 1, 1, 6),
+                                           end_time=datetime(2013, 1, 1, 6))
+
+        # Uncomment to re-generated expected.
+        # with open('weather_simple.json', 'w') as f:
+        #     json.dump(actual, f)
 
         with open('weather_simple.json', 'r') as f:
             expected = json.load(f)
