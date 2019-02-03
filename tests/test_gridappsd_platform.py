@@ -2,6 +2,7 @@
 import os
 import unittest
 from unittest.mock import patch
+from datetime import datetime
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform
@@ -18,6 +19,8 @@ except ConnectFailedException:
     PLATFORM_RUNNING = False
 else:
     PLATFORM_RUNNING = True
+
+NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
 
 
 class GetGADAddressTestCase(unittest.TestCase):
@@ -43,8 +46,7 @@ class GetGADAddressTestCase(unittest.TestCase):
             self.assertEqual(('gridappsd', 61613), address)
 
 
-@unittest.skipUnless(PLATFORM_RUNNING,
-                     reason='Could not connect to the GridAPPS-D platform.')
+@unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
 class GetGADObjectTestCase(unittest.TestCase):
     """Test get_gad_object. NOTE: Requires the GridAPPS-D platform to be
     up and running. Also, the 'platform' environment variable must be
@@ -95,31 +97,122 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
         self.assertEqual('0', gridappsd_platform.get_platform_env_var())
 
 
+@unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
 class PlatformManagerTestCase(unittest.TestCase):
     """Test the PlatformManager. Requires the GridAPPS-D platform to
     be up and running, and the 'platform' environment variable to be
     set.
     """
+
     def setUp(self):
-        # Initialize a platform manager.
+        """Get a PlatformManager."""
         self.platform = gridappsd_platform.PlatformManager()
 
     def test_platform_manager_gad(self):
         self.assertIsInstance(self.platform.gad, GridAPPSD)
 
-    def test_platform_manager_get_glm(self):
+    def test_platform_manager_get_glm_patched(self):
+        """Check return for get_glm, but patch the platform call."""
         # TODO: update when platform is fixed.
         m = '{"data":"model123456","responseComplete":true,"id": "bigID"}'
         platform_return = {
             'error': 'Invalid json returned',
             'header': {'stuff': 'I do not need'}, 'message': m}
 
-        with patch('gridappsd.GridAPPSD.get_response',
-                   return_value=platform_return) as mock:
+        with patch.object(self.platform.gad, 'get_response',
+                          return_value=platform_return) as mock:
             glm = self.platform.get_glm(model_id="someID")
             mock.assert_called_once()
 
         self.assertEqual(glm, '"model123456"')
+
+    def test_platform_manager_get_glm_13_bus(self):
+        """Check return for get_glm, actually calling the platform."""
+        # IEEE 13 bus model.
+        model_id = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+        glm = self.platform.get_glm(model_id=model_id)
+
+        # Uncomment to recreate the expected return.
+        # with open('ieee_13.glm', 'w') as f:
+        #     f.write(glm)
+
+        # Get expected.
+        with open('ieee_13.glm', 'r') as f:
+            expected = f.read()
+
+        self.assertEqual(glm, expected)
+
+    def test_platform_manager_get_weather_bad_start_time(self):
+        self.assertRaises(TypeError, self.platform.get_weather,
+                          start_time='2013-01-01 00:00:00',
+                          end_time=datetime(2013, 1, 1, 0, 15))
+
+    def test_platform_manager_get_weather_bad_end_time(self):
+        self.assertRaises(TypeError, self.platform.get_weather,
+                          end_time='2013-01-01 00:15:00',
+                          start_time=datetime(2013, 1, 1, 0))
+
+    def test_platform_manager_get_weather_no_data(self):
+        # NOTE: There should be data for 2013-01-01 00:00:00, but I
+        # believe there was a timezone problem when it was loaded.
+        self.assertRaises(gridappsd_platform.QueryReturnEmptyError,
+                          self.platform.get_weather,
+                          start_time=datetime(2013, 1, 1, 0),
+                          end_time=datetime(2013, 1, 1, 0, 15))
+
+    def test_platform_manager_get_weather_valid(self):
+        actual = self.platform.get_weather(start_time=datetime(2013, 1, 1, 7),
+                                           end_time=datetime(2013, 1, 1, 7))
+
+        expected = {'data': {'measurements': [{'name': 'weather', 'points': [{
+            'row': {
+                'entry': [
+                    {
+                        'key': 'Diffuse',
+                        'value': '-0.005737318200000001'},
+                    {
+                        'key': 'AvgWindSpeed',
+                        'value': '3.2234'},
+                    {
+                        'key': 'TowerRH',
+                        'value': '79.82'},
+                    {
+                        'key': 'long',
+                        'value': '105.18 W'},
+                    {
+                        'key': 'MST',
+                        'value': '01:00'},
+                    {
+                        'key': 'TowerDryBulbTemp',
+                        'value': '14.342'},
+                    {
+                        'key': 'DATE',
+                        'value': '1/1/2013'},
+                    {
+                        'key': 'DirectCH1',
+                        'value': '-0.029209525099999998'},
+                    {
+                        'key': 'GlobalCM22',
+                        'value': '-0.039957869300000004'},
+                    {
+                        'key': 'AvgWindDirection',
+                        'value': '271.0'},
+                    {
+                        'key': 'time',
+                        'value': '1357023600'},
+                    {
+                        'key': 'place',
+                        'value': 'Solar Radiation Research Laboratory'},
+                    {
+                        'key': 'lat',
+                        'value': '39.74 N'}]}}]}]},
+                    'responseComplete': True, 'id': '1226667814'}
+
+        # Pop the IDs from actual and expected.
+        actual.pop('id')
+        expected.pop('id')
+
+        self.assertDictEqual(actual, expected)
 
 
 if __name__ == '__main__':

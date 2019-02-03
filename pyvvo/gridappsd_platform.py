@@ -10,6 +10,8 @@ import simplejson as json
 import os
 import logging
 import re
+from datetime import datetime
+from pyvvo import utils
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -148,6 +150,122 @@ class PlatformManager:
         glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
         return glm
 
+    def get_weather(self, start_time, end_time):
+        """Helper for querying weather data.
+
+        :param start_time: datetime.datetime object denoting the
+            beginning time of weather data to pull.
+        :param end_time: "..." end time "..."
+        """
+        # Check inputs:
+        if (not isinstance(start_time, datetime)) \
+                or (not isinstance(end_time, datetime)):
+            m = 'start_time and end_time must both be datetime.datetime!'
+            raise TypeError(m)
+
+        # The weather data API needs microseconds from the epoch as a
+        # string. Why this inconsistency? I don't know.
+        payload = {'queryMeasurement': 'weather',
+                   'queryFilter': {'startTime':
+                                       utils.dt_to_us_from_epoch(start_time),
+                                   'endTime':
+                                       utils.dt_to_us_from_epoch(end_time)},
+                   'responseFormat': 'JSON'}
+
+        # TODO: Update gridappsd-python
+        topic = '/queue/goss.gridappsd.process.request.data.timeseries'
+
+        data = self.gad.get_response(topic=topic, message=payload,
+                                     timeout=self.timeout)
+
+        # Check to see if we actually have any data. We have to navigate
+        # through pretty crazy nesting here...
+        empty = True
+        for meas in data['data']['measurements']:
+            if len(meas['points']) > 0:
+                empty = False
+                break
+
+        if empty:
+            raise QueryReturnEmptyError(topic=topic, query=payload)
+
+        # TODO: Throw exception on empty return.
+        return data
+
+
+    # def run_simulation(self):
+    #     """Start a simulation and return the simulation ID.
+    #
+    #     TODO: stop hard-coding, take inputs.
+    #     """
+    #     # Hard-code simulation request to start simulation. This was
+    #     # obtained by copy + pasting from the terminal in the viz app.
+    #     geo_name = "_24809814-4EC6-29D2-B509-7F8BFB646437"
+    #     subgeo_name = "_1CD7D2EE-3C91-3248-5662-A43EFEFAC224"
+    #     # 13-node:
+    #     model_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+    #     sim_name = "ieee13nodeckt"
+    #     # 8500 node:
+    #     # model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
+    #     # sim_name = "ieee8500"
+    #     sim_request = \
+    #         {
+    #             "power_system_config": {
+    #                 "GeographicalRegion_name": geo_name,
+    #                 "SubGeographicalRegion_name": subgeo_name,
+    #                 "Line_name": model_mrid
+    #             },
+    #             "application_config": {"applications": []},
+    #             "simulation_config": {
+    #                 "start_time": "1248152400",
+    #                 "duration": "30",
+    #                 "simulator": "GridLAB-D",
+    #                 "timestep_frequency": "1000",
+    #                 "timestep_increment": "1000",
+    #                 "run_realtime": True,
+    #                 "simulation_name": sim_name,
+    #                 "power_flow_solver_method": "NR",
+    #                 "model_creation_config": {
+    #                     "load_scaling_factor": "1",
+    #                     "schedule_name": "ieeezipload",
+    #                     "z_fraction": "0",
+    #                     "i_fraction": "1",
+    #                     "p_fraction": "0",
+    #                     "randomize_zipload_fractions": False,
+    #                     "use_houses": False
+    #                 }
+    #             }
+    #         }
+    #
+    #     # Run simulation.
+    #     sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,
+    #                                    message=json.dumps(sim_request))
+    #
+    #     return sim_id
+
+
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class QueryReturnEmptyError(Error):
+    """Raised if a platform query for data returns empty.
+
+    Attributes:
+        topic -- Topic query was executed on.
+        query -- Given query.
+        message -- explanation of the error.
+    """
+
+    def __init__(self, topic, query):
+        self.topic = topic
+        self.query = query
+        self.message = 'Query on topic {} returned no data! Query: {}'.format(
+            self.topic, self.query
+        )
+
+
     # def _parse_simulation_request(self, *args, **kwargs):
     #     """Parse request to start a simulation."""
     #     print('_parse_simulation_request has been called!', flush=True)
@@ -186,44 +304,6 @@ class PlatformManager:
 #     # Get model information.
 #     info = mgr.gad.query_model_info()
 #
-#     # Hard-code simulation request to start simulation. This was
-#     # obtained by copy + pasting from the terminal in the viz app.
-#     geo_name = "_24809814-4EC6-29D2-B509-7F8BFB646437"
-#     subgeo_name = "_1CD7D2EE-3C91-3248-5662-A43EFEFAC224"
-#     model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
-#     sim_request = \
-#         {
-#             "power_system_config": {
-#                 "GeographicalRegion_name": geo_name,
-#                 "SubGeographicalRegion_name": subgeo_name,
-#                 "Line_name": model_mrid
-#             },
-#             "application_config": {"applications": []},
-#             "simulation_config": {
-#                 "start_time": "1248152400",
-#                 "duration": "2",
-#                 "simulator": "GridLAB-D",
-#                 "timestep_frequency": "1000",
-#                 "timestep_increment": "1000",
-#                 "run_realtime": True,
-#                 "simulation_name": "ieee8500",
-#                 "power_flow_solver_method": "NR",
-#                 "model_creation_config": {
-#                     "load_scaling_factor": "1",
-#                     "schedule_name": "ieeezipload",
-#                     "z_fraction": "0",
-#                     "i_fraction": "1",
-#                     "p_fraction": "0",
-#                     "randomize_zipload_fractions": False,
-#                     "use_houses": False
-#                 }
-#             }
-#         }
-#
-#     # Run simulation.
-#     # sim_response = \
-#     #     mgr.gad.get_response(topic=topics.REQUEST_SIMULATION,
-#     #                          message=json.dumps(sim_request))
 #
 #     print('stuff cause debugger is being shitty.')
 #     # Get the platform status.
