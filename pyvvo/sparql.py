@@ -139,6 +139,25 @@ class SPARQLManager:
         self.log.info('Load measurements data obtained.')
         return result
 
+    def query_all_measurements(self):
+        """Query all measurements in a model."""
+        result = self.query_named_objects(
+            self.ALL_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('All measurements obtained.')
+        return result
+
+    def query_rtc_measurements(self):
+        """Query measurements attached to ratio tap changers."""
+        result = self.query_named_objects(
+            self.RTC_POSITION_MEASUREMENT_QUERY.format(
+                feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('All measurements obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -412,6 +431,77 @@ class SPARQLManager:
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}} '
          '}} '
          'ORDER BY ?load ?class ?type ?name '
+         )
+
+    # List all measurements with buses and equipment - DistMeasurement.
+    ALL_MEASUREMENTS_QUERY = \
+        (PREFIX +
+         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
+         "?id "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr."
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
+         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
+         'UNION '
+         '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '?s c:IdentifiedObject.name ?name .'
+         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:Measurement.PowerSystemResource ?eq .'
+         '?s c:Measurement.Terminal ?trm .'
+         '?s c:Measurement.measurementType ?type .'
+         '?trm c:IdentifiedObject.mRID ?trmid.'
+         '?eq c:IdentifiedObject.mRID ?eqid.'
+         '?eq c:IdentifiedObject.name ?eqname.'
+         '?eq r:type ?typeraw.'
+         'bind(strafter(str(?typeraw),"#") as ?eqtype)'
+         '?trm c:Terminal.ConnectivityNode ?cn.'
+         '?cn c:IdentifiedObject.name ?bus.'
+         '?s c:Measurement.phases ?phsraw .'
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
+         '}} ORDER BY ?class ?type ?name'
+         )
+
+    # Get measurements associated with power transformers which have
+    # discrete measurements.
+    # TODO: Rather than relying on a discrete measurement, only get
+    #   measurements attached to ratio tap changers.
+    RTC_POSITION_MEASUREMENT_QUERY = \
+        (PREFIX +
+         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
+         "?id "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr."
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
+         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
+         # 'UNION '
+         # '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '?s c:IdentifiedObject.name ?name .'
+         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:Measurement.PowerSystemResource ?eq .'
+         '?s c:Measurement.Terminal ?trm .'
+         '?s c:Measurement.measurementType ?type .'
+         '?trm c:IdentifiedObject.mRID ?trmid.'
+         '?eq c:IdentifiedObject.mRID ?eqid.'
+         '?eq c:IdentifiedObject.name ?eqname.'
+         "?eq r:type c:PowerTransformer. "
+         # Commented stuff below includes failed attempt(s) to filter
+         #      by ratio tap changers only.
+         # "?rtc r:type c:RatioTapChanger. "
+         # "?rtc c:RatioTapChanger.TransformerEnd ?end. "
+         # "?eq c:RatioTapChanger ?rtc. "
+         # "?end c:TransformerTankEnd.TransformerTank ?tank. "
+         # "?tank c:TransformerTank.PowerTransformer ?pxf. "
+         # "?asset c:Asset.PowerSystemResources ?rtc. "
+         # "?eq r:type c:RatioTapChanger. "
+         '?eq r:type ?typeraw.'
+         'bind(strafter(str(?typeraw),"#") as ?eqtype)'
+         '?trm c:Terminal.ConnectivityNode ?cn.'
+         '?cn c:IdentifiedObject.name ?bus.'
+         '?s c:Measurement.phases ?phsraw .'
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
+         '}} ORDER BY ?class ?type ?name'
          )
 
 

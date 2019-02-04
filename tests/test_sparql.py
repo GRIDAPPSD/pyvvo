@@ -260,7 +260,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
             self.assertEqual('success', load_meas)
 
     def test_sparql_manager_query_load_measurements_expected_return(self):
-        """Check on of the elements from query_load_measurements."""
+        """Check one of the elements from query_load_measurements."""
         expected = [{'class': 'Analog', 'type': 'PNV',
                      'name': 'EnergyConsumer_21395720c0',
                      'node': 'sx2860492c', 'phases': 's1',
@@ -295,6 +295,43 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertIn(expected[0]['name'], full_actual)
 
         self.assertEqual(expected, full_actual[expected[0]['name']])
+
+    def test_sparql_manager_query_all_measurements(self):
+        """Ensure query_all_measurements calls query_named_objects."""
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            all_meas = self.sparql.query_all_measurements()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.ALL_MEASUREMENTS_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
+            self.assertEqual('success', all_meas)
+
+    def test_sparql_manager_query_rtc_measurements_calls_query_named(self):
+        """Ensure query_rtc_measurements calls query_named_objects"""
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            rtc_meas = self.sparql.query_rtc_measurements()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.RTC_POSITION_MEASUREMENT_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
+            self.assertEqual('success', rtc_meas)
+
+    def test_sparql_manager_query_rtc_measurements_4_regs(self):
+        """The 8500 node system has 4 regulators, all with measurements.
+
+        Ensure performing the actual query returns 4 named objects, and
+        that each of the named objects has 3 measurements.
+        """
+        rtc_meas = self.sparql.query_rtc_measurements()
+
+        # Ensure we get four elements.
+        self.assertEqual(4, len(rtc_meas))
+
+        # For each of the four elements, ensure we have 3 measurements.
+        for _, v in rtc_meas.items():
+            self.assertEqual(3, len(v))
 
 
 if __name__ == '__main__':
