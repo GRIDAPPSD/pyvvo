@@ -63,19 +63,41 @@ def parse_weather(data):
     return df_weather
 
 
-# def adjust_weather(data, interval, interval_unit):
-#     """Resample weather data, zero out negative GHI.
-#     data should be DataFrame from parse_weather
-#     interval: e.g. 15
-#     interval_unit: e.g. "Min"
-#     """
-#     # Get 15-minute average. Since we want historic data leading up to
-#     # the time in our interval, use 'left' options
-#     weather = data.resample('{}{}'.format(interval, interval_unit),
-#                             closed='right', label='right').mean()
-#
-#     # Zero-out negative GHI.
-#     weather['ghi'][weather['ghi'] < 0] = 0
-#
-#     return weather
+def resample_weather(weather_data, interval, interval_unit):
+    """Resample weather data.
+
+    :param weather_data: DataFrame result from calling parse_weather.
+    :param interval: Integer for resampling, e.g. 15
+    :param interval_unit: One of the "offset aliases" for frequencies
+        in pandas, e.g. "Min":
+        http://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html
+    """
+    if not isinstance(weather_data, pd.DataFrame):
+        raise TypeError('weather_data must be a pandas DataFrame.')
+
+    if not isinstance(interval, int):
+        raise TypeError('interval must be an integer!')
+
+    if not isinstance(interval_unit, str):
+        raise TypeError('interval_unit must be a string!')
+
+    # Perform the resampling.
+    return weather_data.resample('{}{}'.format(interval, interval_unit),
+                                 closed='right', label='right').mean()
+
+
+def fix_ghi(weather_data):
+    """The weather data can have negative GHI values, which is not
+    sensible. Zero them out.
+
+    :param weather_data: DataFrame from calling parse_weather. Must have
+        a 'ghi' column.
+    """
+    if not isinstance(weather_data, pd.DataFrame):
+        raise TypeError('weather_data must be a pandas DataFrame.')
+
+    # Zero-out negative GHI.
+    weather_data['ghi'][weather_data['ghi'] < 0] = 0
+
+    return weather_data
 

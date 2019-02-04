@@ -142,5 +142,74 @@ class ParseWeatherTestCase(unittest.TestCase):
         self.assertRaises(ValueError, weather.parse_weather, data)
 
 
+class ResampleWeatherTestCase(unittest.TestCase):
+    """Test resample_weather function."""
+
+    def setUp(self):
+        """Create a DataFrame for resampling."""
+        dt_index = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=15,
+                                 freq='1Min')
+
+        # Create a temperature array with an average of 2.
+        temp = [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]
+
+        # Create ghi array with an average of 3.
+        ghi = [2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4]
+
+        # Create DataFrame.
+        self.weather_data = pd.DataFrame({'temperature': temp, 'ghi': ghi},
+                                         index=dt_index)
+
+        # Create expected data.
+        dt_index_2 = pd.date_range(start=datetime(2019, 1, 1, 0, 15), periods=1,
+                                   freq='15Min')
+        self.expected_data = pd.DataFrame({'temperature': [2], 'ghi': [3]},
+                                          index=dt_index_2)
+
+    def test_resample_weather_bad_weather_data_type(self):
+        self.assertRaises(TypeError, weather.resample_weather,
+                          weather_data={'temp': [1, 2, 3]}, interval=15,
+                          interval_unit='Min')
+
+    def test_resample_weather_bad_interval_type(self):
+        self.assertRaises(TypeError, weather.resample_weather,
+                          weather_data=pd.DataFrame(), interval=15.1,
+                          interval_unit='Min')
+
+    def test_resample_weather_bad_interval_unit(self):
+        self.assertRaises(TypeError, weather.resample_weather,
+                          weather_data=pd.DataFrame(), interval=15,
+                          interval_unit=[1, 2, 3])
+
+    def test_resample_weather_15_min(self):
+        """Resample at 15 minute intervals."""
+        actual = weather.resample_weather(weather_data=self.weather_data,
+                                          interval=15, interval_unit='Min')
+
+        pd.testing.assert_frame_equal(actual, self.expected_data)
+
+
+class FixGHITestCase(unittest.TestCase):
+    """Test fix_ghi"""
+
+    def test_fix_ghi_bad_weather_data_type(self):
+        self.assertRaises(TypeError, weather.fix_ghi, weather_data=pd.Series())
+
+    # noinspection PyMethodMayBeStatic
+    def test_fix_ghi(self):
+        """Simple test."""
+        temperature = [1, -1, 10]
+        ghi_neg = [0.0001, -0.2, 7]
+        ghi_pos = [0.0001, 0, 7]
+        df_original = pd.DataFrame({'temperature': temperature,
+                                    'ghi': ghi_neg})
+        df_expected = pd.DataFrame({'temperature': temperature,
+                                    'ghi': ghi_pos})
+
+        df_actual = weather.fix_ghi(df_original)
+
+        pd.testing.assert_frame_equal(df_expected, df_actual)
+
+
 if __name__ == '__main__':
     unittest.main()
