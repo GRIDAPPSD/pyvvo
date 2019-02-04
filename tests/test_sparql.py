@@ -33,6 +33,20 @@ class SPARQLManagerTestCase(unittest.TestCase):
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
 
+    def mock_query_named_object(self, function_string, query, one_to_many):
+        """Helper for mocking a call to query_named_object."""
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            fn_call = getattr(self.sparql, function_string)
+            result = fn_call()
+            mock.assert_called_once()
+            query_string = getattr(self.sparql, query)
+            mock.assert_called_with(
+                query_string.format(
+                    feeder_mrid=self.sparql.feeder_mrid),
+                one_to_many=one_to_many)
+            self.assertEqual('success', result)
+
     def test_sparql_manager_is_sparql_manager(self):
         self.assertIsInstance(self.sparql, sparql.SPARQLManager)
 
@@ -146,14 +160,9 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_capacitors_calls_query_named_objects(self):
         """query_capacitors must call query_named_objects."""
 
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            cap_return = self.sparql.query_capacitors()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.CAPACITOR_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=False)
-            self.assertEqual('success', cap_return)
+        self.mock_query_named_object(function_string='query_capacitors',
+                                     query='CAPACITOR_QUERY',
+                                     one_to_many=False)
 
     def test_sparql_manager_query_regulators(self):
         """Ensure we get the expected return."""
@@ -171,15 +180,9 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_regulators_calls_query_named_objects(self):
         """query_regulators must call query_named_objects."""
-
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            reg_return = self.sparql.query_regulators()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.REGULATOR_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
-            self.assertEqual('success', reg_return)
+        self.mock_query_named_object(function_string='query_regulators',
+                                     query='REGULATOR_QUERY',
+                                     one_to_many=True)
 
     def test_sparql_manager_bindings_to_dict_of_lists_valid_input(self):
         bindings = [
@@ -227,14 +230,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_load_nominal_voltage_calls_qno(self):
         """query_load_nominal_voltage must call query_named_objects."""
 
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            load_nom_v = self.sparql.query_load_nominal_voltage()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.LOAD_NOMINAL_VOLTAGE_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=False)
-            self.assertEqual('success', load_nom_v)
+        self.mock_query_named_object(
+            function_string='query_load_nominal_voltage',
+            query='LOAD_NOMINAL_VOLTAGE_QUERY',
+            one_to_many=False)
 
     def test_sparql_manager_query_load_nominal_voltage_expected_return(self):
         """Check one of the elements from query_load_nominal_voltage."""
@@ -249,15 +248,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_load_measurements_calls_qno(self):
         """query_load_measurements must call query_named_objects."""
-
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            load_meas = self.sparql.query_load_measurements()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.LOAD_MEASUREMENTS_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
-            self.assertEqual('success', load_meas)
+        self.mock_query_named_object(
+            function_string='query_load_measurements',
+            query='LOAD_MEASUREMENTS_QUERY',
+            one_to_many=True)
 
     def test_sparql_manager_query_load_measurements_expected_return(self):
         """Check one of the elements from query_load_measurements."""
@@ -296,27 +290,19 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         self.assertEqual(expected, full_actual[expected[0]['name']])
 
-    def test_sparql_manager_query_all_measurements(self):
+    def test_sparql_manager_query_all_measurements_calls_qno(self):
         """Ensure query_all_measurements calls query_named_objects."""
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            all_meas = self.sparql.query_all_measurements()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.ALL_MEASUREMENTS_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
-            self.assertEqual('success', all_meas)
+        self.mock_query_named_object(
+            function_string='query_all_measurements',
+            query='ALL_MEASUREMENTS_QUERY',
+            one_to_many=True)
 
-    def test_sparql_manager_query_rtc_measurements_calls_query_named(self):
+    def test_sparql_manager_query_rtc_measurements_calls_qno(self):
         """Ensure query_rtc_measurements calls query_named_objects"""
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            rtc_meas = self.sparql.query_rtc_measurements()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.RTC_POSITION_MEASUREMENT_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
-            self.assertEqual('success', rtc_meas)
+        self.mock_query_named_object(
+            function_string='query_rtc_measurements',
+            query='RTC_POSITION_MEASUREMENT_QUERY',
+            one_to_many=True)
 
     def test_sparql_manager_query_rtc_measurements_4_regs(self):
         """The 8500 node system has 4 regulators, all with measurements.
@@ -335,14 +321,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_capacitor_measurements_calls_qno(self):
         """Ensure query_capacitor_measurements calls query_named_objects"""
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
-                   return_value='success') as mock:
-            cap_meas = self.sparql.query_capacitor_measurements()
-            mock.assert_called_once()
-            mock.assert_called_with(
-                self.sparql.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
-                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
-            self.assertEqual('success', cap_meas)
+        self.mock_query_named_object(
+            function_string='query_capacitor_measurements',
+            query='CAPACITOR_STATUS_MEASUREMENT_QUERY',
+            one_to_many=True)
 
 
 if __name__ == '__main__':
