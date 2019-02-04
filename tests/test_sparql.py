@@ -333,6 +333,17 @@ class SPARQLManagerTestCase(unittest.TestCase):
         for _, v in rtc_meas.items():
             self.assertEqual(3, len(v))
 
+    def test_sparql_manager_query_capacitor_measurements_calls_qno(self):
+        """Ensure query_capacitor_measurements calls query_named_objects"""
+        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+                   return_value='success') as mock:
+            cap_meas = self.sparql.query_capacitor_measurements()
+            mock.assert_called_once()
+            mock.assert_called_with(
+                self.sparql.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
+                    feeder_mrid=self.sparql.feeder_mrid), one_to_many=True)
+            self.assertEqual('success', cap_meas)
+
 
 if __name__ == '__main__':
     unittest.main()

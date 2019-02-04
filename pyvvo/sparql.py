@@ -155,7 +155,17 @@ class SPARQLManager:
                 feeder_mrid=self.feeder_mrid),
             one_to_many=True
         )
-        self.log.info('All measurements obtained.')
+        self.log.info('Regulator tap position measurements obtained.')
+        return result
+
+    def query_capacitor_measurements(self):
+        """Query status measurements attached to capacitors."""
+        result = self.query_named_objects(
+            self.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
+                feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('Capacitor status measurements obtained.')
         return result
 
     ####################################################################
@@ -495,6 +505,36 @@ class SPARQLManager:
          # "?tank c:TransformerTank.PowerTransformer ?pxf. "
          # "?asset c:Asset.PowerSystemResources ?rtc. "
          # "?eq r:type c:RatioTapChanger. "
+         '?eq r:type ?typeraw.'
+         'bind(strafter(str(?typeraw),"#") as ?eqtype)'
+         '?trm c:Terminal.ConnectivityNode ?cn.'
+         '?cn c:IdentifiedObject.name ?bus.'
+         '?s c:Measurement.phases ?phsraw .'
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
+         '}} ORDER BY ?class ?type ?name'
+         )
+
+    # Get status measurements for capacitors.
+    CAPACITOR_STATUS_MEASUREMENT_QUERY = \
+        (PREFIX +
+         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
+         "?id "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr."
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
+         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
+         # 'UNION '
+         # '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '?s c:IdentifiedObject.name ?name .'
+         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:Measurement.PowerSystemResource ?eq .'
+         '?s c:Measurement.Terminal ?trm .'
+         '?s c:Measurement.measurementType ?type .'
+         '?trm c:IdentifiedObject.mRID ?trmid.'
+         '?eq c:IdentifiedObject.mRID ?eqid.'
+         '?eq c:IdentifiedObject.name ?eqname.'
+         "?eq r:type c:LinearShuntCompensator. "
          '?eq r:type ?typeraw.'
          'bind(strafter(str(?typeraw),"#") as ?eqtype)'
          '?trm c:Terminal.ConnectivityNode ?cn.'
