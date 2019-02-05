@@ -326,6 +326,26 @@ class SPARQLManagerTestCase(unittest.TestCase):
             query='CAPACITOR_STATUS_MEASUREMENT_QUERY',
             one_to_many=True)
 
+    def test_sparql_manager_query_substation_source_calls_qno(self):
+        """Ensure query_capacitor_measurements calls _query_named_objects"""
+        self.mock_query_named_object(
+            function_string='query_substation_source',
+            query='SUBSTATION_SOURCE_QUERY',
+            one_to_many=False)
+
+    def test_sparql_manager_query_substation_source_expected_return(self):
+        """Test return is as expected."""
+        actual = self.sparql.query_substation_source()
+
+        # Uncomment to regenerate expected return.
+        # with open('query_substation_source.json', 'w') as f:
+        #     json.dump(actual, f)
+
+        with open('query_substation_source.json', 'r') as f:
+            expected = json.load(f)
+
+        self.assertDictEqual(actual, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

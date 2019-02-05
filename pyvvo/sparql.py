@@ -113,6 +113,15 @@ class SPARQLManager:
         self.log.info('Capacitor status measurements obtained.')
         return result
 
+    def query_substation_source(self):
+        """Get the substation source information."""
+        result = self._query_named_objects(
+            self.SUBSTATION_SOURCE_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=False
+        )
+        self.log.info('Substation source information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -544,6 +553,35 @@ class SPARQLManager:
          '}} ORDER BY ?class ?type ?name'
          )
 
+# substation source - DistSubstation
+    SUBSTATION_SOURCE_QUERY = \
+        (PREFIX +
+         "SELECT ?name ?mrid ?bus ?bus_mrid ?basev ?nomv "
+            # "?vmag ?vang ?r1 ?x1 ?r0 ?x0 "
+         "WHERE {{ "
+         "?s r:type c:EnergySource. "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?s c:Equipment.EquipmentContainer ?fdr. "
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+         "?s c:IdentifiedObject.name ?name. "
+         "?s c:IdentifiedObject.mRID ?mrid. "
+         "?s c:ConductingEquipment.BaseVoltage ?bv. "
+         "?bv c:BaseVoltage.nominalVoltage ?basev. "
+         "?s c:EnergySource.nominalVoltage ?nomv. "
+         # "?s c:EnergySource.voltageMagnitude ?vmag. "
+         # "?s c:EnergySource.voltageAngle ?vang. "
+         # "?s c:EnergySource.r ?r1. "
+         # "?s c:EnergySource.x ?x1. "
+         # "?s c:EnergySource.r0 ?r0. "
+         # "?s c:EnergySource.x0 ?x0. "
+         "?t c:Terminal.ConductingEquipment ?s. "
+         "?t c:Terminal.ConnectivityNode ?cn. "
+         "?cn c:IdentifiedObject.name ?bus. "
+         "?cn c:IdentifiedObject.mRID ?bus_mrid "
+         "}} "
+         "ORDER by ?name"
+         )
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
@@ -566,7 +604,7 @@ class SPARQLQueryError(Error):
     """Raised if a SPARQL query returns an error.
 
     Attributes:
-        query -- SPARQL query that resulted in empty return.
+        query -- SPARQL query that resulted in error.
         message -- explanation of the error.
     """
 
