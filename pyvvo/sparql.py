@@ -37,7 +37,87 @@ class SPARQLManager:
     # QUERY METHODS
     ####################################################################
 
-    def query_data(self, query_string):
+    def query_capacitors(self):
+        """Get information on capacitors in the feeder."""
+        # Perform the query.
+        result = self._query_named_objects(
+            self.CAPACITOR_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=False)
+        self.log.info('Capacitor data obtained.')
+
+        # Done.
+        return result
+
+    def query_regulators(self):
+        """Get information on capacitors in the feeder."""
+        # Perform the query.
+        result = self._query_named_objects(
+            self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True)
+        self.log.info('Regulator data obtained.')
+
+        # Done.
+        return result
+
+    def query_load_nominal_voltage(self):
+        """Get the nominal voltage for EnergyConsumers (loads).
+
+        The values are not altered, so division by sqrt(3) will need to
+        happen later.
+        """
+        result = \
+            self._query_named_objects(
+                self.LOAD_NOMINAL_VOLTAGE_QUERY.format(
+                    feeder_mrid=self.feeder_mrid),
+                one_to_many=False)
+        self.log.info('Load nominal voltage obtained.')
+        return result
+
+    def query_load_measurements(self):
+        """Get measurement objects attached to EnergyConsumers (loads).
+
+        Note that each load may have multiple measurements.
+        """
+        result = self._query_named_objects(
+            self.LOAD_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True)
+        self.log.info('Load measurements data obtained.')
+        return result
+
+    def query_all_measurements(self):
+        """Query all measurements in a model."""
+        result = self._query_named_objects(
+            self.ALL_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('All measurements obtained.')
+        return result
+
+    def query_rtc_measurements(self):
+        """Query measurements attached to ratio tap changers."""
+        result = self._query_named_objects(
+            self.RTC_POSITION_MEASUREMENT_QUERY.format(
+                feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('Regulator tap position measurements obtained.')
+        return result
+
+    def query_capacitor_measurements(self):
+        """Query status measurements attached to capacitors."""
+        result = self._query_named_objects(
+            self.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
+                feeder_mrid=self.feeder_mrid),
+            one_to_many=True
+        )
+        self.log.info('Capacitor status measurements obtained.')
+        return result
+
+    ####################################################################
+    # HELPER FUNCTIONS
+    ####################################################################
+
+    def _query_data(self, query_string):
         """Wrapper to call GridAPPSD.query_data with error handling."""
         # Perform query.
         result = self.gad.query_data(query=query_string, timeout=self.timeout)
@@ -68,7 +148,7 @@ class SPARQLManager:
         # Done.
         return result
 
-    def query_named_objects(self, query_string, one_to_many=False):
+    def _query_named_objects(self, query_string, one_to_many=False):
         """Helper to perform a data query for named objects.
 
         NOTE: All queries MUST return an object name. If this is too
@@ -80,7 +160,7 @@ class SPARQLManager:
             object only has one return.
         """
         # Perform query.
-        result = self.query_data(query_string)
+        result = self._query_data(query_string)
 
         if one_to_many:
             output = self._bindings_to_dict_of_lists(
@@ -91,86 +171,6 @@ class SPARQLManager:
                 self._bindings_to_dict(result['data']['results']['bindings'])
 
         return output
-
-    def query_capacitors(self):
-        """Get information on capacitors in the feeder."""
-        # Perform the query.
-        result = self.query_named_objects(
-            self.CAPACITOR_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=False)
-        self.log.info('Capacitor data obtained.')
-
-        # Done.
-        return result
-
-    def query_regulators(self):
-        """Get information on capacitors in the feeder."""
-        # Perform the query.
-        result = self.query_named_objects(
-            self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True)
-        self.log.info('Regulator data obtained.')
-
-        # Done.
-        return result
-
-    def query_load_nominal_voltage(self):
-        """Get the nominal voltage for EnergyConsumers (loads).
-
-        The values are not altered, so division by sqrt(3) will need to
-        happen later.
-        """
-        result = \
-            self.query_named_objects(
-                self.LOAD_NOMINAL_VOLTAGE_QUERY.format(
-                    feeder_mrid=self.feeder_mrid),
-                one_to_many=False)
-        self.log.info('Load nominal voltage obtained.')
-        return result
-
-    def query_load_measurements(self):
-        """Get measurement objects attached to EnergyConsumers (loads).
-
-        Note that each load may have multiple measurements.
-        """
-        result = self.query_named_objects(
-            self.LOAD_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True)
-        self.log.info('Load measurements data obtained.')
-        return result
-
-    def query_all_measurements(self):
-        """Query all measurements in a model."""
-        result = self.query_named_objects(
-            self.ALL_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
-        self.log.info('All measurements obtained.')
-        return result
-
-    def query_rtc_measurements(self):
-        """Query measurements attached to ratio tap changers."""
-        result = self.query_named_objects(
-            self.RTC_POSITION_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
-        self.log.info('Regulator tap position measurements obtained.')
-        return result
-
-    def query_capacitor_measurements(self):
-        """Query status measurements attached to capacitors."""
-        result = self.query_named_objects(
-            self.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
-        self.log.info('Capacitor status measurements obtained.')
-        return result
-
-    ####################################################################
-    # HELPER FUNCTIONS
-    ####################################################################
 
     def _bindings_to_dict(self, bindings):
         """Given a list of bindings, map them into a usable dictionary.

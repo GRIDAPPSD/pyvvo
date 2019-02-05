@@ -35,7 +35,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def mock_query_named_object(self, function_string, query, one_to_many):
         """Helper for mocking a call to query_named_object."""
-        with patch('pyvvo.sparql.SPARQLManager.query_named_objects',
+        with patch('pyvvo.sparql.SPARQLManager._query_named_objects',
                    return_value='success') as mock:
             fn_call = getattr(self.sparql, function_string)
             result = fn_call()
@@ -90,7 +90,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertRaises(TypeError, self.sparql._bindings_to_dict,
                           bindings=[{'name': 10}])
 
-    def test_sparql_manager_query_named_objects_simple_query(self):
+    def test_sparql_manager__query_named_objects_simple_query(self):
         """Hard-coded MRID for 8500 node capacitor."""
         query = (self.sparql.PREFIX +
                  "SELECT ?name "
@@ -101,12 +101,12 @@ class SPARQLManagerTestCase(unittest.TestCase):
                  "} "
                  "ORDER BY ?name "
                  )
-        result = self.sparql.query_named_objects(query)
+        result = self.sparql._query_named_objects(query)
 
         self.assertDictEqual(result, {'capbank0a': {'name': 'capbank0a'}})
 
-    def test_sparql_manager_query_named_objects_calls_query_data(self):
-        """Ensure query_named_objects calls query_data, as query_data
+    def test_sparql_manager__query_named_objects_calls_query_data(self):
+        """Ensure _query_named_objects calls _query_data, as _query_data
         does the error handling.
         """
         # Mock the silly-deep return from the platform.
@@ -118,8 +118,8 @@ class SPARQLManagerTestCase(unittest.TestCase):
                             [{'name': {
                                 'value': 'object1'}}]}}}}
 
-        with patch('pyvvo.sparql.SPARQLManager.query_data', **config) as mock:
-            result = self.sparql.query_named_objects('some query')
+        with patch('pyvvo.sparql.SPARQLManager._query_data', **config) as mock:
+            result = self.sparql._query_named_objects('some query')
             mock.assert_called_once()
             mock.assert_called_with('some query')
             self.assertDictEqual(result, {'object1': {'name': 'object1'}})
@@ -135,12 +135,12 @@ class SPARQLManagerTestCase(unittest.TestCase):
                  )
 
         self.assertRaises(sparql.SPARQLQueryReturnEmptyError,
-                          self.sparql.query_data, query_string=query)
+                          self.sparql._query_data, query_string=query)
 
     def test_sparql_manager_query_data_bad_syntax(self):
         """Give SPARQL query with bad syntax."""
         query = 'This is not actually a query.'
-        self.assertRaises(sparql.SPARQLQueryError, self.sparql.query_data,
+        self.assertRaises(sparql.SPARQLQueryError, self.sparql._query_data,
                           query_string=query)
 
     def test_sparql_manager_query_capacitors(self):
@@ -157,8 +157,8 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         self.assertDictEqual(actual, expected)
 
-    def test_sparql_manager_query_capacitors_calls_query_named_objects(self):
-        """query_capacitors must call query_named_objects."""
+    def test_sparql_manager_query_capacitors_calls__query_named_objects(self):
+        """query_capacitors must call _query_named_objects."""
 
         self.mock_query_named_object(function_string='query_capacitors',
                                      query='CAPACITOR_QUERY',
@@ -178,8 +178,8 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         self.assertDictEqual(actual, expected)
 
-    def test_sparql_manager_query_regulators_calls_query_named_objects(self):
-        """query_regulators must call query_named_objects."""
+    def test_sparql_manager_query_regulators_calls__query_named_objects(self):
+        """query_regulators must call _query_named_objects."""
         self.mock_query_named_object(function_string='query_regulators',
                                      query='REGULATOR_QUERY',
                                      one_to_many=True)
@@ -228,7 +228,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
                           bindings=bindings)
 
     def test_sparql_manager_query_load_nominal_voltage_calls_qno(self):
-        """query_load_nominal_voltage must call query_named_objects."""
+        """query_load_nominal_voltage must call _query_named_objects."""
 
         self.mock_query_named_object(
             function_string='query_load_nominal_voltage',
@@ -247,7 +247,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertDictEqual(full_actual[expected['name']], expected)
 
     def test_sparql_manager_query_load_measurements_calls_qno(self):
-        """query_load_measurements must call query_named_objects."""
+        """query_load_measurements must call _query_named_objects."""
         self.mock_query_named_object(
             function_string='query_load_measurements',
             query='LOAD_MEASUREMENTS_QUERY',
@@ -291,14 +291,14 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertEqual(expected, full_actual[expected[0]['name']])
 
     def test_sparql_manager_query_all_measurements_calls_qno(self):
-        """Ensure query_all_measurements calls query_named_objects."""
+        """Ensure query_all_measurements calls _query_named_objects."""
         self.mock_query_named_object(
             function_string='query_all_measurements',
             query='ALL_MEASUREMENTS_QUERY',
             one_to_many=True)
 
     def test_sparql_manager_query_rtc_measurements_calls_qno(self):
-        """Ensure query_rtc_measurements calls query_named_objects"""
+        """Ensure query_rtc_measurements calls _query_named_objects"""
         self.mock_query_named_object(
             function_string='query_rtc_measurements',
             query='RTC_POSITION_MEASUREMENT_QUERY',
@@ -320,7 +320,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
             self.assertEqual(3, len(v))
 
     def test_sparql_manager_query_capacitor_measurements_calls_qno(self):
-        """Ensure query_capacitor_measurements calls query_named_objects"""
+        """Ensure query_capacitor_measurements calls _query_named_objects"""
         self.mock_query_named_object(
             function_string='query_capacitor_measurements',
             query='CAPACITOR_STATUS_MEASUREMENT_QUERY',
