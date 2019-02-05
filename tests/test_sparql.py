@@ -33,17 +33,18 @@ class SPARQLManagerTestCase(unittest.TestCase):
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
 
-    def mock_query_named_object(self, function_string, query, one_to_many):
+    def mock_query_named_object(self, function_string, query, one_to_many,
+                                **kwargs):
         """Helper for mocking a call to query_named_object."""
         with patch('pyvvo.sparql.SPARQLManager._query_named_objects',
                    return_value='success') as mock:
             fn_call = getattr(self.sparql, function_string)
-            result = fn_call()
+            result = fn_call(**kwargs)
             mock.assert_called_once()
             query_string = getattr(self.sparql, query)
             mock.assert_called_with(
                 query_string.format(
-                    feeder_mrid=self.sparql.feeder_mrid),
+                    feeder_mrid=self.sparql.feeder_mrid, **kwargs),
                 one_to_many=one_to_many)
             self.assertEqual('success', result)
 
@@ -342,6 +343,29 @@ class SPARQLManagerTestCase(unittest.TestCase):
         #     json.dump(actual, f)
 
         with open('query_substation_source.json', 'r') as f:
+            expected = json.load(f)
+
+        self.assertDictEqual(actual, expected)
+
+    def test_sparql_manager_query_measurements_for_bus_calls_qno(self):
+        # NOTE: bus_mrid is for the substation source bus.
+        self.mock_query_named_object(
+            function_string='query_measurements_for_bus',
+            query='MEASUREMENTS_FOR_BUS_QUERY',
+            one_to_many=True,
+            bus_mrid='_E555E153-3529-7B82-1649-B015B154BFA6'
+        )
+
+    def test_sparql_manager_query_measurements_for_bus_expected_return(self):
+        # NOTE: bus_mrid is for the substation source bus.
+        actual = self.sparql.query_measurements_for_bus(
+            bus_mrid='_E555E153-3529-7B82-1649-B015B154BFA6')
+
+        # Uncomment to recreate expected value.
+        # with open('query_measurements_for_bus.json', 'w') as f:
+        #     json.dump(actual, f)
+
+        with open('query_measurements_for_bus.json', 'r') as f:
             expected = json.load(f)
 
         self.assertDictEqual(actual, expected)

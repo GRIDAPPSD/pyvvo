@@ -122,6 +122,17 @@ class SPARQLManager:
         self.log.info('Substation source information obtained.')
         return result
 
+    def query_measurements_for_bus(self, bus_mrid):
+        """Get all measurements with a specific parent bus."""
+        result = self._query_named_objects(
+            self.MEASUREMENTS_FOR_BUS_QUERY.format(
+                feeder_mrid=self.feeder_mrid, bus_mrid=bus_mrid),
+            one_to_many=True
+        )
+        self.log.info(
+            'Measurements associated with bus {} obtained.'.format(bus_mrid))
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -455,8 +466,8 @@ class SPARQLManager:
     # List all measurements with buses and equipment - DistMeasurement.
     ALL_MEASUREMENTS_QUERY = \
         (PREFIX +
-         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
-         "?id "
+         "SELECT ?class ?type ?name ?bus ?bus_mrid ?phases ?eqtype ?eqname "
+            "?eqid ?trmid ?id "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -476,6 +487,7 @@ class SPARQLManager:
          'bind(strafter(str(?typeraw),"#") as ?eqtype)'
          '?trm c:Terminal.ConnectivityNode ?cn.'
          '?cn c:IdentifiedObject.name ?bus.'
+         '?cn c:IdentifiedObject.mRID ?bus_mrid. '
          '?s c:Measurement.phases ?phsraw .'
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
          '}} ORDER BY ?class ?type ?name'
@@ -553,7 +565,7 @@ class SPARQLManager:
          '}} ORDER BY ?class ?type ?name'
          )
 
-# substation source - DistSubstation
+    # substation source - DistSubstation
     SUBSTATION_SOURCE_QUERY = \
         (PREFIX +
          "SELECT ?name ?mrid ?bus ?bus_mrid ?basev ?nomv "
@@ -582,6 +594,34 @@ class SPARQLManager:
          "ORDER by ?name"
          )
 
+    MEASUREMENTS_FOR_BUS_QUERY = \
+        (PREFIX +
+         "SELECT ?class ?type ?name ?bus ?bus_mrid ?phases ?eqtype ?eqname "
+            "?eqid ?trmid ?id "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr."
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
+         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
+         'UNION '
+         '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '?s c:IdentifiedObject.name ?name .'
+         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:Measurement.PowerSystemResource ?eq .'
+         '?s c:Measurement.Terminal ?trm .'
+         '?s c:Measurement.measurementType ?type .'
+         '?trm c:IdentifiedObject.mRID ?trmid.'
+         '?eq c:IdentifiedObject.mRID ?eqid.'
+         '?eq c:IdentifiedObject.name ?eqname.'
+         '?eq r:type ?typeraw.'
+         'bind(strafter(str(?typeraw),"#") as ?eqtype)'
+         '?trm c:Terminal.ConnectivityNode ?cn.'
+         '?cn c:IdentifiedObject.name ?bus.'
+         '?cn c:IdentifiedObject.mRID "{bus_mrid}". '
+         '?s c:Measurement.phases ?phsraw .'
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
+         '}} ORDER BY ?class ?type ?name'
+         )
 
 class Error(Exception):
     """Base class for exceptions in this module."""
