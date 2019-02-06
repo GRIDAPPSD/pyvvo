@@ -191,3 +191,24 @@ def dt_to_us_from_epoch(dt):
     :returns: microseconds since the epoch as a string.
     """
     return '{:.0f}'.format(dt.timestamp() * 1e6)
+
+
+# noinspection PyShadowingBuiltins
+def map_dataframe_columns(map, df, cols):
+    """Helper to apply a map to specified columns in a pandas DataFrame.
+
+    :param map: valid input to pandas.Series.map.
+    :param df: pandas DataFrame.
+    :param cols: list of columns in 'df' to apply 'map' to.
+    """
+    # Check inputs (but allow pandas to check the map).
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError('df input must be a pandas DataFrame.')
+
+    if not isinstance(cols, list):
+        raise TypeError('cols input must be a list.')
+
+    for col in cols:
+        df[col] = df[col].map(map)
+
+    return df

@@ -3,6 +3,8 @@ import math
 import cmath
 from pyvvo import utils
 from datetime import datetime
+import pandas as pd
+
 
 class TestParseComplexStr(unittest.TestCase):
     """Test utils.parse_complex_str.
@@ -152,6 +154,49 @@ class DTToUSFromEpochTestCase(unittest.TestCase):
         # Source: https://www.epochconverter.com/
         self.assertEqual("1356998400000000",
                          utils.dt_to_us_from_epoch(datetime(2013, 1, 1)))
+
+
+# noinspection PyShadowingBuiltins,PyMethodMayBeStatic
+class MapDataFrameColumnsTestCase(unittest.TestCase):
+    """Test map_dataframe_columns."""
+
+    def test_map_dataframe_columns_map_bad_type(self):
+        map = 10
+        df = pd.DataFrame({'one': [1, 2, 3], 'two': ['true', 'false', 'true']})
+        cols = ['two']
+        self.assertRaises(TypeError, utils.map_dataframe_columns,
+                          map=map, df=df, cols=cols)
+
+    def test_map_dataframe_columns_df_bad_type(self):
+        map = {'true': True, 'false': False}
+        df = {'one': [1, 2, 3], 'two': ['true', 'false', 'true']}
+        cols = ['two']
+        self.assertRaises(TypeError, utils.map_dataframe_columns,
+                          map=map, df=df, cols=cols)
+
+    def test_map_dataframe_columns_cols_bad_type(self):
+        map = {'true': True, 'false': False}
+        df = pd.DataFrame({'one': [1, 2, 3], 'two': ['true', 'false', 'true']})
+        cols = 'two'
+        self.assertRaises(TypeError, utils.map_dataframe_columns,
+                          map=map, df=df, cols=cols)
+
+    def test_map_dataframe_columns_cols_bad_value(self):
+        map = {'true': True, 'false': False}
+        df = pd.DataFrame({'one': [1, 2, 3], 'two': ['true', 'false', 'true']})
+        cols = ['tow']
+        self.assertRaises(KeyError, utils.map_dataframe_columns,
+                          map=map, df=df, cols=cols)
+
+    def test_map_dataframe_expected_return(self):
+        map = {'true': True, 'false': False}
+        df = pd.DataFrame({'one': [1, 2, 3], 'two': ['true', 'false', 'true']})
+        cols = ['two']
+
+        expected = pd.DataFrame({'one': [1, 2, 3], 'two': [True, False, True]})
+        actual = utils.map_dataframe_columns(map=map, df=df, cols=cols)
+
+        pd.testing.assert_frame_equal(actual, expected)
 
 
 if __name__ == '__main__':
