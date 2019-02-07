@@ -1,0 +1,7 @@
+,bus,class,eqid,eqname,eqtype,id,name,phases,trmid,type
+0,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_0effbfb2-fb40-4d4f-8631-171319327153,ACLineSegment_hvmv_sub_hsb_Voltage,A,_D8603ED1-1598-C096-8F45-927DB51A7EF0,PNV
+1,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_1c9b667b-7e0a-4d6d-824e-657b33c13ff1,ACLineSegment_hvmv_sub_hsb_Voltage,B,_D8603ED1-1598-C096-8F45-927DB51A7EF0,PNV
+2,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_a02515ab-8590-4cd5-86ce-61d0b6834c2b,ACLineSegment_hvmv_sub_hsb_Voltage,C,_D8603ED1-1598-C096-8F45-927DB51A7EF0,PNV
+3,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_642cb792-4501-45d2-932b-63ffe2059853,ACLineSegment_hvmv_sub_hsb_Power,A,_D8603ED1-1598-C096-8F45-927DB51A7EF0,VA
+4,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_5ea58e8b-ca37-4c05-8a4d-68f8917d2578,ACLineSegment_hvmv_sub_hsb_Power,B,_D8603ED1-1598-C096-8F45-927DB51A7EF0,VA
+5,sourcebus,Analog,_A417722E-5A8C-2B56-17AC-B88B2D98FAA2,hvmv_sub_hsb,ACLineSegment,_5e798d7b-c993-490c-b6bc-7d9976277668,ACLineSegment_hvmv_sub_hsb_Power,C,_D8603ED1-1598-C096-8F45-927DB51A7EF0,VA

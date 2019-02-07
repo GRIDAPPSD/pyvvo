@@ -1,6 +1,12 @@
 """Module for querying and parsing SPARQL through GridAPPS-D"""
 import logging
 from pyvvo.gridappsd_platform import get_gad_object
+from pyvvo.utils import map_dataframe_columns
+
+import pandas as pd
+
+# Map CIM booleans (come back as strings) to Python booleans.
+BOOLEAN_MAP = {'true': True, 'false': False}
 
 
 class SPARQLManager:
@@ -40,9 +46,15 @@ class SPARQLManager:
     def query_capacitors(self):
         """Get information on capacitors in the feeder."""
         # Perform the query.
-        result = self._query_named_objects(
+        result = self._query(
             self.CAPACITOR_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=False)
+            to_numeric=True)
+
+        # Map boolean columns.
+        result = map_dataframe_columns(
+            map=BOOLEAN_MAP, df=result,
+            cols=['ctrlenabled', 'discrete', 'grnd'])
+
         self.log.info('Capacitor data obtained.')
 
         # Done.
@@ -51,9 +63,14 @@ class SPARQLManager:
     def query_regulators(self):
         """Get information on capacitors in the feeder."""
         # Perform the query.
-        result = self._query_named_objects(
+        result = self._query(
             self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True)
+            to_numeric=True)
+        
+        # Map boolean columns.
+        result = map_dataframe_columns(
+            map=BOOLEAN_MAP, df=result,
+            cols=['ctrlenabled', 'discrete', 'enabled', 'ldc', 'ltc'])
         self.log.info('Regulator data obtained.')
 
         # Done.
@@ -66,10 +83,9 @@ class SPARQLManager:
         happen later.
         """
         result = \
-            self._query_named_objects(
+            self._query(
                 self.LOAD_NOMINAL_VOLTAGE_QUERY.format(
-                    feeder_mrid=self.feeder_mrid),
-                one_to_many=False)
+                    feeder_mrid=self.feeder_mrid), to_numeric=True)
         self.log.info('Load nominal voltage obtained.')
         return result
 
@@ -78,57 +94,50 @@ class SPARQLManager:
 
         Note that each load may have multiple measurements.
         """
-        result = self._query_named_objects(
+        result = self._query(
             self.LOAD_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True)
+            to_numeric=False)
         self.log.info('Load measurements data obtained.')
         return result
 
     def query_all_measurements(self):
         """Query all measurements in a model."""
-        result = self._query_named_objects(
+        result = self._query(
             self.ALL_MEASUREMENTS_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
+            to_numeric=False)
         self.log.info('All measurements obtained.')
         return result
 
     def query_rtc_measurements(self):
         """Query measurements attached to ratio tap changers."""
-        result = self._query_named_objects(
+        result = self._query(
             self.RTC_POSITION_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
+                feeder_mrid=self.feeder_mrid), to_numeric=False)
         self.log.info('Regulator tap position measurements obtained.')
         return result
 
     def query_capacitor_measurements(self):
         """Query status measurements attached to capacitors."""
-        result = self._query_named_objects(
+        result = self._query(
             self.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid),
-            one_to_many=True
-        )
+                feeder_mrid=self.feeder_mrid), to_numeric=False)
         self.log.info('Capacitor status measurements obtained.')
         return result
 
     def query_substation_source(self):
         """Get the substation source information."""
-        result = self._query_named_objects(
+        result = self._query(
             self.SUBSTATION_SOURCE_QUERY.format(feeder_mrid=self.feeder_mrid),
-            one_to_many=False
-        )
+            to_numeric=True)
         self.log.info('Substation source information obtained.')
         return result
 
     def query_measurements_for_bus(self, bus_mrid):
         """Get all measurements with a specific parent bus."""
-        result = self._query_named_objects(
+        result = self._query(
             self.MEASUREMENTS_FOR_BUS_QUERY.format(
                 feeder_mrid=self.feeder_mrid, bus_mrid=bus_mrid),
-            one_to_many=True
-        )
+            to_numeric=False)
         self.log.info(
             'Measurements associated with bus {} obtained.'.format(bus_mrid))
         return result
@@ -137,7 +146,28 @@ class SPARQLManager:
     # HELPER FUNCTIONS
     ####################################################################
 
-    def _query_data(self, query_string):
+    def _query(self, query_string, to_numeric):
+        """Helper to perform a data query for named objects.
+
+        NOTE: All queries MUST return an object name. If this is too
+        restrictive it can be modified later.
+
+        :param query_string: Fully formatted SPARQL query.
+        :param to_numeric: True/False, whether or not to attempt to
+            convert DataFrame columns to numeric values. Set to True if
+            some columns will be numeric, set to False if no columns
+            will be numeric.
+        """
+        # Perform query.
+        result = self._query_platform(query_string)
+
+        output = self._bindings_to_dataframe(
+            bindings=result['data']['results']['bindings'],
+            to_numeric=to_numeric)
+
+        return output
+
+    def _query_platform(self, query_string):
         """Wrapper to call GridAPPSD.query_data with error handling."""
         # Perform query.
         result = self.gad.query_data(query=query_string, timeout=self.timeout)
@@ -168,92 +198,27 @@ class SPARQLManager:
         # Done.
         return result
 
-    def _query_named_objects(self, query_string, one_to_many=False):
-        """Helper to perform a data query for named objects.
-
-        NOTE: All queries MUST return an object name. If this is too
-        restrictive it can be modified later.
-
-        :param query_string: Fully formatted SPARQL query.
-        :param one_to_many: Boolean, True/False. If True, each named
-            object could have multiple returns. Otherwise, each named
-            object only has one return.
-        """
-        # Perform query.
-        result = self._query_data(query_string)
-
-        if one_to_many:
-            output = self._bindings_to_dict_of_lists(
-                result['data']['results']['bindings'])
-        else:
-            # Get dictionary of objects.
-            output = \
-                self._bindings_to_dict(result['data']['results']['bindings'])
-
-        return output
-
-    def _bindings_to_dict(self, bindings):
-        """Given a list of bindings, map them into a usable dictionary.
-
-        The dictionary will be keyed by 'name,' so all bindings must
-        have a 'name' attribute. So the upstream SPARQL query should be
-        naming the name variable 'name.'
-
-        NOTE: If two bindings contain the same 'name,' a KeyError will
-        be raised.
-        """
+    def _bindings_to_dataframe(self, bindings, to_numeric):
+        # Check bindings.
         self._check_bindings(bindings)
 
-        # Loop over the bindings and simplify to dictionary keyed by
-        # object name, and only includes attribute names and values.
-        output = dict()
+        # Create list of dictionaries.
+        list_of_dicts = []
         for obj in bindings:
-            key = obj['name']['value']
-            # Attempt to access the item in the dictionary.
-            try:
-                output[key]
-            except KeyError:
-                # This object doesn't have a dict entry. Use dictionary
-                # comprehension to create it.
-                output[key] = {k: v['value'] for (k, v) in obj.items()}
-            else:
-                # This object already exists in the dictionary, and we
-                # don't want to overwrite it.
-                raise KeyError(
-                    'Item {} is already in the dictionary!'.format(key))
+            # Use dict comprehension to add a dictionary to the list.
+            list_of_dicts.append(
+                {k: v['value'] for (k, v) in obj.items()}
+            )
 
-        self.log.debug("Bindings mapped into 1:1 dictionary.")
-        return output
+        # Create a DataFrame, convert applicable data to numeric types.
+        output = pd.DataFrame(list_of_dicts)
+        if to_numeric:
+            output = output.apply(pd.to_numeric, errors='ignore')
 
-    def _bindings_to_dict_of_lists(self, bindings):
-        """Given list of bindings, map them into a dictionary of lists.
+        # Warn if there are NaNs.
+        if output.isnull().values.any():
+            self.log.warning('DataFrame has NaN value(s)!')
 
-        As in _bindings_to_dict, the dictionary will be keyed by 'name,'
-        so all bindings must have the 'name' attribute.
-
-        Each item of the dictionary will be mapped to a list. In
-        contrast to _bindings_to_dict, the bindings can contain
-        duplicates of the same 'name.'
-        """
-        # Perform simple checks on the bindings.
-        self._check_bindings(bindings)
-
-        # Loop over the bindings and simplify to dictionary keyed by
-        # object name, and only includes attribute names and values.
-        output = dict()
-        for obj in bindings:
-            key = obj['name']['value']
-            # Attempt to access the item in the dictionary.
-            try:
-                output[key]
-            except KeyError:
-                # This object doesn't have an entry. Create it.
-                output[key] = []
-            finally:
-                # Put this dictionary in the list.
-                output[key].append({k: v['value'] for (k, v) in obj.items()})
-
-        self.log.debug("Bindings mapped into dictionary of lists.")
         return output
 
     def _check_bindings(self, bindings):
@@ -264,15 +229,16 @@ class SPARQLManager:
                             "\n    {}".format(bindings)))
             raise TypeError("The bindings input must be a list.")
 
-        # Crude check to see if we have a 'name' attribute - assuming
-        # all elements will have it.
-        try:
-            bindings[0]['name']
-        except KeyError:
-            m = ("Missing 'name' attribute in bindings:\n    "
-                 + "{}".format(bindings))
+        # Ensure the first element of the list is a dictionary. Looping
+        # over the whole thing seems unnecessary.
+        if not isinstance(bindings[0], dict):
+            m = "The first bindings element is not a dict!"
             self.log.error(m)
-            raise KeyError("All bindings must have a 'name' attribute.")
+            raise TypeError(m)
+
+        # We were checking for a 'name' attribute, but this is no
+        # longer necessary since the bindings are being put into a
+        # DataFrame.
 
     ####################################################################
     # SPARQL QUERY TEXT
@@ -347,7 +313,7 @@ class SPARQLManager:
          "SELECT ?rname ?name ?tname ?wnum ?phs ?incr ?mode ?enabled "
          "?highStep ?lowStep ?neutralStep ?normalStep ?neutralU ?step "
          "?initDelay ?subDelay ?ltc ?vlim ?vset ?vbw ?ldc ?fwdR ?fwdX "
-         "?revR ?revX ?discrete ?ctl_enabled ?ctlmode ?monphs "
+         "?revR ?revX ?discrete ?ctrlenabled ?ctlmode ?monphs "
          "?ctRating ?ctRatio ?ptRatio ?mrid ?feeder_mrid ?rtcid ?endid "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
@@ -390,7 +356,7 @@ class SPARQLManager:
          "?ctl c:TapChangerControl.reverseLineDropR ?revR. "
          "?ctl c:TapChangerControl.reverseLineDropX ?revX. "
          "?ctl c:RegulatingControl.discrete ?discrete. "
-         "?ctl c:RegulatingControl.enabled ?ctl_enabled. "
+         "?ctl c:RegulatingControl.enabled ?ctrlenabled. "
          "?ctl c:RegulatingControl.mode ?ctlmoderaw. "
          'bind(strafter(str(?ctlmoderaw),'
          '"RegulatingControlModeKind.") as ?ctlmode) '
