@@ -31,6 +31,7 @@ import re
 import warnings
 from functools import reduce
 from datetime import datetime
+import logging
 
 # List of object properties which will have '-' replaced with '_'
 RENAME = ['name', 'parent', 'from', 'to', 'configuration']
@@ -396,6 +397,8 @@ class GLMManager:
                string of model (False)
         :type model_is_path: Boolean
         """
+        # Setup logging.
+        self.log = logging.getLogger(__name__)
 
         # Parse the model.
         self.model_dict = parse(model, model_is_path)
@@ -423,6 +426,8 @@ class GLMManager:
                 raise ItemExistsError(m)
             else:
                 self.model_dict[k] = v
+
+        self.log.info('GridLAB-D model parsed and mapped.')
 
     def _update_append_key(self):
         """Add one to the append_key."""

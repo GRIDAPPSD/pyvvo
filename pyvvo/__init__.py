@@ -33,7 +33,7 @@ for h_name, h in config_dict['handlers'].items():
         pass
 
 # Set root logger level.
-config_dict['root']['level'] = log_level
+config_dict['loggers']['']['level'] = log_level
 
 # Configure logging.
 dictConfig(config_dict)

@@ -1,5 +1,5 @@
 {
-  "level": "WARN",
+  "level": "INFO",
   "version": 1,
   "formatters": {
     "console_formatter": {
@@ -24,10 +24,19 @@
       "backupCount": 3
     }
   },
-  "root": {
-    "handlers": [
-      "console_handler",
-      "file_handler"
-    ]
+  "loggers": {
+      "": {
+        "handlers": [
+          "console_handler",
+          "file_handler"
+        ]
+      },
+      "stomp": {
+        "handlers": [
+          "console_handler",
+          "file_handler"
+        ],
+        "level": "WARN"
+      }
   }
 }
