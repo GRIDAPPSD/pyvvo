@@ -1,5 +1,6 @@
 """Module for querying and parsing SPARQL through GridAPPS-D"""
 import logging
+import inspect
 from pyvvo.gridappsd_platform import get_gad_object
 from pyvvo.utils import map_dataframe_columns
 
@@ -217,7 +218,27 @@ class SPARQLManager:
 
         # Warn if there are NaNs.
         if output.isnull().values.any():
-            self.log.warning('DataFrame has NaN value(s)!')
+            # Work up the stack to one method above '_query' so we can
+            # get a more detailed warning.
+            s = inspect.stack()
+            q = False
+            fn_name = '<function not found!>'
+            try:
+                # Loop over frames in the stack.
+                for f in s:
+                    if q:
+                        # The previous stack function was '_query.'
+                        # Get the function name and exit the loop.
+                        fn_name = f.function
+                        break
+
+                    # Check if this function is _query.
+                    q = f.function == '_query'
+            finally:
+                del s
+
+            m = "DataFrame from '{}' has NaN value(s)!".format(fn_name)
+            self.log.warning(m)
 
         return output
 
