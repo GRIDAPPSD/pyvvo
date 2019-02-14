@@ -7,6 +7,7 @@ from datetime import datetime
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform
 from gridappsd import GridAPPSD
+from pyvvo.weather import parse_weather
 
 # Third-party
 from stomp.exception import ConnectFailedException
@@ -160,8 +161,18 @@ class PlatformManagerTestCase(unittest.TestCase):
                           end_time=datetime(2013, 1, 1, 5, 59))
 
     def test_platform_manager_get_weather_valid(self):
-        actual = self.platform.get_weather(start_time=datetime(2013, 1, 1, 6),
-                                           end_time=datetime(2013, 1, 1, 6))
+        """Ensure parse_weather is called with the expected input."""
+        with patch('pyvvo.weather.parse_weather', side_effect=parse_weather)\
+                as mock:
+            actual_df = self.platform.get_weather(
+                start_time=datetime(2013, 1, 1, 6),
+                end_time=datetime(2013, 1, 1, 6))
+
+        # Ensure parse_weather is called.
+        mock.assert_called_once()
+
+        # Get the actual data from the platform.
+        actual = mock.call_args[0][0]
 
         # Uncomment to re-generated expected.
         # with open('weather_simple.json', 'w') as f:
@@ -174,6 +185,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         actual.pop('id')
         expected.pop('id')
 
+        # Ensure the data provided by the platform matches.
         self.assertDictEqual(actual, expected)
 
 

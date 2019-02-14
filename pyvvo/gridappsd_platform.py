@@ -12,9 +12,13 @@ import logging
 import re
 from datetime import datetime
 from pyvvo import utils
+from pyvvo import weather
 
 # Setup log.
 LOG = logging.getLogger(__name__)
+
+# Use this date format for logging.
+DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Compile regular expressions for fixing bad json return.
 # TODO: remove when the platform is fixed.
@@ -189,8 +193,16 @@ class PlatformManager:
         if empty:
             raise QueryReturnEmptyError(topic=topic, query=payload)
 
-        # TODO: Throw exception on empty return.
-        return data
+        # Parse the weather data.
+        data_df = weather.parse_weather(data)
+
+        self.log.info(
+            'Weather data for {} through {} pulled and parsed.'.format(
+                start_time.strftime(DATE_FORMAT),
+                end_time.strftime(DATE_FORMAT)
+            )
+        )
+        return data_df
 
 
     # def run_simulation(self):
