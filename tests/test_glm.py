@@ -13,11 +13,13 @@ from pyvvo.utils import gld_installed, run_gld
 LOG = logging.getLogger(__name__)
 
 # Define our test files.
-TEST_FILE = 'test.glm'
-TEST_FILE2 = 'test2.glm'
-TEST_FILE3 = 'test3.glm'
-TEST_FILE4 = 'test4.glm'
-IEEE_13 = 'ieee_13.glm'
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_FILE = os.path.join(THIS_DIR, 'test.glm')
+TEST_FILE2 = os.path.join(THIS_DIR, 'test2.glm')
+TEST_FILE3 = os.path.join(THIS_DIR, 'test3.glm')
+TEST_FILE4 = os.path.join(THIS_DIR, 'test4.glm')
+EXPECTED4 = os.path.join(THIS_DIR, 'test4_expected.glm')
+IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 
 # TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
 # This can't be done until we have a Docker container with GridLAB-D
@@ -839,7 +841,7 @@ class NestedObjectsDoubleNestTestCase(unittest.TestCase):
         with open('tmp.glm', 'r') as f:
             actual = f.read()
 
-        with open('test4_expected.glm', 'r') as f:
+        with open(EXPECTED4, 'r') as f:
             expected = f.read()
 
         self.assertEqual(actual, expected)

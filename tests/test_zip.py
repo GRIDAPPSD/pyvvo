@@ -5,11 +5,13 @@ from pyvvo import glm
 from pyvvo import utils
 import pandas as pd
 import numpy as np
+import os
 
 # Determine if GridLAB-D is at our disposal
 GLD_PRESENT = utils.gld_installed()
 
-TEST_FILE = 'test_zip.glm'
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_FILE = os.path.join(THIS_DIR, 'test_zip.glm')
 
 # Define tolerances for using numpy's isclose function. Use different
 # tolerances for P and Q.

@@ -1,12 +1,12 @@
 # Standard library.
 import unittest
 from unittest.mock import patch
+import os
 
 # pyvvo.
 from pyvvo import sparql
 
 # Third-party.
-import simplejson as json
 # noinspection PyPackageRequirements
 from stomp.exception import ConnectFailedException
 import pandas as pd
@@ -18,6 +18,14 @@ FEEDER_MRID = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
 # We'll be mocking some query returns.
 MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
                             'prop': ['prop1', 'prop2']})
+
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
+REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
+LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
+SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
+BUS_MEAS = os.path.join(THIS_DIR, 'query_measurements_for_bus.csv')
 
 
 class SPARQLManagerTestCase(unittest.TestCase):
@@ -222,7 +230,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # actual.to_csv('query_capacitors.csv', index=False)
 
         # Compare results
-        expected = pd.read_csv('query_capacitors.csv')
+        expected = pd.read_csv(CAPACITORS)
         pd.testing.assert_frame_equal(actual, expected)
 
     def test_sparql_manager_query_capacitors_calls_query_and_map(self):
@@ -240,7 +248,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # Uncomment to recreated expected output.
         # actual.to_csv('query_regulators.csv', index=False)
 
-        expected = pd.read_csv('query_regulators.csv')
+        expected = pd.read_csv(REGULATORS)
 
         pd.testing.assert_frame_equal(actual, expected)
 
@@ -288,7 +296,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # Uncomment to recreate expected.
         # actual.to_csv('query_load_measurements.csv', index=True)
 
-        expected = pd.read_csv('query_load_measurements.csv', index_col=0)
+        expected = pd.read_csv(LOAD_MEAS, index_col=0)
 
         pd.testing.assert_frame_equal(actual, expected)
 
@@ -339,7 +347,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # Uncomment to regenerate expected return.
         # actual.to_csv('query_substation_source.csv')
 
-        expected = pd.read_csv('query_substation_source.csv', index_col=0)
+        expected = pd.read_csv(SUBSTATION, index_col=0)
 
         pd.testing.assert_frame_equal(actual, expected)
 
@@ -360,7 +368,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # Uncomment to recreate expected value.
         # actual.to_csv('query_measurements_for_bus.csv')
 
-        expected = pd.read_csv('query_measurements_for_bus.csv', index_col=0)
+        expected = pd.read_csv(BUS_MEAS, index_col=0)
 
         pd.testing.assert_frame_equal(actual, expected)
 

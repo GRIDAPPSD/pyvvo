@@ -4,7 +4,12 @@ import cmath
 from pyvvo import utils
 from datetime import datetime
 import pandas as pd
+import os
 
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+TEST_ZIP1 = os.path.join(THIS_DIR, 'test_zip_1.csv')
+TEST_GLM2 = os.path.join(THIS_DIR, 'test2.glm')
 
 class TestParseComplexStr(unittest.TestCase):
     """Test utils.parse_complex_str.
@@ -71,7 +76,7 @@ class TestReadGLDCsv(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Read the file"""
-        cls.df = utils.read_gld_csv('test_zip_1.csv')
+        cls.df = utils.read_gld_csv(TEST_ZIP1)
 
     def test_shape_0(self):
         self.assertEqual(self.df.shape[0], 41)
@@ -133,13 +138,13 @@ class RunGLDTestCase(unittest.TestCase):
 
     def test_run_gld_simple(self):
         """Ensure the model runs."""
-        self.assertTrue(utils.run_gld('test2.glm'))
+        self.assertTrue(utils.run_gld(TEST_GLM2))
 
     def test_run_gld_bad_model(self):
         self.assertFalse(utils.run_gld('/some/model.glm'))
 
     def test_run_gld_bad_env(self):
-        self.assertFalse(utils.run_gld('test2.glm', env={'PATH': '/usr/bin'}))
+        self.assertFalse(utils.run_gld(TEST_GLM2, env={'PATH': '/usr/bin'}))
 
 
 class DTToUSFromEpochTestCase(unittest.TestCase):

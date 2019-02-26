@@ -23,6 +23,11 @@ else:
 
 NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
 
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
+IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
+WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 
 class GetGADAddressTestCase(unittest.TestCase):
     """Test get_gad_address."""
@@ -67,7 +72,7 @@ class GetGADObjectTestCase(unittest.TestCase):
         actual_info = self.gad.query_model_info()
 
         # Load the expected result.
-        with open('query_model_info.json', 'r') as f:
+        with open(MODEL_INFO, 'r') as f:
             expected_info = json.load(f)
 
         # The queries are going to have different id's, so remove those.
@@ -138,7 +143,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         #     f.write(glm)
 
         # Get expected.
-        with open('ieee_13.glm', 'r') as f:
+        with open(IEEE_13, 'r') as f:
             expected = f.read()
 
         self.assertEqual(glm, expected)
@@ -178,7 +183,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         # with open('weather_simple.json', 'w') as f:
         #     json.dump(actual, f)
 
-        with open('weather_simple.json', 'r') as f:
+        with open(WEATHER, 'r') as f:
             expected = json.load(f)
 
         # Pop the IDs from actual and expected.

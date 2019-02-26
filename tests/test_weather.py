@@ -2,6 +2,7 @@
 import unittest
 from datetime import datetime
 import copy
+import os
 
 # Third-party installed.
 import simplejson as json
@@ -10,13 +11,16 @@ import pandas as pd
 # pyvvo
 from pyvvo import weather
 
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 
 class ParseWeatherTestCase(unittest.TestCase):
     """Test parse_weather"""
 
     def setUp(self):
         # Load the simple weather data dictionary.
-        with open('weather_simple.json', 'r') as f:
+        with open(WEATHER, 'r') as f:
             self.weather_simple = json.load(f)
 
         # Create the expected DataFrame.
