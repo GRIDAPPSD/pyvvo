@@ -209,6 +209,11 @@ def map_dataframe_columns(map, df, cols):
         raise TypeError('cols input must be a list.')
 
     for col in cols:
-        df[col] = df[col].map(map)
+        try:
+            df[col] = df[col].map(map)
+        except KeyError:
+            # If we're trying to map a column which doesn't exist,
+            # warn.
+            LOG.warning('Column {} does not exist in DataFrame.'.format(col))
 
     return df

@@ -11,6 +11,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_ZIP1 = os.path.join(THIS_DIR, 'test_zip_1.csv')
 TEST_GLM2 = os.path.join(THIS_DIR, 'test2.glm')
 
+
 class TestParseComplexStr(unittest.TestCase):
     """Test utils.parse_complex_str.
 
@@ -190,8 +191,8 @@ class MapDataFrameColumnsTestCase(unittest.TestCase):
         map = {'true': True, 'false': False}
         df = pd.DataFrame({'one': [1, 2, 3], 'two': ['true', 'false', 'true']})
         cols = ['tow']
-        self.assertRaises(KeyError, utils.map_dataframe_columns,
-                          map=map, df=df, cols=cols)
+        with self.assertLogs(utils.LOG, level='WARN'):
+            utils.map_dataframe_columns(map=map, df=df, cols=cols)
 
     def test_map_dataframe_expected_return(self):
         map = {'true': True, 'false': False}
