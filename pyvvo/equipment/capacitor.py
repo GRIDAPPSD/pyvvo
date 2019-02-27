@@ -15,6 +15,36 @@ from pyvvo.utils import list_to_string
 #
 
 
+def initialize_controllable_capacitors(df):
+    """
+    Helper to initialize controllable capacitors given a DataFrame with
+    capacitor information. The DataFrame should come from
+    sparql.SPARQLManager.query_capacitors.
+    """
+    # Filter to get controllable capacitors. Uncontrollable capacitors
+    # have a np.nan value in the ctrlenabled column.
+    c_cap = df[~df['ctrlenabled'].isnull()]
+
+    # A NaN in the phase column indicates a multi-phase capacitor. I
+    # have not yet seen a controllable multi-phase capacitor in the CIM,
+    # so we'll cross that bridge when we get there.
+    if c_cap['phs'].isnull().any():
+        # TODO: handle multi-phase controllable caps.
+        raise NotImplementedError('Currently single phase controllable '
+                                  'capacitors are supported.')
+    # Initialize return.
+    out = dict()
+
+    # Loop and initialize.
+    for row in c_cap.itertuples():
+        # Build a capacitor object.
+        out[row.name] = \
+            CapacitorSinglePhase(name=row.name, mrid=row.mrid, phase=row.phs,
+                                 state=None)
+
+    return out
+
+
 class CapacitorSinglePhase:
     """Single phase capacitor.
     Parameters will for the most part come straight out of the CIM.
@@ -37,7 +67,7 @@ class CapacitorSinglePhase:
         # Assign the name prefix.
         self.name_prefix = name_prefix
         # Assign the name. NOTE: the name_prefix will be prepended to
-        # the given name. The syntax below is slightly unintuitive.
+        # the given name in the setter method.
         self.name = name
 
         # Assign remaining properties.
@@ -45,7 +75,11 @@ class CapacitorSinglePhase:
         self.phase = phase
         self.state = state
 
-        self.log.debug('CapacitorSinglePhase {} initialized.'.format(self.name))
+        self.log.debug('CapacitorSinglePhase {} '.format(self.name)
+                       + 'initialized.')
+
+    def __repr__(self):
+        return self.name
 
     ####################################################################
     # PROPERTY GETTERS AND SETTERS

@@ -1,5 +1,12 @@
 import unittest
 from pyvvo.equipment import capacitor
+import os
+import pandas as pd
+import numpy as np
+
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
 
 
 class CapacitorSinglePhaseTestCase(unittest.TestCase):
@@ -35,6 +42,9 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
                                            state=None, name_prefix='cap_')
         self.assertIsNone(cap.state)
+
+    def test_repr(self):
+        self.assertEqual(str(self.cap), self.cap.name)
 
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
@@ -74,6 +84,40 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
                           name_prefix='blah')
+
+
+class InitializeControllableCapacitors(unittest.TestCase):
+    """Test initialize_controllable_capacitors"""
+
+    def setUp(self):
+        self.df = pd.read_csv(CAPACITORS)
+        self.caps = capacitor.initialize_controllable_capacitors(self.df)
+
+    def test_length(self):
+        """There should be 10-1=9 capacitors, because one capacitor is
+        not controllable"""
+        self.assertEqual(len(self.caps), 9)
+
+    def test_is_capacitor(self):
+        """Ensure each result is indeed a SinglePhaseCapacitor."""
+
+        for _, cap in self.caps.items():
+            self.assertIsInstance(cap, capacitor.CapacitorSinglePhase)
+
+    def test_multi_phase_capacitor(self):
+        """Not supporting multi-phase controllable capacitors until
+        necessary to."""
+        df = self.df.copy(deep=True)
+        df.loc[3, 'phs'] = np.nan
+
+        self.assertRaises(NotImplementedError,
+                          capacitor.initialize_controllable_capacitors,
+                          df=df)
+
+    def test_value(self):
+        self.assertEqual(
+            self.caps['capbank1c'].mrid,
+            self.df[self.df['name'] == 'capbank1c']['mrid'].iloc[0])
 
 
 if __name__ == '__main__':
