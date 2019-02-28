@@ -71,7 +71,7 @@ class SPARQLManager:
         # Map boolean columns.
         result = map_dataframe_columns(
             map=BOOLEAN_MAP, df=result,
-            cols=['ctrlenabled', 'discrete', 'enabled', 'ldc', 'ltc'])
+            cols=['control_enabled', 'discrete', 'enabled', 'ltc_flag'])
         self.log.info('Regulator data obtained.')
 
         # Done.
@@ -331,46 +331,46 @@ class SPARQLManager:
     # a feeder ID: .format(feeder_mrid=feeder_mrid)
     REGULATOR_QUERY = \
         (PREFIX +
-         "SELECT ?name ?phs ?incr ?mode ?enabled ?highStep ?lowStep "
-         "?neutralStep ?step ?ltc ?ctrlenabled ?ctlmode ?mrid "
-         "?rtcid "
+         "SELECT ?control_enabled ?ltc_flag ?mrid ?name ?phase "
+         "?step_voltage_increment ?control_mode ?enabled ?high_step ?low_step "
+         "?neutral_step ?step ?tap_changer_mrid "
          # "?rname ?initDelay ?subDelay ?tname ?wnum ?ldc ?fwdR ?fwdX ?revR "
          # "?revX ?discrete ?ctRating ?ctRatio ?ptRatio ?feeder_mrid "
-         # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid ?normalStep "
+         # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid ?normalStep ?mode "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?pxf c:Equipment.EquipmentContainer ?fdr. "
          "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
-         "?rtc r:type c:RatioTapChanger. "
-         # "?rtc c:IdentifiedObject.name ?rname. "
-         "?rtc c:RatioTapChanger.TransformerEnd ?end. "
+         "?tap_changer r:type c:RatioTapChanger. "
+         # "?tap_changer c:IdentifiedObject.name ?rname. "
+         "?tap_changer c:RatioTapChanger.TransformerEnd ?end. "
          # "?end c:TransformerEnd.endNumber ?wnum. "
          # "?end c:IdentifiedObject.mRID ?endid. "
          "OPTIONAL {{ "
          "?end c:TransformerTankEnd.phases ?phsraw. "
-         'bind(strafter(str(?phsraw),"PhaseCode.") as ?phs)'
+         'bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)'
          "}} "
          "?end c:TransformerTankEnd.TransformerTank ?tank. "
          "?tank c:TransformerTank.PowerTransformer ?pxf. "
          "?pxf c:IdentifiedObject.name ?name. "
          "?pxf c:IdentifiedObject.mRID ?mrid. "
          # "?tank c:IdentifiedObject.name ?tname. "
-         "?rtc c:RatioTapChanger.stepVoltageIncrement ?incr. "
-         "?rtc c:RatioTapChanger.tculControlMode ?moderaw. "
-         'bind(strafter(str(?moderaw),"TransformerControlMode.")'
-         " as ?mode) "
-         "?rtc c:IdentifiedObject.mRID ?rtcid. "
-         "?rtc c:TapChanger.controlEnabled ?enabled. "
-         "?rtc c:TapChanger.highStep ?highStep. "
-         # "?rtc c:TapChanger.initialDelay ?initDelay. "
-         "?rtc c:TapChanger.lowStep ?lowStep. "
-         "?rtc c:TapChanger.ltcFlag ?ltc. "
-         "?rtc c:TapChanger.neutralStep ?neutralStep. "
-         # "?rtc c:TapChanger.neutralU ?neutralU. "
-         # "?rtc c:TapChanger.normalStep ?normalStep. "
-         "?rtc c:TapChanger.step ?step. "
-         # "?rtc c:TapChanger.subsequentDelay ?subDelay. "
-         "?rtc c:TapChanger.TapChangerControl ?ctl. "
+         "?tap_changer c:RatioTapChanger.stepVoltageIncrement ?step_voltage_increment. "
+         # "?tap_changer c:RatioTapChanger.tculControlMode ?moderaw. "
+         # 'bind(strafter(str(?moderaw),"TransformerControlMode.")'
+         # " as ?mode) "
+         "?tap_changer c:IdentifiedObject.mRID ?tap_changer_mrid. "
+         "?tap_changer c:TapChanger.controlEnabled ?control_enabled. "
+         "?tap_changer c:TapChanger.highStep ?high_step. "
+         # "?tap_changer c:TapChanger.initialDelay ?initDelay. "
+         "?tap_changer c:TapChanger.lowStep ?low_step. "
+         "?tap_changer c:TapChanger.ltcFlag ?ltc_flag. "
+         "?tap_changer c:TapChanger.neutralStep ?neutral_step. "
+         # "?tap_changer c:TapChanger.neutralU ?neutralU. "
+         # "?tap_changer c:TapChanger.normalStep ?normalStep. "
+         "?tap_changer c:TapChanger.step ?step. "
+         # "?tap_changer c:TapChanger.subsequentDelay ?subDelay. "
+         "?tap_changer c:TapChanger.TapChangerControl ?ctl. "
          # "?ctl c:TapChangerControl.limitVoltage ?vlim. "
          # "?ctl c:TapChangerControl.lineDropCompensation ?ldc. "
          # "?ctl c:TapChangerControl.lineDropR ?fwdR. "
@@ -378,15 +378,15 @@ class SPARQLManager:
          # "?ctl c:TapChangerControl.reverseLineDropR ?revR. "
          # "?ctl c:TapChangerControl.reverseLineDropX ?revX. "
          # "?ctl c:RegulatingControl.discrete ?discrete. "
-         "?ctl c:RegulatingControl.enabled ?ctrlenabled. "
+         "?ctl c:RegulatingControl.enabled ?enabled. "
          "?ctl c:RegulatingControl.mode ?ctlmoderaw. "
          'bind(strafter(str(?ctlmoderaw),'
-         '"RegulatingControlModeKind.") as ?ctlmode) '
+         '"RegulatingControlModeKind.") as ?control_mode) '
          # "?ctl c:RegulatingControl.monitoredPhase ?monraw. "
          # 'bind(strafter(str(?monraw),"PhaseCode.") as ?monphs) '
          # "?ctl c:RegulatingControl.targetDeadband ?vbw. "
          # "?ctl c:RegulatingControl.targetValue ?vset. "
-         "?asset c:Asset.PowerSystemResources ?rtc. "
+         "?asset c:Asset.PowerSystemResources ?tap_changer. "
          # "?asset c:Asset.AssetInfo ?inf. "
          # "?inf c:TapChangerInfo.ctRating ?ctRating. "
          # "?inf c:TapChangerInfo.ctRatio ?ctRatio. "
@@ -508,12 +508,12 @@ class SPARQLManager:
          "?eq r:type c:PowerTransformer. "
          # Commented stuff below includes failed attempt(s) to filter
          #      by ratio tap changers only.
-         # "?rtc r:type c:RatioTapChanger. "
-         # "?rtc c:RatioTapChanger.TransformerEnd ?end. "
-         # "?eq c:RatioTapChanger ?rtc. "
+         # "?tap_changer r:type c:RatioTapChanger. "
+         # "?tap_changer c:RatioTapChanger.TransformerEnd ?end. "
+         # "?eq c:RatioTapChanger ?tap_changer. "
          # "?end c:TransformerTankEnd.TransformerTank ?tank. "
          # "?tank c:TransformerTank.PowerTransformer ?pxf. "
-         # "?asset c:Asset.PowerSystemResources ?rtc. "
+         # "?asset c:Asset.PowerSystemResources ?tap_changer. "
          # "?eq r:type c:RatioTapChanger. "
          # This is where the attempts to filter end. Lines commented out
          # below were commented because the information is not needed.

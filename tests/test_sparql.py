@@ -321,12 +321,15 @@ class SPARQLManagerTestCase(unittest.TestCase):
         This should probably be broken into multiple tests, but oh well.
         """
         rtc_meas = self.sparql.query_rtc_measurements()
-
+        rtc_meas = rtc_meas.sort_values(axis=0, by=['eqid', 'phases'])
+        rtc_meas = rtc_meas.reindex(np.arange(0, rtc_meas.shape[0]))
         # Uncomment to regenerate expected result.
         # rtc_meas.to_csv(REG_MEAS, index=True)
 
         # Read expected value.
         expected = pd.read_csv(REG_MEAS, index_col=0)
+        expected = expected.sort_values(axis=0, by=['eqid', 'phases'])
+        expected = rtc_meas.reindex(np.arange(0, expected.shape[0]))
 
         pd.testing.assert_frame_equal(rtc_meas, expected)
 
