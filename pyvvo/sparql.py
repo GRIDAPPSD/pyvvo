@@ -332,11 +332,11 @@ class SPARQLManager:
     REGULATOR_QUERY = \
         (PREFIX +
          "SELECT ?name ?phs ?incr ?mode ?enabled ?highStep ?lowStep "
-         "?neutralStep ?normalStep ?step ?ltc ?ctrlenabled ?ctlmode ?mrid "
+         "?neutralStep ?step ?ltc ?ctrlenabled ?ctlmode ?mrid "
          "?rtcid "
          # "?rname ?initDelay ?subDelay ?tname ?wnum ?ldc ?fwdR ?fwdX ?revR "
          # "?revX ?discrete ?ctRating ?ctRatio ?ptRatio ?feeder_mrid "
-         # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid "
+         # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid ?normalStep "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?pxf c:Equipment.EquipmentContainer ?fdr. "
@@ -367,7 +367,7 @@ class SPARQLManager:
          "?rtc c:TapChanger.ltcFlag ?ltc. "
          "?rtc c:TapChanger.neutralStep ?neutralStep. "
          # "?rtc c:TapChanger.neutralU ?neutralU. "
-         "?rtc c:TapChanger.normalStep ?normalStep. "
+         # "?rtc c:TapChanger.normalStep ?normalStep. "
          "?rtc c:TapChanger.step ?step. "
          # "?rtc c:TapChanger.subsequentDelay ?subDelay. "
          "?rtc c:TapChanger.TapChangerControl ?ctl. "
