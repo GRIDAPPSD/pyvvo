@@ -23,6 +23,7 @@ MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
 REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
+REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
 LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
 SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
 BUS_MEAS = os.path.join(THIS_DIR, 'query_measurements_for_bus.csv')
@@ -246,7 +247,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = self.sparql.query_regulators()
 
         # Uncomment to recreated expected output.
-        # actual.to_csv('query_regulators.csv', index=False)
+        # actual.to_csv(REGULATORS, index=False)
 
         expected = pd.read_csv(REGULATORS)
 
@@ -311,21 +312,31 @@ class SPARQLManagerTestCase(unittest.TestCase):
                         query='RTC_POSITION_MEASUREMENT_QUERY',
                         to_numeric=False)
 
-    def test_sparql_manager_query_rtc_measurements_4_regs(self):
+    def test_sparql_manager_query_rtc_measurements_expected(self):
         """The 8500 node system has 4 regulators, all with measurements.
 
         Ensure performing the actual query returns 4 named objects, and
         that each of the named objects has 3 measurements.
+
+        This should probably be broken into multiple tests, but oh well.
         """
         rtc_meas = self.sparql.query_rtc_measurements()
 
+        # Uncomment to regenerate expected result.
+        # rtc_meas.to_csv(REG_MEAS, index=True)
+
+        # Read expected value.
+        expected = pd.read_csv(REG_MEAS, index_col=0)
+
+        pd.testing.assert_frame_equal(rtc_meas, expected)
+
         # Ensure we get measurements associated with four regulators.
-        regs = rtc_meas['eqname'].unique()
+        regs = rtc_meas['eqid'].unique()
         self.assertEqual(4, len(regs))
 
         # For each of the four elements, ensure we have 3 measurements.
         for reg in regs:
-            meas = rtc_meas[rtc_meas['eqname'] == reg]
+            meas = rtc_meas[rtc_meas['eqid'] == reg]
             self.assertEqual(3, meas.shape[0])
 
     def test_sparql_manager_query_capacitor_measurements_calls_query(self):

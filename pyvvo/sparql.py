@@ -331,20 +331,21 @@ class SPARQLManager:
     # a feeder ID: .format(feeder_mrid=feeder_mrid)
     REGULATOR_QUERY = \
         (PREFIX +
-         "SELECT ?rname ?name ?tname ?wnum ?phs ?incr ?mode ?enabled "
-         "?highStep ?lowStep ?neutralStep ?normalStep ?neutralU ?step "
-         "?initDelay ?subDelay ?ltc ?vlim ?vset ?vbw ?ldc ?fwdR ?fwdX "
-         "?revR ?revX ?discrete ?ctrlenabled ?ctlmode ?monphs "
-         "?ctRating ?ctRatio ?ptRatio ?mrid ?feeder_mrid ?rtcid ?endid "
+         "SELECT ?name ?phs ?incr ?mode ?enabled ?highStep ?lowStep "
+         "?neutralStep ?normalStep ?step ?ltc ?ctrlenabled ?ctlmode ?mrid "
+         "?rtcid "
+         # "?rname ?initDelay ?subDelay ?tname ?wnum ?ldc ?fwdR ?fwdX ?revR "
+         # "?revX ?discrete ?ctRating ?ctRatio ?ptRatio ?feeder_mrid "
+         # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?pxf c:Equipment.EquipmentContainer ?fdr. "
          "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
          "?rtc r:type c:RatioTapChanger. "
-         "?rtc c:IdentifiedObject.name ?rname. "
+         # "?rtc c:IdentifiedObject.name ?rname. "
          "?rtc c:RatioTapChanger.TransformerEnd ?end. "
-         "?end c:TransformerEnd.endNumber ?wnum. "
-         "?end c:IdentifiedObject.mRID ?endid. "
+         # "?end c:TransformerEnd.endNumber ?wnum. "
+         # "?end c:IdentifiedObject.mRID ?endid. "
          "OPTIONAL {{ "
          "?end c:TransformerTankEnd.phases ?phsraw. "
          'bind(strafter(str(?phsraw),"PhaseCode.") as ?phs)'
@@ -353,7 +354,7 @@ class SPARQLManager:
          "?tank c:TransformerTank.PowerTransformer ?pxf. "
          "?pxf c:IdentifiedObject.name ?name. "
          "?pxf c:IdentifiedObject.mRID ?mrid. "
-         "?tank c:IdentifiedObject.name ?tname. "
+         # "?tank c:IdentifiedObject.name ?tname. "
          "?rtc c:RatioTapChanger.stepVoltageIncrement ?incr. "
          "?rtc c:RatioTapChanger.tculControlMode ?moderaw. "
          'bind(strafter(str(?moderaw),"TransformerControlMode.")'
@@ -361,37 +362,38 @@ class SPARQLManager:
          "?rtc c:IdentifiedObject.mRID ?rtcid. "
          "?rtc c:TapChanger.controlEnabled ?enabled. "
          "?rtc c:TapChanger.highStep ?highStep. "
-         "?rtc c:TapChanger.initialDelay ?initDelay. "
+         # "?rtc c:TapChanger.initialDelay ?initDelay. "
          "?rtc c:TapChanger.lowStep ?lowStep. "
          "?rtc c:TapChanger.ltcFlag ?ltc. "
          "?rtc c:TapChanger.neutralStep ?neutralStep. "
-         "?rtc c:TapChanger.neutralU ?neutralU. "
+         # "?rtc c:TapChanger.neutralU ?neutralU. "
          "?rtc c:TapChanger.normalStep ?normalStep. "
          "?rtc c:TapChanger.step ?step. "
-         "?rtc c:TapChanger.subsequentDelay ?subDelay. "
+         # "?rtc c:TapChanger.subsequentDelay ?subDelay. "
          "?rtc c:TapChanger.TapChangerControl ?ctl. "
-         "?ctl c:TapChangerControl.limitVoltage ?vlim. "
-         "?ctl c:TapChangerControl.lineDropCompensation ?ldc. "
-         "?ctl c:TapChangerControl.lineDropR ?fwdR. "
-         "?ctl c:TapChangerControl.lineDropX ?fwdX. "
-         "?ctl c:TapChangerControl.reverseLineDropR ?revR. "
-         "?ctl c:TapChangerControl.reverseLineDropX ?revX. "
-         "?ctl c:RegulatingControl.discrete ?discrete. "
+         # "?ctl c:TapChangerControl.limitVoltage ?vlim. "
+         # "?ctl c:TapChangerControl.lineDropCompensation ?ldc. "
+         # "?ctl c:TapChangerControl.lineDropR ?fwdR. "
+         # "?ctl c:TapChangerControl.lineDropX ?fwdX. "
+         # "?ctl c:TapChangerControl.reverseLineDropR ?revR. "
+         # "?ctl c:TapChangerControl.reverseLineDropX ?revX. "
+         # "?ctl c:RegulatingControl.discrete ?discrete. "
          "?ctl c:RegulatingControl.enabled ?ctrlenabled. "
          "?ctl c:RegulatingControl.mode ?ctlmoderaw. "
          'bind(strafter(str(?ctlmoderaw),'
          '"RegulatingControlModeKind.") as ?ctlmode) '
-         "?ctl c:RegulatingControl.monitoredPhase ?monraw. "
-         'bind(strafter(str(?monraw),"PhaseCode.") as ?monphs) '
-         "?ctl c:RegulatingControl.targetDeadband ?vbw. "
-         "?ctl c:RegulatingControl.targetValue ?vset. "
+         # "?ctl c:RegulatingControl.monitoredPhase ?monraw. "
+         # 'bind(strafter(str(?monraw),"PhaseCode.") as ?monphs) '
+         # "?ctl c:RegulatingControl.targetDeadband ?vbw. "
+         # "?ctl c:RegulatingControl.targetValue ?vset. "
          "?asset c:Asset.PowerSystemResources ?rtc. "
-         "?asset c:Asset.AssetInfo ?inf. "
-         "?inf c:TapChangerInfo.ctRating ?ctRating. "
-         "?inf c:TapChangerInfo.ctRatio ?ctRatio. "
-         "?inf c:TapChangerInfo.ptRatio ?ptRatio. "
+         # "?asset c:Asset.AssetInfo ?inf. "
+         # "?inf c:TapChangerInfo.ctRating ?ctRating. "
+         # "?inf c:TapChangerInfo.ctRatio ?ctRatio. "
+         # "?inf c:TapChangerInfo.ptRatio ?ptRatio. "
          "}} "
-         "ORDER BY ?name ?tname ?rname ?wnum "
+         "ORDER BY ?name ?rname "
+         # "?tname ?wnum "
          )
 
     # Query for getting the nominal voltage of EnergyConsumers.
@@ -486,8 +488,8 @@ class SPARQLManager:
     #   measurements attached to ratio tap changers.
     RTC_POSITION_MEASUREMENT_QUERY = \
         (PREFIX +
-         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
-         "?id "
+         "SELECT ?class ?type ?phases ?eqid ?id "
+         # "?name ?trmid ?bus ?eqname ?eqtype"
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -500,9 +502,9 @@ class SPARQLManager:
          '?s c:Measurement.PowerSystemResource ?eq .'
          '?s c:Measurement.Terminal ?trm .'
          '?s c:Measurement.measurementType ?type .'
-         '?trm c:IdentifiedObject.mRID ?trmid.'
+         # '?trm c:IdentifiedObject.mRID ?trmid.'
          '?eq c:IdentifiedObject.mRID ?eqid.'
-         '?eq c:IdentifiedObject.name ?eqname.'
+         # '?eq c:IdentifiedObject.name ?eqname.'
          "?eq r:type c:PowerTransformer. "
          # Commented stuff below includes failed attempt(s) to filter
          #      by ratio tap changers only.
@@ -513,13 +515,16 @@ class SPARQLManager:
          # "?tank c:TransformerTank.PowerTransformer ?pxf. "
          # "?asset c:Asset.PowerSystemResources ?rtc. "
          # "?eq r:type c:RatioTapChanger. "
-         '?eq r:type ?typeraw.'
-         'bind(strafter(str(?typeraw),"#") as ?eqtype)'
+         # This is where the attempts to filter end. Lines commented out
+         # below were commented because the information is not needed.
+         # '?eq r:type ?typeraw.'
+         # 'bind(strafter(str(?typeraw),"#") as ?eqtype)'
          '?trm c:Terminal.ConnectivityNode ?cn.'
-         '?cn c:IdentifiedObject.name ?bus.'
+         # '?cn c:IdentifiedObject.name ?bus.'
          '?s c:Measurement.phases ?phsraw .'
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
-         '}} ORDER BY ?class ?type ?name'
+         '}} ORDER BY ?class ?type'
+         # ' ?name'
          )
 
     # Get status measurements for capacitors.
@@ -609,6 +614,7 @@ class SPARQLManager:
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
          '}} ORDER BY ?class ?type ?name'
          )
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
