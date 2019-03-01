@@ -331,12 +331,13 @@ class SPARQLManager:
     # a feeder ID: .format(feeder_mrid=feeder_mrid)
     REGULATOR_QUERY = \
         (PREFIX +
-         "SELECT ?control_enabled ?ltc_flag ?mrid ?name ?phase "
+         "SELECT ?ltc_flag ?mrid ?name ?phase "
          "?step_voltage_increment ?control_mode ?enabled ?high_step ?low_step "
          "?neutral_step ?step ?tap_changer_mrid "
          # "?rname ?initDelay ?subDelay ?tname ?wnum ?ldc ?fwdR ?fwdX ?revR "
          # "?revX ?discrete ?ctRating ?ctRatio ?ptRatio ?feeder_mrid "
          # "?monphs ?neutralU ?vlim ?vset ?vbw ?endid ?normalStep ?mode "
+         # "?control_enabled "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?pxf c:Equipment.EquipmentContainer ?fdr. "
