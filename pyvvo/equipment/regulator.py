@@ -3,10 +3,46 @@ import logging
 
 import pyvvo.utils as utils
 
+import numpy as np
 
-# TODO:
-# Throw exceptions for:
-# ltc is False: this means we cannot control it.
+LOG = logging.getLogger(__name__)
+
+
+def initialize_controllable_regulators(df):
+    """Helper to initialize controllable regulators given a DataFrame
+    with regulator information. The DataFrame should come from
+    sparql.SPARQLManager.query_regulators.
+    """
+    # Filter by ltc_flag, and then drop the ltc_flag column. From the
+    # CIM description for TapChanger.ltcFlag: "Specifies whether or not
+    # a TapChanger has load tap changing capabilities."
+    # We don't care about regulators that can't tap under load.
+    ltc_reg = df[df['ltc_flag']].drop('ltc_flag', axis=1)
+
+    # If we're "throwing away" some regulators, mention it.
+    if ltc_reg.shape[0] != df.shape[0]:
+        LOG.info('{} regulator phases were discarded because their CIM '
+                 'ltcFlag was false.'.format(df.shape[0] - ltc_reg.shape[0]))
+
+    # Group by mrid and name. Both are of the parent regulator - the
+    # tap_changer_mrid is unique to the regulator phase.
+    groups = ltc_reg.groupby(['mrid', 'name'], sort=False)
+
+    # Initialize return.
+    out = []
+
+    # Loop over the groups and initialize regulators.
+    for label in groups.groups:
+        items = groups.get_group(label)
+        # Create a regulator for each item.
+        reg_list = []
+        for idx in items.index:
+            reg_list.append(RegulatorSinglePhase(**items.loc[idx].to_dict()))
+
+        # Create three-phase regulator and append to output.
+        out.append(RegulatorThreePhase(reg_list))
+
+    return out
 
 
 def _tap_cim_to_gld(step, step_voltage_increment):
@@ -46,15 +82,94 @@ def _tap_gld_to_cim(tap_pos, step_voltage_increment, num_digits=5):
     return round(tap_pos * step_voltage_increment / 100 + 1, num_digits)
 
 
-class Regulator:
-    """Voltage regulators!"""
+class RegulatorThreePhase:
+    """
+    Class that essentially acts as a container for RegulatorSinglePhase
+    objects.
+    """
 
-    def __init__(self):
+    def __init__(self, regulator_list):
+        """Take in 3 RegulatorSinglePhase objects.
+
+        :param regulator_list: list of three RegulatorSinglePhase
+            objects.
+        """
         # Setup logging.
         self.log = logging.getLogger(__name__)
 
-        #
-        pass
+        # Check input type.
+        if not isinstance(regulator_list, (list, tuple)):
+            raise TypeError('regulator_list must be a list or tuple.')
+
+        if len(regulator_list) != 3:
+            raise ValueError('regulator_list must have length 3.')
+
+        # Loop over the list.
+        for regulator in regulator_list:
+            if not isinstance(regulator, RegulatorSinglePhase):
+                m = ('All items in regulator_list must be RegulatorSinglePhase'
+                     + ' objects.')
+                raise TypeError(m)
+
+            # Set name attribute if necessary, ensure all
+            # RegulatorSinglePhase objects refer to the same name.
+            try:
+                name_match = regulator.name == self.name
+            except AttributeError:
+                # Set the name.
+                self._name = regulator.name
+            else:
+                # If the names don't match, raise exception.
+                if not name_match:
+                    m = 'RegulatorSinglePhase objects do not have matching '\
+                        '"name" attributes.'
+                    raise ValueError(m)
+
+            # Set mrid attribute if necessary, ensure all
+            # RegulatorSinglePhase objects refer to the same mrid.
+            try:
+                mrid_match = regulator.mrid == self.mrid
+            except AttributeError:
+                # Set mrid.
+                self._mrid = regulator.mrid
+            else:
+                if not mrid_match:
+                    # If the mrids don't match, raise exception.
+                    m = 'RegulatorSinglePhase objects do not have matching '\
+                        '"mrid" attributes.'
+                    raise ValueError(m)
+
+            # Check regulator phase, and set the attribute accordingly.
+            setattr(self, '_' + regulator.phase.lower(), regulator)
+
+    def __repr__(self):
+        return '<RegulatorThreePhase. name: {}'.format(self.name)
+
+    ####################################################################
+    # Getter methods
+    ####################################################################
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def mrid(self):
+        return self._mrid
+
+    # noinspection PyUnresolvedReferences
+    @property
+    def a(self):
+        return self._a
+
+    # noinspection PyUnresolvedReferences
+    @property
+    def b(self):
+        return self._b
+
+    # noinspection PyUnresolvedReferences
+    @property
+    def c(self):
+        return self._c
 
 
 class RegulatorSinglePhase:
@@ -150,7 +265,7 @@ class RegulatorSinglePhase:
 
         self._tap_changer_mrid = tap_changer_mrid
 
-        if not isinstance(step_voltage_increment, float):
+        if not isinstance(step_voltage_increment, (float, np.floating)):
             raise TypeError("step_voltage_increment must be a float!")
 
         self._step_voltage_increment = step_voltage_increment
@@ -164,22 +279,22 @@ class RegulatorSinglePhase:
 
         self._control_mode = control_mode
 
-        if not isinstance(enabled, bool):
+        if not isinstance(enabled, (bool, np.bool_)):
             raise TypeError('enabled must be True or False.')
 
         self._enabled = enabled
 
-        if not isinstance(high_step, int):
+        if not isinstance(high_step, (int, np.integer)):
             raise TypeError('high_step must be an integer.')
 
         self._high_step = high_step
 
-        if not isinstance(low_step, int):
+        if not isinstance(low_step, (int, np.integer)):
             raise TypeError('low_step must be an integer.')
 
         self._low_step = low_step
 
-        if not isinstance(neutral_step, int):
+        if not isinstance(neutral_step, (int, np.integer)):
             raise TypeError('neutral_step must be an integer.')
 
         self._neutral_step = neutral_step
@@ -190,7 +305,7 @@ class RegulatorSinglePhase:
                              'low_step <= neutral_step <= high_step')
 
         # TODO: Update when the platform is updated.
-        if not isinstance(step, float):
+        if not isinstance(step, (float, np.floating)):
             raise TypeError('step must be a float.')
 
         self._step = step
@@ -216,6 +331,10 @@ class RegulatorSinglePhase:
         self._tap_pos = \
             _tap_cim_to_gld(step=self.step, step_voltage_increment=
                             self.step_voltage_increment)
+
+    def __repr__(self):
+        return '<RegulatorSinglePhase. name: {}, phase: {}>'.format(self.name,
+                                                                    self.phase)
 
     ####################################################################
     # Getter methods

@@ -1,6 +1,49 @@
 import unittest
+from unittest.mock import patch
 import pyvvo.equipment.regulator as regulator
 from copy import deepcopy
+from inspect import signature
+import os
+import pandas as pd
+
+# Handle pathing.
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
+
+
+class InitializeControllableRegulatorsTestCase(unittest.TestCase):
+    """Test initialize_controllable_regulators"""
+    def setUp(self):
+        self.df = pd.read_csv(REGULATORS)
+        self.regs = regulator.initialize_controllable_regulators(self.df)
+
+    def test_four_regs(self):
+        """There should be 4 three phase regulators"""
+        self.assertEqual(len(self.regs), 4)
+
+    def test_all_regs(self):
+        """Every item should be a RegulatorThreePhase"""
+        for reg in self.regs:
+            with self.subTest('reg = {}'.format(reg)):
+                self.assertIsInstance(reg, regulator.RegulatorThreePhase)
+
+    def test_ltc_filter(self):
+        """If a regulator's ltc_flag is false, it shouldn't be included.
+        """
+        # Get a copy of the DataFrame.
+        df = self.df.copy(deep=True)
+
+        # Set the first three ltc_flags to False.
+        # NOTE: This is hard-coding based on the DataFrame have regs in
+        # order.
+        df.loc[0:2, 'ltc_flag'] = False
+
+        # Create regulators. NOTE: This should log.
+        with self.assertLogs(regulator.LOG, 'INFO'):
+            regs = regulator.initialize_controllable_regulators(df)
+
+        # There should be three now instead of four.
+        self.assertEqual(len(regs), 3)
 
 
 class TapCIMToGLDTestCase(unittest.TestCase):
@@ -65,6 +108,81 @@ class TapGLDToCIMTestCase(unittest.TestCase):
         actual = regulator._tap_gld_to_cim(tap_pos=16,
                                            step_voltage_increment=0.625)
         self.assertEqual(1.1, actual)
+
+
+class MockRegulatorSinglePhase:
+    """Simple class for mocking RegulatorSinglePhase for the purpose of
+    testing RegulatorThreePhase
+    """
+    def __init__(self, name, mrid, phase):
+        self.name = name
+        self.mrid = mrid
+        self.phase = phase
+
+
+class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
+
+    def test_bad_input_type(self):
+        self.assertRaises(TypeError, regulator.RegulatorThreePhase,
+                          'hello')
+
+    def test_bad_input_list_length(self):
+        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
+                          [1, 2])
+
+    def test_bad_input_list_type(self):
+        self.assertRaises(TypeError, regulator.RegulatorThreePhase,
+                          (1, 2, 3))
+
+    # noinspection PyArgumentList
+    @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
+           new=MockRegulatorSinglePhase)
+    def test_successful_init(self):
+        """Pass three mocked single phase regs."""
+        reg1 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='a')
+        reg2 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='b')
+        reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='C')
+
+        reg_3_phs = regulator.RegulatorThreePhase((reg1, reg2, reg3))
+
+        self.assertEqual(reg_3_phs.name, 'reg')
+        self.assertEqual(reg_3_phs.mrid, '123')
+        self.assertIs(reg_3_phs.a, reg1)
+        self.assertIs(reg_3_phs.b, reg2)
+        self.assertIs(reg_3_phs.c, reg3)
+
+    # noinspection PyArgumentList
+    @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
+           new=MockRegulatorSinglePhase)
+    def test_mismatched_names(self):
+        """All single phase regs should have the same name."""
+        reg1 = regulator.RegulatorSinglePhase(name='reg2', mrid='123',
+                                              phase='a')
+        reg2 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='b')
+        reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='C')
+
+        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
+                          (reg1, reg2, reg3))
+
+    # noinspection PyArgumentList
+    @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
+           new=MockRegulatorSinglePhase)
+    def test_mismatched_mrids(self):
+        """All single phase regs should have the same name."""
+        reg1 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='a')
+        reg2 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
+                                              phase='b')
+        reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='1234',
+                                              phase='C')
+
+        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
+                          (reg1, reg2, reg3))
 
 
 class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
