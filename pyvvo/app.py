@@ -2,7 +2,7 @@
 from pyvvo.sparql import SPARQLManager
 from pyvvo.glm import GLMManager
 from pyvvo.gridappsd_platform import PlatformManager
-from pyvvo.utils import run_gld
+from pyvvo.equipment import capacitor, regulator
 from datetime import datetime
 
 if __name__ == '__main__':
@@ -20,6 +20,8 @@ if __name__ == '__main__':
     # Get a platform manager
     platform = PlatformManager()
 
+    # m = platform.get_historic_measurements(sim_id='1330667293', mrid=None)
+
     # Hard-code some dates to work with.
     starttime = datetime(2013, 1, 14)
     stoptime = datetime(2013, 1, 21)
@@ -30,10 +32,12 @@ if __name__ == '__main__':
 
     # Get regulator information.
     regs = sparql.query_regulators()
+    c_regs = regulator.initialize_controllable_regulators(regs)
     reg_meas = sparql.query_rtc_measurements()
 
     # Get capacitor information.
     caps = sparql.query_capacitors()
+    c_caps = capacitor.initialize_controllable_capacitors(caps)
     cap_meas = sparql.query_capacitor_measurements()
 
     # Get EnergyConsumer (load) data.
@@ -59,7 +63,9 @@ if __name__ == '__main__':
     # TODO - what's the way forward here? Probably just query the
     #   database.
 
-    pass
-
     # # Run a simulation.
     # sim_id = platform.run_simulation()
+
+    # Send commands to running simulation.
+
+    pass
