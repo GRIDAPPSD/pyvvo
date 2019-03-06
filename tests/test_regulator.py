@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import patch
 import pyvvo.equipment.regulator as regulator
 from copy import deepcopy
-from inspect import signature
 import os
 import pandas as pd
 
@@ -23,7 +22,7 @@ class InitializeControllableRegulatorsTestCase(unittest.TestCase):
 
     def test_all_regs(self):
         """Every item should be a RegulatorThreePhase"""
-        for reg in self.regs:
+        for key, reg in self.regs.items():
             with self.subTest('reg = {}'.format(reg)):
                 self.assertIsInstance(reg, regulator.RegulatorThreePhase)
 

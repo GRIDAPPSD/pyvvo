@@ -29,7 +29,7 @@ def initialize_controllable_regulators(df):
     groups = ltc_reg.groupby(['mrid', 'name'], sort=False)
 
     # Initialize return.
-    out = []
+    out = {}
 
     # Loop over the groups and initialize regulators.
     for label in groups.groups:
@@ -39,8 +39,9 @@ def initialize_controllable_regulators(df):
         for idx in items.index:
             reg_list.append(RegulatorSinglePhase(**items.loc[idx].to_dict()))
 
-        # Create three-phase regulator and append to output.
-        out.append(RegulatorThreePhase(reg_list))
+        # Create three-phase regulator and add to output.
+        reg_three_phase = RegulatorThreePhase(reg_list)
+        out[reg_three_phase.name] = reg_three_phase
 
     return out
 
