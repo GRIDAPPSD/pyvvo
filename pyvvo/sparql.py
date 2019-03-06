@@ -71,7 +71,7 @@ class SPARQLManager:
         # Map boolean columns.
         result = map_dataframe_columns(
             map=BOOLEAN_MAP, df=result,
-            cols=['control_enabled', 'discrete', 'enabled', 'ltc_flag'])
+            cols=['enabled', 'ltc_flag'])
         self.log.info('Regulator data obtained.')
 
         # Done.
