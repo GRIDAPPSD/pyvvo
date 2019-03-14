@@ -16,7 +16,8 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """Create CapacitorSinglePhase object."""
         self.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state='OpEn', name_prefix='cap_')
+                                           state='OpEn', name_prefix='cap_',
+                                           mode='ACTIVEpower')
 
     def test_name_prefix(self):
         self.assertEqual('cap_', self.cap.name_prefix)
@@ -27,6 +28,10 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 
     def test_mrid(self):
         self.assertEqual('1', self.cap.mrid)
+
+    def test_mode(self):
+        """Mode is case insensitive, and is cast to lower case."""
+        self.assertEqual('activepower', self.cap.mode)
 
     def test_phase(self):
         """Lower case phase should be cast to upper case."""
@@ -40,7 +45,8 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """None is a valid state to initialize a capacitor."""
         cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state=None, name_prefix='cap_')
+                                           state=None, name_prefix='cap_',
+                                           mode='voltage')
         self.assertIsNone(cap.state)
 
     def test_repr(self):
@@ -53,37 +59,47 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     def test_name_prefix_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='cap', mrid='1', phase='A', state='OPEN',
-                          name_prefix=1)
+                          name_prefix=1, mode='admittance')
 
     def test_name_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name=[1, 2, 3], mrid='1', phase='A', state='OPEN',
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
 
     def test_mrid_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid={'a': 1}, phase='A', state='OPEN',
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
 
     def test_phase_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase=7, state='OPEN',
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
 
     def test_phase_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='N', state='OPEN',
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
 
     def test_state_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='c', state=True,
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
 
     def test_state_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          name_prefix='blah')
+                          name_prefix='blah', mode='admittance')
+
+    def test_mode_bad_type(self):
+        self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='b', state='stuck',
+                          name_prefix='blah', mode=0)
+
+    def test_mode_bad_value(self):
+        self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='b', state='stuck',
+                          name_prefix='blah', mode='vvo')
 
 
 class InitializeControllableCapacitors(unittest.TestCase):
@@ -118,6 +134,12 @@ class InitializeControllableCapacitors(unittest.TestCase):
         self.assertEqual(
             self.caps['capbank1c'].mrid,
             self.df[self.df['name'] == 'capbank1c']['mrid'].iloc[0])
+
+
+class CapacitorSinglePhaseUpdateControlMode(unittest.TestCase):
+    """Test the 'update_control' method."""
+    def test_stub(self):
+        self.assertTrue(False, 'This method is not complete yet.')
 
 
 if __name__ == '__main__':

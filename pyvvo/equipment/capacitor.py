@@ -40,7 +40,7 @@ def initialize_controllable_capacitors(df):
         # Build a capacitor object.
         out[row.name] = \
             CapacitorSinglePhase(name=row.name, mrid=row.mrid, phase=row.phs,
-                                 state=None)
+                                 state=None, mode=row.mode)
 
     return out
 
@@ -57,7 +57,15 @@ class CapacitorSinglePhase:
     # Allowed states (case insensitive)
     STATES = ('OPEN', 'CLOSED')
 
-    def __init__(self, name, mrid, phase, state=None, name_prefix='cap_'):
+    # Allowed control modes (case insensitive). Corresponds to CIM
+    # RegulatingControlModeKind. May need to add "MANUAL" option in the
+    # future for GridLAB-D. Note: In CIM these are camelCase, but
+    # keeping them lower to make case insensitivity simple.
+    MODES = ('voltage', 'activepower', 'reactivepower', 'currentflow',
+             'admittance', 'timescheduled', 'temperature', 'powerfactor')
+
+    def __init__(self, name, mrid, phase, mode, state=None,
+                 name_prefix='cap_'):
         """Initialize single phase capacitor.
         TODO: Document parameters.
         """
@@ -100,6 +108,22 @@ class CapacitorSinglePhase:
         # Assign.
         self._phase = upper_phase
 
+        # Check and assign mode.
+        if not isinstance(mode, str):
+            raise TypeError('mode must be a string.')
+
+        # Cast to lower case.
+        lower_mode = mode.lower()
+
+        # Ensure it's valid.
+        if lower_mode not in self.MODES:
+            mode_str = list_to_string(self.MODES, 'or')
+            m = 'mode must be {} (case insensitive)'.format(mode_str)
+            raise ValueError(m)
+
+        # Assign.
+        self._mode = lower_mode
+
         # Check and assign state.
         if state is None:
             # If state is None, simply set.
@@ -127,6 +151,15 @@ class CapacitorSinglePhase:
         return self.name
 
     ####################################################################
+    # PUBLIC METHODS
+    ####################################################################
+
+    def update_control(self):
+        # TODO: When the platform allows for explicit commanding of the
+        #   mode, write this method.
+        pass
+
+    ####################################################################
     # PROPERTY GETTERS AND SETTERS
     ####################################################################
     @property
@@ -151,6 +184,11 @@ class CapacitorSinglePhase:
     def phase(self):
         """Phase which capacitor is on."""
         return self._phase
+
+    @property
+    def mode(self):
+        """Control mode."""
+        return self._mode
 
     @property
     def state(self):
