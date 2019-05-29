@@ -40,7 +40,7 @@ fi
 
 # Clone GridLAB-D, or pull the latest.
 printf "Getting the latest GridLAB-D (${gld_branch} branch).\n\n"
-git clone https://github.com/gridlab-d/gridlab-d.git -b ${gld_branch} --single-branch "${gld_dir}" 2> /dev/null || (cd "${gld_dir}"  ; git pull)
+git clone https://github.com/gridlab-d/gridlab-d.git --branch ${gld_branch} --depth 1 --single-branch "${gld_dir}" 2> /dev/null || (cd "${gld_dir}"  ; git pull)
 
 # Build pyvvo.
 printf "Building pyvvo container...\n"
