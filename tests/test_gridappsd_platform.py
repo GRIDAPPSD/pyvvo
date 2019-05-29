@@ -7,7 +7,7 @@ from datetime import datetime
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform
 from gridappsd import GridAPPSD
-from pyvvo.weather import parse_weather
+from pyvvo.timeseries import parse_weather
 
 # Third-party
 from stomp.exception import ConnectFailedException
@@ -169,9 +169,10 @@ class PlatformManagerTestCase(unittest.TestCase):
 
     def test_platform_manager_get_weather_valid(self):
         """Ensure parse_weather is called with the expected input."""
-        with patch('pyvvo.weather.parse_weather', side_effect=parse_weather)\
-                as mock:
-            actual_df = self.platform.get_weather(
+        with patch('pyvvo.timeseries.parse_weather',
+                   side_effect=parse_weather) as mock:
+
+            _ = self.platform.get_weather(
                 start_time=datetime(2013, 1, 1, 6),
                 end_time=datetime(2013, 1, 1, 6))
 

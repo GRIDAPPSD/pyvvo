@@ -9,7 +9,7 @@ import simplejson as json
 import pandas as pd
 
 # pyvvo
-from pyvvo import weather
+from pyvvo import timeseries
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -53,11 +53,11 @@ class ParseWeatherTestCase(unittest.TestCase):
                          columns=['temperature', 'ghi'])
 
     def test_parse_weather_bad_input_type(self):
-        self.assertRaises(TypeError, weather.parse_weather, 10)
+        self.assertRaises(TypeError, timeseries.parse_weather, 10)
 
     def test_parse_weather_bad_input_value(self):
         """This will raise a TypeError rather than a KeyError."""
-        self.assertRaises(TypeError, weather.parse_weather,
+        self.assertRaises(TypeError, timeseries.parse_weather,
                           {'data': {'measurements': [1, 2, 3]}})
 
     # noinspection PyMethodMayBeStatic
@@ -65,7 +65,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         """Load weather_simple.json, ensure result matches."""
 
         # Parse the data.
-        actual = weather.parse_weather(self.weather_simple)
+        actual = timeseries.parse_weather(self.weather_simple)
 
         # Ensure actual and expected results are equal.
         pd.testing.assert_frame_equal(actual, self.weather_simple_expected)
@@ -77,7 +77,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove temperature
         del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
     def test_parse_weather_no_ghi(self):
         # Get a copy of the data.
@@ -86,7 +86,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove ghi
         del data['data']['measurements'][0]['points'][0]['row']['entry'][8]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
     def test_parse_weather_no_time(self):
         # Get a copy of the data.
@@ -95,7 +95,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove time
         del data['data']['measurements'][0]['points'][0]['row']['entry'][10]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
     def test_parse_weather_data_no_wind(self):
         """We aren't using wind speed."""
@@ -108,7 +108,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # We should not get a ValueError.
         # noinspection PyBroadException
         try:
-            weather.parse_weather(data)
+            timeseries.parse_weather(data)
         except Exception:
             m = ('An exception was raised when parsing simple weather without '
                  'AvgWindSpeed')
@@ -116,7 +116,7 @@ class ParseWeatherTestCase(unittest.TestCase):
 
     def test_parse_weather_two(self):
         """Check the two-row case."""
-        actual = weather.parse_weather(self.weather_two)
+        actual = timeseries.parse_weather(self.weather_two)
         pd.testing.assert_frame_equal(actual, self.weather_two_expected)
 
     def test_parse_weather_two_missing_temperature(self):
@@ -126,7 +126,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a temperature entry.
         del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
     def test_parse_weather_two_missing_ghi(self):
         """Delete one ghi entry from the two-row case."""
@@ -135,7 +135,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a ghi entry.
         del data['data']['measurements'][0]['points'][1]['row']['entry'][8]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
     def test_parse_weather_two_missing_time(self):
         """Delete one time entry from the two-row case."""
@@ -144,7 +144,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a time entry.
         del data['data']['measurements'][0]['points'][1]['row']['entry'][10]
 
-        self.assertRaises(ValueError, weather.parse_weather, data)
+        self.assertRaises(ValueError, timeseries.parse_weather, data)
 
 
 class ResampleWeatherTestCase(unittest.TestCase):
@@ -173,24 +173,24 @@ class ResampleWeatherTestCase(unittest.TestCase):
                                          index=dt_index_2)
 
     def test_resample_weather_bad_weather_data_type(self):
-        self.assertRaises(TypeError, weather.resample_weather,
+        self.assertRaises(TypeError, timeseries.resample_weather,
                           weather_data={'temp': [1, 2, 3]}, interval=15,
                           interval_unit='Min')
 
     def test_resample_weather_bad_interval_type(self):
-        self.assertRaises(TypeError, weather.resample_weather,
+        self.assertRaises(TypeError, timeseries.resample_weather,
                           weather_data=pd.DataFrame(), interval=15.1,
                           interval_unit='Min')
 
     def test_resample_weather_bad_interval_unit(self):
-        self.assertRaises(TypeError, weather.resample_weather,
+        self.assertRaises(TypeError, timeseries.resample_weather,
                           weather_data=pd.DataFrame(), interval=15,
                           interval_unit=[1, 2, 3])
 
     def test_resample_weather_15_min(self):
         """Resample at 15 minute intervals."""
-        actual = weather.resample_weather(weather_data=self.weather_data,
-                                          interval=15, interval_unit='Min')
+        actual = timeseries.resample_weather(weather_data=self.weather_data,
+                                             interval=15, interval_unit='Min')
 
         pd.testing.assert_frame_equal(actual, self.expected_data)
 
@@ -199,7 +199,7 @@ class FixGHITestCase(unittest.TestCase):
     """Test fix_ghi"""
 
     def test_fix_ghi_bad_weather_data_type(self):
-        self.assertRaises(TypeError, weather.fix_ghi, weather_data=pd.Series())
+        self.assertRaises(TypeError, timeseries.fix_ghi, weather_data=pd.Series())
 
     # noinspection PyMethodMayBeStatic
     def test_fix_ghi(self):
@@ -212,7 +212,7 @@ class FixGHITestCase(unittest.TestCase):
         df_expected = pd.DataFrame({'temperature': temperature,
                                     'ghi': ghi_pos})
 
-        df_actual = weather.fix_ghi(df_original)
+        df_actual = timeseries.fix_ghi(df_original)
 
         pd.testing.assert_frame_equal(df_expected, df_actual)
 
