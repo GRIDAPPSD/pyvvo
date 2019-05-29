@@ -40,10 +40,11 @@ class SPARQLManagerTestCase(unittest.TestCase):
         platform itself, which is handy.
     """
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Attempt to connect to the platform."""
         try:
-            self.sparql = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
+            cls.sparql = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
         except ConnectFailedException:
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')

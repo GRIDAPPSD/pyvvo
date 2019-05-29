@@ -12,9 +12,10 @@ REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
 
 class InitializeControllableRegulatorsTestCase(unittest.TestCase):
     """Test initialize_controllable_regulators"""
-    def setUp(self):
-        self.df = pd.read_csv(REGULATORS)
-        self.regs = regulator.initialize_controllable_regulators(self.df)
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(REGULATORS)
+        cls.regs = regulator.initialize_controllable_regulators(cls.df)
 
     def test_four_regs(self):
         """There should be 4 three phase regulators"""
@@ -185,8 +186,9 @@ class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
 
 
 class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
-    def setUp(self):
-        self.inputs = \
+    @classmethod
+    def setUpClass(cls):
+        cls.inputs = \
             {'control_mode': 'voltage',
              'enabled': True, 'high_step': 32, 'low_step': 0,
              'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
@@ -194,7 +196,7 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
              'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
              'step': 1.0125, 'step_voltage_increment': 0.625}
 
-        self.reg = regulator.RegulatorSinglePhase(**self.inputs)
+        cls.reg = regulator.RegulatorSinglePhase(**cls.inputs)
 
     def test_attributes(self):
         """The inputs should match the attributes."""
@@ -214,8 +216,9 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
-    def setUp(self):
-        self.inputs = \
+    @classmethod
+    def setUpClass(cls):
+        cls.inputs = \
             {'control_mode': 'voltage',
              'enabled': True, 'high_step': 32, 'low_step': 0,
              'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',

@@ -18,10 +18,11 @@ WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 class ParseWeatherTestCase(unittest.TestCase):
     """Test parse_weather"""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         # Load the simple weather data dictionary.
         with open(WEATHER, 'r') as f:
-            self.weather_simple = json.load(f)
+            cls.weather_simple = json.load(f)
 
         # Create the expected DataFrame.
         # Weather data starts at 2013-01-01 00:00:00 Mountain Time.
@@ -33,21 +34,21 @@ class ParseWeatherTestCase(unittest.TestCase):
         ghi = -0.0376761524
 
         # Create expected DataFrame.
-        self.weather_simple_expected = \
+        cls.weather_simple_expected = \
             pd.DataFrame([[temp, ghi]], index=dt_index,
                          columns=['temperature', 'ghi'])
 
         # Create an entry with two rows.
-        self.weather_two = copy.deepcopy(self.weather_simple)
+        cls.weather_two = copy.deepcopy(cls.weather_simple)
 
         row = copy.deepcopy(
-                self.weather_two['data']['measurements'][0]['points'][0])
+                cls.weather_two['data']['measurements'][0]['points'][0])
 
-        self.weather_two['data']['measurements'][0]['points'].append(row)
+        cls.weather_two['data']['measurements'][0]['points'].append(row)
 
         # Create the expected return for the two-row case.
         dt_index_two = pd.to_datetime([dt, dt], box=True, utc=True)
-        self.weather_two_expected = \
+        cls.weather_two_expected = \
             pd.DataFrame([[temp, ghi], [temp, ghi]], index=dt_index_two,
                          columns=['temperature', 'ghi'])
 
@@ -149,7 +150,8 @@ class ParseWeatherTestCase(unittest.TestCase):
 class ResampleWeatherTestCase(unittest.TestCase):
     """Test resample_weather function."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Create a DataFrame for resampling."""
         dt_index = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=15,
                                  freq='1Min')
@@ -161,14 +163,14 @@ class ResampleWeatherTestCase(unittest.TestCase):
         ghi = [2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4, 2, 3, 4]
 
         # Create DataFrame.
-        self.weather_data = pd.DataFrame({'temperature': temp, 'ghi': ghi},
-                                         index=dt_index)
+        cls.weather_data = pd.DataFrame({'temperature': temp, 'ghi': ghi},
+                                        index=dt_index)
 
         # Create expected data.
         dt_index_2 = pd.date_range(start=datetime(2019, 1, 1, 0, 15), periods=1,
                                    freq='15Min')
-        self.expected_data = pd.DataFrame({'temperature': [2], 'ghi': [3]},
-                                          index=dt_index_2)
+        cls.expected_data = pd.DataFrame({'temperature': [2], 'ghi': [3]},
+                                         index=dt_index_2)
 
     def test_resample_weather_bad_weather_data_type(self):
         self.assertRaises(TypeError, weather.resample_weather,

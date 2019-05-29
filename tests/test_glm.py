@@ -73,8 +73,9 @@ class TestParseFile2(unittest.TestCase):
     expansions. See:
         http://gridlab-d.shoutwiki.com/wiki/Creating_GLM_Files
     """
-    def setUp(self):
-        self.parsed_tokens = glm.parse(TEST_FILE2, True)
+    @classmethod
+    def setUpClass(cls):
+        cls.parsed_tokens = glm.parse(TEST_FILE2, True)
 
     def test_parse2_dict_length_is_4(self):
         self.assertEqual(len(self.parsed_tokens), 4)
@@ -610,9 +611,10 @@ class TestGLMManagerMisc(unittest.TestCase):
 
 class AddOrModifyClockTestCase(unittest.TestCase):
     """Test GLMManager.add_or_modify_clock."""
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Get a GLMManager. Use the simpler model for speed."""
-        self.glm = glm.GLMManager(model=TEST_FILE2, model_is_path=True)
+        cls.glm = glm.GLMManager(model=TEST_FILE2, model_is_path=True)
 
     def test_add_or_modify_clock_bad_starttime_type(self):
         self.assertRaises(TypeError, self.glm.add_or_modify_clock,
@@ -669,9 +671,10 @@ class AddOrModifyClockTestCase(unittest.TestCase):
 class AddRunComponentsBadInputsTestCase(unittest.TestCase):
     """Test add_run_components function with bad inputs."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Load a model."""
-        self.glm = glm.GLMManager(TEST_FILE3, model_is_path=True)
+        cls.glm = glm.GLMManager(TEST_FILE3, model_is_path=True)
 
     def test_add_run_components_add_or_modify_clock_is_called(self):
         """add_or_modify_clock will handle input checking for starttime,
@@ -722,20 +725,22 @@ class AddRunComponentsTestCase(unittest.TestCase):
     # Define the model we'll use.
     MODEL = TEST_FILE3
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Load model, add components."""
-        self.glm = glm.GLMManager(self.MODEL, model_is_path=True)
+        cls.glm = glm.GLMManager(cls.MODEL, model_is_path=True)
 
-        self.out_file = 'tmp.glm'
-        self.glm.add_run_components(starttime=datetime(2012, 1, 1),
-                                    stoptime=datetime(2012, 1, 1, 0, 15),
-                                    timezone='UTC0', v_source=None,
-                                    profiler=0, minimum_timestep=60)
+        cls.out_file = 'tmp.glm'
+        cls.glm.add_run_components(starttime=datetime(2012, 1, 1),
+                                   stoptime=datetime(2012, 1, 1, 0, 15),
+                                   timezone='UTC0', v_source=None,
+                                   profiler=0, minimum_timestep=60)
 
-        self.glm.write_model(out_path=self.out_file)
+        cls.glm.write_model(out_path=cls.out_file)
 
-    def tearDown(self):
-        os.remove(self.out_file)
+    @classmethod
+    def tearDownClass(cls):
+        os.remove(cls.out_file)
 
     @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
     def test_add_run_components_model_runs(self):
@@ -813,9 +818,10 @@ class NestedObjectsIEEE13TestCase(unittest.TestCase):
     # Define the model we'll use.
     MODEL = IEEE_13
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Load model, add components."""
-        self.glm = glm.GLMManager(self.MODEL, model_is_path=True)
+        cls.glm = glm.GLMManager(cls.MODEL, model_is_path=True)
 
     def test_nested_objects_ieee_13_solar_in_map(self):
         self.assertTrue(self.glm.object_type_present('solar'))
@@ -828,12 +834,14 @@ class NestedObjectsIEEE13TestCase(unittest.TestCase):
 class NestedObjectsDoubleNestTestCase(unittest.TestCase):
     """Check that double-nesting works."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Load, save to file."""
-        self.glm = glm.GLMManager(TEST_FILE4, model_is_path=True)
-        self.glm.write_model('tmp.glm')
+        cls.glm = glm.GLMManager(TEST_FILE4, model_is_path=True)
+        cls.glm.write_model('tmp.glm')
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         os.remove('tmp.glm')
 
     def test_nested_objects_double_nesting(self):

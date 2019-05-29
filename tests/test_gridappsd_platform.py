@@ -59,9 +59,10 @@ class GetGADObjectTestCase(unittest.TestCase):
     set.
     """
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Connect to the platform."""
-        self.gad = gridappsd_platform.get_gad_object()
+        cls.gad = gridappsd_platform.get_gad_object()
 
     def test_get_gad_object_is_gad_object(self):
         self.assertIsInstance(self.gad, GridAPPSD)
@@ -110,9 +111,10 @@ class PlatformManagerTestCase(unittest.TestCase):
     set.
     """
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Get a PlatformManager."""
-        self.platform = gridappsd_platform.PlatformManager()
+        cls.platform = gridappsd_platform.PlatformManager()
 
     def test_platform_manager_gad(self):
         self.assertIsInstance(self.platform.gad, GridAPPSD)

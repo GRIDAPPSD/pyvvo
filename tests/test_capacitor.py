@@ -12,9 +12,10 @@ CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
 class CapacitorSinglePhaseTestCase(unittest.TestCase):
     """Basic property tests for CapacitorSinglePhase."""
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         """Create CapacitorSinglePhase object."""
-        self.cap = \
+        cls.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
                                            state='OpEn', name_prefix='cap_',
                                            mode='ACTIVEpower')
@@ -105,9 +106,10 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
 class InitializeControllableCapacitors(unittest.TestCase):
     """Test initialize_controllable_capacitors"""
 
-    def setUp(self):
-        self.df = pd.read_csv(CAPACITORS)
-        self.caps = capacitor.initialize_controllable_capacitors(self.df)
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(CAPACITORS)
+        cls.caps = capacitor.initialize_controllable_capacitors(cls.df)
 
     def test_length(self):
         """There should be 10-1=9 capacitors, because one capacitor is
