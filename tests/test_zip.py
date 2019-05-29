@@ -7,6 +7,9 @@ import pandas as pd
 import numpy as np
 import os
 
+# BAD PRACTICE: file dependencies across tests.
+from tests.test_utils import TEST_ZIP1
+
 # Determine if GridLAB-D is at our disposal
 GLD_PRESENT = utils.gld_installed()
 
@@ -975,6 +978,8 @@ class TestGLDZIP(unittest.TestCase):
                      'impedance_pf_12', 'current_pf_12', 'power_pf_12']
         zip_keys = [s.replace('_12', '') for s in zip_terms]
 
+        cls.out_files = []
+
         for r in recorders:
             # Grab the meter the recorder is associated with.
             meter_name = r['parent']
@@ -995,6 +1000,7 @@ class TestGLDZIP(unittest.TestCase):
 
             # Read the file into a DataFrame.
             gld_out = utils.read_gld_csv(r['file'])
+            cls.out_files.append(r['file'])
 
             # Rename columns.
             gld_out.rename(columns={'measured_real_power': 'p',
@@ -1035,10 +1041,17 @@ class TestGLDZIP(unittest.TestCase):
             load_dict[load_name]['zip_model_out'] = \
                 zip._pq_from_v_zip_gld(v=gld_out['v'], v_n=v_n,
                                        zip_gld=zip_gld)
-            pass
 
         # Assign the final load dictionary.
         cls.load_dict = load_dict
+
+    @classmethod
+    def tearDownClass(cls):
+        """Remove the files that were created."""
+        for f in cls.out_files:
+            # BAD PRACTICE: Skip the file that's used in test_utils.
+            if f != TEST_ZIP1:
+                os.remove(f)
 
     def compare_results(self, f):
         """Helper for comparing results"""
