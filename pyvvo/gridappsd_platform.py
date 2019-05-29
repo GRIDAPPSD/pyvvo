@@ -182,15 +182,8 @@ class PlatformManager:
         data = self.gad.get_response(topic=topic, message=payload,
                                      timeout=self.timeout)
 
-        # Check to see if we actually have any data. We have to navigate
-        # through pretty crazy nesting here...
-        empty = True
-        for meas in data['data']['measurements']:
-            if len(meas['points']) > 0:
-                empty = False
-                break
-
-        if empty:
+        # Check to see if we actually have any data.
+        if data['data'] is None:
             raise QueryReturnEmptyError(topic=topic, query=payload)
 
         # Parse the weather data.
