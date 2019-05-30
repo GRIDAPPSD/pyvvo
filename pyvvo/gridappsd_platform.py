@@ -154,19 +154,8 @@ class PlatformManager:
         glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
         return glm
 
-    def get_weather(self, start_time, end_time):
-        """Helper for querying weather data.
-
-        :param start_time: datetime.datetime object denoting the
-            beginning time of weather data to pull.
-        :param end_time: "..." end time "..."
-        """
-        # Check inputs:
-        if (not isinstance(start_time, datetime)) \
-                or (not isinstance(end_time, datetime)):
-            m = 'start_time and end_time must both be datetime.datetime!'
-            raise TypeError(m)
-
+    def _query_weather(self, start_time, end_time):
+        """Private helper for querying weather data."""
         # The weather data API needs microseconds from the epoch as a
         # string. Why this inconsistency? I don't know.
         payload = {'queryMeasurement': 'weather',
@@ -185,6 +174,24 @@ class PlatformManager:
         # Check to see if we actually have any data.
         if data['data'] is None:
             raise QueryReturnEmptyError(topic=topic, query=payload)
+
+        return data
+
+    def get_weather(self, start_time, end_time):
+        """Helper for querying weather data.
+
+        :param start_time: datetime.datetime object denoting the
+            beginning time of weather data to pull.
+        :param end_time: "..." end time "..."
+        """
+        # Check inputs:
+        if (not isinstance(start_time, datetime)) \
+                or (not isinstance(end_time, datetime)):
+            m = 'start_time and end_time must both be datetime.datetime!'
+            raise TypeError(m)
+
+        # Query the platform to get the weather data.
+        data = self._query_weather(start_time=start_time, end_time=end_time)
 
         # Parse the weather data.
         data_df = timeseries.parse_weather(data)

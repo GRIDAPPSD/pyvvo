@@ -167,6 +167,24 @@ class PlatformManagerTestCase(unittest.TestCase):
                           start_time=datetime(2013, 1, 1, 5, 59),
                           end_time=datetime(2013, 1, 1, 5, 59))
 
+    def test_platform_manager_query_weather_simple(self):
+        # Retrieve one hour of weather data, ensure it matches expected.
+        with open(WEATHER, 'r') as f:
+            expected = json.load(f)
+
+        # Remove the 'id' key.
+        del expected['id']
+
+        # Query the platform. Data starts 2013-01-01 00:00:00 Mountain.
+        actual = \
+            self.platform._query_weather(start_time=datetime(2013, 1, 1, 6),
+                                         end_time=datetime(2013, 1, 1, 6))
+
+        # Remove 'id.'
+        del actual['id']
+
+        self.assertDictEqual(actual, expected)
+
     def test_platform_manager_get_weather_valid(self):
         """Ensure parse_weather is called with the expected input."""
         with patch('pyvvo.timeseries.parse_weather',
