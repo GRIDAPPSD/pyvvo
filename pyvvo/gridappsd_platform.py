@@ -3,7 +3,8 @@
 Note this module depends on the GridAPPS-D platform being up and
 running.
 """
-from gridappsd import GridAPPSD, topics, difference_builder
+from gridappsd import GridAPPSD, topics
+from gridappsd.difference_builder import DifferenceBuilder as DiffBuilder
 from gridappsd import utils as gad_utils
 
 import simplejson as json
@@ -124,6 +125,9 @@ class PlatformManager:
 
         self.log.info('Connected to GridAPPS-D platform.')
 
+        # Initialize property for holding a simulation ID.
+        self._sim_id = None
+
         # # Get information on available models.
         # self.platform_model_info = self.gad_object.query_model_info()
         #
@@ -139,6 +143,86 @@ class PlatformManager:
         # self.model_id = self._get_model_id(self.model_name)
 
         pass
+
+    @property
+    def sim_id(self):
+        return self._sim_id
+
+    @sim_id.setter
+    def sim_id(self, value):
+        self._sim_id = value
+
+    def send_command(self, object_ids, attributes, forward_values,
+                     reverse_values, sim_id=None):
+        """Function for sending a command into a running simulation.
+        This is partly a wrapper to DifferenceBuilder, but also sends
+        the command into the simulation.
+
+        Note all parameters below must be 1:1. In other words,
+        object_id[3] should correspond to attribute[3].
+
+        :param object_ids: List of mrids of objects to command.
+        :param attributes: List of CIM attributes belonging to the
+            objects. These attributes are what we're actually
+            commanding/changing.
+        :param forward_values: List of new values for attributes.
+        :param reverse_values: List of old (current) values for
+            attributes.
+        :param sim_id: Simulation ID. If None, will attempt to use
+            self.sim_id. If self.sim_id is also None, ValueError will
+            be raised.
+        """
+        # Ensure we get lists.
+        if ((not isinstance(object_ids, list))
+                or (not isinstance(attributes, list))
+                or (not isinstance(forward_values, list))
+                or (not isinstance(reverse_values, list))):
+            m = 'object_ids, attributes, forward_values, and reverse_values '\
+                'must all be lists!'
+            raise TypeError(m)
+
+        # Ensure lists are the same length.
+        if not (len(object_ids)
+                == len(attributes)
+                == len(forward_values)
+                == len(reverse_values)):
+            m = 'object_ids, attributes, forward_values, and reverse_values '\
+                'must be the same length!'
+            raise ValueError(m)
+
+        # Ensure we have a simulation ID.
+        if sim_id is None:
+            sim_id = self.sim_id
+
+        if sim_id is None:
+            m = 'sim_id input is None, and so is self.sim_id. In order to '\
+                'send a command, we must have a simulation ID.'
+            raise ValueError(m)
+
+        self.log.debug('Input checks complete for send_command.')
+
+        # Initialize difference builder.
+        diff_builder = DiffBuilder(simulation_id=sim_id)
+        self.log.debug('DifferenceBuilder initialized.')
+
+        # Iterate to build add differences.
+        for k in range(len(object_ids)):
+            diff_builder.add_difference(object_id=object_ids[k],
+                                        attribute=attributes[k],
+                                        forward_value=forward_values[k],
+                                        reverse_value=reverse_values[k])
+
+        # Get the message and log it.
+        msg = diff_builder.get_message()
+        self.log.info('Preparing to send following command: {}'.format(msg))
+
+        # Send command to simulation.
+        self.gad.send(topic=topics.fncs_input_topic(sim_id),
+                      message=json.dumps(msg))
+
+        # Return the message in case we want to examine it, audit, etc.
+        # Mainly useful for testing at this point.
+        return msg
 
     def get_glm(self, model_id):
         """Given a model ID, get a GridLAB-D (.glm) model."""

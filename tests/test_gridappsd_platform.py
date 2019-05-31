@@ -29,6 +29,7 @@ MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 
+
 class GetGADAddressTestCase(unittest.TestCase):
     """Test get_gad_address."""
 
@@ -189,7 +190,6 @@ class PlatformManagerTestCase(unittest.TestCase):
         """Ensure parse_weather is called with the expected input."""
         with patch('pyvvo.timeseries.parse_weather',
                    side_effect=parse_weather) as mock:
-
             _ = self.platform.get_weather(
                 start_time=datetime(2013, 1, 1, 6),
                 end_time=datetime(2013, 1, 1, 6))
@@ -213,6 +213,100 @@ class PlatformManagerTestCase(unittest.TestCase):
 
         # Ensure the data provided by the platform matches.
         self.assertDictEqual(actual, expected)
+
+    def test_platform_manager_send_command_bad_type_1(self):
+        self.assertRaises(TypeError, self.platform.send_command,
+                          object_ids='abcd', attributes=['a'],
+                          forward_values=['b'], reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_type_2(self):
+        self.assertRaises(TypeError, self.platform.send_command,
+                          object_ids=[42], attributes=12,
+                          forward_values=['b'], reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_type_3(self):
+        self.assertRaises(TypeError, self.platform.send_command,
+                          object_ids=[42], attributes=[12],
+                          forward_values='b', reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_type_4(self):
+        self.assertRaises(TypeError, self.platform.send_command,
+                          object_ids=[42], attributes=[12],
+                          forward_values=['b'], reverse_values='c',
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_length_1(self):
+        self.assertRaises(ValueError, self.platform.send_command,
+                          object_ids=[42, 420], attributes=[12],
+                          forward_values=['b'], reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_length_2(self):
+        self.assertRaises(ValueError, self.platform.send_command,
+                          object_ids=[42], attributes=[12, 'v'],
+                          forward_values=['b'], reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_length_3(self):
+        self.assertRaises(ValueError, self.platform.send_command,
+                          object_ids=[42], attributes=[12],
+                          forward_values=['b', 12], reverse_values=['c'],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_bad_length_4(self):
+        self.assertRaises(ValueError, self.platform.send_command,
+                          object_ids=[42], attributes=[12],
+                          forward_values=['b'], reverse_values=['c', (1,)],
+                          sim_id='1234')
+
+    def test_platform_manager_send_command_sim_id_none(self):
+        self.assertRaises(ValueError, self.platform.send_command,
+                          object_ids=[42], attributes=[12],
+                          forward_values=['b'], reverse_values=['c'],
+                          sim_id=None)
+
+    def test_platform_manager_send_command_valid(self):
+        # There's no return, which implicitly returns None.
+        with patch.object(self.platform.gad, 'send',
+                          return_value=None) as mock:
+            with self.assertLogs(logger=self.platform.log, level="INFO"):
+                msg = self.platform.send_command(object_ids=[42],
+                                                 attributes=[12],
+                                                 forward_values=['b'],
+                                                 reverse_values=['c'],
+                                                 sim_id='123')
+
+        # Hard-code expected message for regression testing.
+        expected = \
+            {'command': 'update',
+             'input': {'simulation_id': '123',
+                       'message': {
+                           'timestamp': 1559334676,
+                           'difference_mrid':
+                               'b0b52a84-69c9-45df-b843-779bcaba7233',
+                           'reverse_differences': [
+                               {'object': 42,
+                                'attribute': 12,
+                                'value': 'c'}],
+                           'forward_differences': [
+                               {'object': 42,
+                                'attribute': 12,
+                                'value': 'b'}]}}}
+
+        # We need to alter timestamps and MRID's.
+        msg['input']['message']['timestamp'] = 10
+        expected['input']['message']['timestamp'] = 10
+
+        msg['input']['message']['difference_mrid'] = 'abcdefghijklmnop'
+        expected['input']['message']['difference_mrid'] = 'abcdefghijklmnop'
+
+        self.assertDictEqual(expected, msg)
+
+        # Ensure we called self.gad.send.
+        mock.assert_called_once()
 
 
 if __name__ == '__main__':
