@@ -2,6 +2,9 @@
 import logging
 from pyvvo.utils import list_to_string
 
+# Setup log.
+LOG = logging.getLogger(__name__)
+
 # class CapacitorMultiPhase:
 #     """Multi-phase capacitor - collection of single phase capacitors.
 #     TODO: Add more information.
@@ -23,7 +26,16 @@ def initialize_controllable_capacitors(df):
     """
     # Filter to get controllable capacitors. Uncontrollable capacitors
     # have a np.nan value in the ctrlenabled column.
-    c_cap = df[~df['ctrlenabled'].isnull()]
+    try:
+        ctrl_enabled= df['ctrlenabled']
+    except KeyError:
+        # We're missing the ctrlenabled flag, and thus have no
+        # controllable capacitors. Return an empty dictionary, and warn.
+        LOG.warning('There are no controllable capacitors present!')
+        return {}
+
+    # Extract only controllable capacitors.
+    c_cap = df[~ctrl_enabled.isnull()]
 
     # A NaN in the phase column indicates a multi-phase capacitor. I
     # have not yet seen a controllable multi-phase capacitor in the CIM,

@@ -137,6 +137,13 @@ class InitializeControllableCapacitors(unittest.TestCase):
             self.caps['capbank1c'].mrid,
             self.df[self.df['name'] == 'capbank1c']['mrid'].iloc[0])
 
+    def test_no_controllable_caps(self):
+        """If the ctrlenabled field isn't present, no caps are
+        controllable."""
+        df = self.df.drop(labels='ctrlenabled', axis=1)
+        self.assertDictEqual({},
+                             capacitor.initialize_controllable_capacitors(df))
+
 
 class CapacitorSinglePhaseUpdateControlMode(unittest.TestCase):
     """Test the 'update_control' method."""
