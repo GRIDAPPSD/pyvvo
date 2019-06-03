@@ -102,57 +102,151 @@ def get_gad_address():
     return address
 
 
-def filter_output_by_mrid(message, mrids):
-    """Given an output message from the simulator, return only the
-    measurements with mrid's that we care about.
+class SimOutRouter:
+    """Class for listening and routing simulation output."""
 
-    :param message: dictionary, message from simulator subscription.
-    :param mrids: list of mrids corresponding to measurements to keep.
-        NOTE: This list is assumed to be a list of strings.
-    :returns list of measurements from message which correspond to the
-        mrids in the mrids input.
-    """
-    # Simply type checks.
-    if not isinstance(message, dict):
-        raise TypeError('message must be a dictionary!')
+    def __init__(self, platform_manager, sim_id, fn_mrid_list):
+        """
 
-    if not isinstance(mrids, list):
-        raise TypeError('mrids must be a list!')
+        :param platform_manager: Initialized PlatformManager object.
+        :param sim_id: Simulation ID on which to listen to.
+        :param fn_mrid_list: list of dictionaries of the form
+            {'function': <function>, 'mrids': [<mrid1>, <mrid2>,...]}
+            where 'function' is a callable that will accept a list of
+            measurements, and 'mrids' is a list of mrids to extract
+            from the simulation output.
+        """
+        # Setup logging.
+        self.log = logging.getLogger(__name__)
 
-    # We'll return a simple list of measurements.
-    out = []
+        # Assign platform_manager.
+        self.platform = platform_manager
 
-    # Create a copy of the inputs mrids. Creating a copy so that we can
-    # remove objects and thus shrink our list as we iterate to reduce
-    # searching.
-    mrids_c = copy.copy(mrids)
+        # Assign topic to subscribe to.
+        # TODO: Update this when new app-container-base container is
+        #   built. We should use topics.py from gridappsd.
+        self.output_topic = "{}.{}.{}".format(topics.BASE_SIMULATION_TOPIC,
+                                              'sensors', sim_id)
 
-    # Iterate over the message measurements.
-    for meas in message['message']['measurements']:
+        self.mrids = []
+        self.functions = []
+        # Combine the mrids into a list of lists, create a list of
+        # functions.
+        for d in fn_mrid_list:
+            self.mrids.append(d['mrids'])
+            self.functions.append(d['function'])
 
-        # If there are no more mrids in our copy, exit the loop.
-        if len(mrids_c) == 0:
-            break
+        # Subscribe to the simulation output.
+        self.platform.gad.subscribe(topic=self.output_topic,
+                                    callback=self._on_message)
 
-        # Attempt to delete the mrid for this measurement from our list
-        # of mrids.
+    def _on_message(self, header, message):
+        """Callback which is hit each time a new simulation output
+        message comes in.
+        """
+        # Extract the times from header.
+        # TODO: Move this into a helper function?
+        t = datetime.utcfromtimestamp(
+            int(header['timestamp']) / 1000).strftime(DATE_FORMAT)
+        self.log.info('Received simulation output, header timestamped '
+                      + t)
+
+        # Get message as json.
+        # TODO: Eventually we won't need to do this, as the API will
+        #   return json.
+        m = json.loads(message)
+
+        # Extract simulation time.
+        # TODO: Move this into a helper function?
+        sim_t = datetime.utcfromtimestamp(
+            m['message']['timestamp']).strftime(DATE_FORMAT)
+        self.log.info('Simulation timestamp: {}'.format(sim_t))
+
+        # Filter the message.
+        result = self._filter_output_by_mrid(message=m)
+
+        # Iterate over the result, and call each corresponding
+        # function.
+        for idx, output in enumerate(result):
+            self.functions[idx](output)
+
+    def _filter_output_by_mrid(self, message):
+        """Given an output message from the simulator, return only the
+        measurements with mrid's that we care about.
+
+        :param message: dictionary, message from simulator subscription.
+        :returns list of list of measurements from message which
+            correspond to the list of lists of mrids in self.mrids.
+        """
+        # Simply type check for message:
+        if not isinstance(message, dict):
+            raise TypeError('message must be a dictionary!')
+
+        # Ensure we have measurements.
         try:
-            mrids_c.remove(meas['measurement_mrid'])
-        except ValueError:
-            # We don't care about this MRID. Move to next object.
-            continue
+            measurements = message['message']['measurements']
+        except KeyError:
+            raise ValueError('Malformed message input!')
 
-        # If we're here, we want to keep this measurement.
-        out.append(meas)
+        # If we don't have measurements, we've got a problem.
+        if (measurements is None) or (len(measurements) == 0):
+            raise ValueError('There are no measurements in the message!')
 
-    # If we don't get what we wanted, raise an exception.
-    # In the future, we may not want this to be an exception.
-    if len(mrids_c) != 0:
-        m = '{} mrids were found in the given message!'.format(len(mrids_c))
-        raise ValueError(m)
+        # We'll return a list of lists of measurements which
+        # corresponds to self.mrids.
+        out = [[] for _ in self.mrids]
 
-    # All done, return.
-    return out
+        # Create a copy of the inputs mrids. Creating a copy so that we can
+        # remove objects and thus shrink our list as we iterate to reduce
+        # searching. Since self.mrids is a list of lists, we need a
+        # deep copy.
+        mrids_c = copy.deepcopy(self.mrids)
+
+        # Iterate over the message measurements.
+        for meas in measurements:
+            # Count empty lists.
+            empty_count = 0
+
+            # Iterate over each sub-list of mrids.
+            for idx, sub_mrid_list in enumerate(mrids_c):
+                # If there are no mrids in our sub list, exit this loop.
+                if len(sub_mrid_list) == 0:
+                    # Increment the count of empty lists.
+                    empty_count += 1
+                    # Move to the next iteration of this inner loop.
+                    continue
+
+                # Attempt to delete the mrid for this measurement from our list
+                # of mrids.
+                try:
+                    sub_mrid_list.remove(meas['measurement_mrid'])
+                except ValueError:
+                    # We don't care about this MRID. Move to next object.
+                    continue
+
+                # If we're here, we want to keep this measurement.
+                out[idx].append(meas)
+
+            # If all our lists are empty, stop iterating and break the
+            # outer loop.
+            if empty_count == len(mrids_c):
+                break
+
+        # If we don't get what we wanted, raise an exception.
+        # In the future, we may not want this to be an exception.
+        # noinspection PyUnboundLocalVariable
+        if empty_count != len(mrids_c):
+            # Get a total number of missing MRIDs.
+            total = 0
+            for sub_list in mrids_c:
+                total += len(sub_list)
+
+            m = ('{} MRIDs from {} sub-lists were not present in the '
+                 'message').format(total, len(mrids_c) - empty_count)
+            raise ValueError(m)
+
+        # All done, return.
+        return out
 
 
 class PlatformManager:

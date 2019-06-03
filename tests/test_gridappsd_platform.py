@@ -1,7 +1,7 @@
 # Standard library
 import os
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock, create_autospec
 from datetime import datetime
 
 # PyVVO + GridAPPS-D
@@ -29,6 +29,7 @@ MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
+HEADER = os.path.join(THIS_DIR, 'simulation_measurements_header.json')
 
 
 class GetGADAddressTestCase(unittest.TestCase):
@@ -106,51 +107,113 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
         self.assertEqual('0', gridappsd_platform.get_platform_env_var())
 
 
-class FilterOutputByMRIDTestCase(unittest.TestCase):
-    """Simple tests for filter_output_by_mrid."""
+# Create some dummy functions for the SimOutRouter.
+mock_fn_1 = Mock(return_value='yay')
+mock_fn_2 = Mock(return_value=42)
+mock_fn_3 = Mock(return_value='stuff and things')
+
+# Create a dummy platform manager.
+mock_platform_manager = create_autospec(gridappsd_platform.PlatformManager)
+mock_platform_manager.gad = Mock()
+mock_platform_manager.gad.subscribe = Mock()
+
+
+class SimOutRouterTestCase(unittest.TestCase):
+    """Tests for SimOutRouter class."""
 
     @classmethod
     def setUpClass(cls):
-        """Load the file we'll be working with."""
+        """Load the file we'll be working with, initialize
+        SimOutRouter."""
         with open(MEASUREMENTS, 'r') as f:
             cls.meas = json.load(f)
 
+        with open(HEADER, 'r') as f:
+            cls.header = json.load(f)
+
+        # For convenience, get a reference to the measurements.
+        meas = cls.meas['message']['measurements']
+
+        # Hard code some indices for grabbing measurements.
+        # Note that within each sub-list the indices ARE sorted to
+        # make the testing comparison easier.
+        cls.indices = [[10, 112, 114], [16, 102], [0, 1, 42]]
+
+        # Grab mrids.
+        cls.mrids = [[meas[i]['measurement_mrid'] for i in sub_i] for sub_i in
+                     cls.indices]
+
+        # Hard-code list input for the SimOutRouter.
+        cls.fn_mrid_list = [{'function': mock_fn_1, 'mrids': cls.mrids[0]},
+                            {'function': mock_fn_2, 'mrids': cls.mrids[1]},
+                            {'function': mock_fn_3, 'mrids': cls.mrids[2]}
+                            ]
+
+        cls.router = \
+            gridappsd_platform.SimOutRouter(
+                platform_manager=mock_platform_manager, sim_id='1234',
+                fn_mrid_list=cls.fn_mrid_list)
+
     def test_filter_output_by_mrid_bad_message_type(self):
-        self.assertRaises(TypeError, gridappsd_platform.filter_output_by_mrid,
+        self.assertRaises(TypeError, self.router._filter_output_by_mrid,
                           message='message', mrids=[])
 
-    def test_filter_output_by_mrid_bad_mrid_type(self):
-        self.assertRaises(TypeError, gridappsd_platform.filter_output_by_mrid,
-                          message={}, mrids='mrid')
-
     def test_filter_output_by_mrid_expected_return(self):
-        expected = [
-            {'magnitude': 2554.7413264253573, 'angle': 86.10637644849166,
-             'measurement_mrid': '_6f92a4ab-ea99-4290-bce6-057043da27d9'},
-            {'magnitude': 66395.28095660523, 'angle': 119.99999999969847,
-             'measurement_mrid': '_c3df20a9-5654-4a8a-b3e8-e04921211945'},
-            {'magnitude': 1462280.825363049, 'angle': -7.2808477962685245,
-             'measurement_mrid': '_b55bcc42-135e-4ae1-81fc-2c4262099de9'}
-        ]
-        mrids = [x['measurement_mrid'] for x in expected]
+        # Gather expected return.
+        meas = self.meas['message']['measurements']
+        expected = [[meas[i] for i in sub_i] for sub_i in self.indices]
 
-        actual = gridappsd_platform.filter_output_by_mrid(message=self.meas,
-                                                          mrids=mrids)
+        actual = self.router._filter_output_by_mrid(message=self.meas)
 
         self.assertEqual(expected, actual)
 
         # Ensure our list of mrids didn't change.
-        self.assertEqual(len(expected), len(mrids))
+        self.assertEqual(len(expected), len(self.router.mrids))
 
     def test_filter_output_by_mrid_not_all_mrids_in_meas(self):
-        mrids = ['abcdefg', 'hijklmnop', 'qrstuv', 'wxy&z']
-        with self.assertRaises(ValueError) as cm:
-            gridappsd_platform.filter_output_by_mrid(message=self.meas,
-                                                     mrids=mrids)
+        # Create list of mrids which is mostly bogus.
+        mrids = [['abcdefg'], ['hijklmnop'], ['qrstuv', self.mrids[0][0]]]
+        # Replace the mrids in self.router with our mostly bogus list.
+        with patch.object(self.router, attribute='mrids', new=mrids):
+            # Ensure we get a value error, use regex to ensure our
+            # arithmetic is correct.
+            with self.assertRaisesRegex(ValueError, '^3.*3.*'):
+                self.router._filter_output_by_mrid(message=self.meas)
 
-        # Ensure our error message gives us the correct number of
-        # missing MRIDs.
-        self.assertEqual(cm.exception.args[0][0], str(len(mrids)))
+    def test_subscribed(self):
+        """Ensure that we've subscribed to the topic."""
+        mock_platform_manager.gad.subscribe.assert_called_once_with(
+            topic=self.router.output_topic, callback=self.router._on_message
+        )
+
+    def test_on_message_calls_filter_output_by_mrid(self):
+        """Call on_message."""
+        with patch.object(self.router,
+                          attribute='_filter_output_by_mrid') as m:
+            _ = self.router._on_message(header=self.header,
+                                        message=json.dumps(self.meas))
+
+        # Ensure _filter_output_by_mrid was called.
+        m.assert_called_once_with(message=self.meas)
+
+    def test_on_message_calls_methods(self):
+        """Ensure that all our mock functions get called."""
+        # Patch the functions with mock objects so we can ensure they
+        # truly only are ever called once.
+        with patch.object(self.router, attribute='functions',
+                          new=[Mock(), Mock(), Mock()]) as m1:
+            # Patch _filter_output_by_mrid as we don't need that to
+            # actually be called.
+            with patch.object(self.router,
+                              attribute='_filter_output_by_mrid',
+                              return_value=[[0], [1], [2]]) as m2:
+                # Call the _on_message method.
+                _ = self.router._on_message(header=self.header,
+                                            message=json.dumps(self.meas))
+
+        # Ensure each method was called appropriately.
+        for idx, mock_func in enumerate(m1):
+            mock_func.assert_called_once_with(m2.return_value[idx])
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
