@@ -28,6 +28,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
+MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
 
 
 class GetGADAddressTestCase(unittest.TestCase):
@@ -103,6 +104,53 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
     @patch.dict(os.environ, {'platform': '0'})
     def test_get_platform_env_var_0(self):
         self.assertEqual('0', gridappsd_platform.get_platform_env_var())
+
+
+class FilterOutputByMRIDTestCase(unittest.TestCase):
+    """Simple tests for filter_output_by_mrid."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Load the file we'll be working with."""
+        with open(MEASUREMENTS, 'r') as f:
+            cls.meas = json.load(f)
+
+    def test_filter_output_by_mrid_bad_message_type(self):
+        self.assertRaises(TypeError, gridappsd_platform.filter_output_by_mrid,
+                          message='message', mrids=[])
+
+    def test_filter_output_by_mrid_bad_mrid_type(self):
+        self.assertRaises(TypeError, gridappsd_platform.filter_output_by_mrid,
+                          message={}, mrids='mrid')
+
+    def test_filter_output_by_mrid_expected_return(self):
+        expected = [
+            {'magnitude': 2554.7413264253573, 'angle': 86.10637644849166,
+             'measurement_mrid': '_6f92a4ab-ea99-4290-bce6-057043da27d9'},
+            {'magnitude': 66395.28095660523, 'angle': 119.99999999969847,
+             'measurement_mrid': '_c3df20a9-5654-4a8a-b3e8-e04921211945'},
+            {'magnitude': 1462280.825363049, 'angle': -7.2808477962685245,
+             'measurement_mrid': '_b55bcc42-135e-4ae1-81fc-2c4262099de9'}
+        ]
+        mrids = [x['measurement_mrid'] for x in expected]
+
+        actual = gridappsd_platform.filter_output_by_mrid(message=self.meas,
+                                                          mrids=mrids)
+
+        self.assertEqual(expected, actual)
+
+        # Ensure our list of mrids didn't change.
+        self.assertEqual(len(expected), len(mrids))
+
+    def test_filter_output_by_mrid_not_all_mrids_in_meas(self):
+        mrids = ['abcdefg', 'hijklmnop', 'qrstuv', 'wxy&z']
+        with self.assertRaises(ValueError) as cm:
+            gridappsd_platform.filter_output_by_mrid(message=self.meas,
+                                                     mrids=mrids)
+
+        # Ensure our error message gives us the correct number of
+        # missing MRIDs.
+        self.assertEqual(cm.exception.args[0][0], str(len(mrids)))
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)

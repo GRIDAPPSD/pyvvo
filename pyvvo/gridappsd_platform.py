@@ -12,6 +12,7 @@ import os
 import logging
 import re
 from datetime import datetime
+import copy
 from pyvvo import utils
 from pyvvo import timeseries
 
@@ -99,6 +100,59 @@ def get_gad_address():
 
     LOG.debug('GridAPPS-D address obtained.')
     return address
+
+
+def filter_output_by_mrid(message, mrids):
+    """Given an output message from the simulator, return only the
+    measurements with mrid's that we care about.
+
+    :param message: dictionary, message from simulator subscription.
+    :param mrids: list of mrids corresponding to measurements to keep.
+        NOTE: This list is assumed to be a list of strings.
+    :returns list of measurements from message which correspond to the
+        mrids in the mrids input.
+    """
+    # Simply type checks.
+    if not isinstance(message, dict):
+        raise TypeError('message must be a dictionary!')
+
+    if not isinstance(mrids, list):
+        raise TypeError('mrids must be a list!')
+
+    # We'll return a simple list of measurements.
+    out = []
+
+    # Create a copy of the inputs mrids. Creating a copy so that we can
+    # remove objects and thus shrink our list as we iterate to reduce
+    # searching.
+    mrids_c = copy.copy(mrids)
+
+    # Iterate over the message measurements.
+    for meas in message['message']['measurements']:
+
+        # If there are no more mrids in our copy, exit the loop.
+        if len(mrids_c) == 0:
+            break
+
+        # Attempt to delete the mrid for this measurement from our list
+        # of mrids.
+        try:
+            mrids_c.remove(meas['measurement_mrid'])
+        except ValueError:
+            # We don't care about this MRID. Move to next object.
+            continue
+
+        # If we're here, we want to keep this measurement.
+        out.append(meas)
+
+    # If we don't get what we wanted, raise an exception.
+    # In the future, we may not want this to be an exception.
+    if len(mrids_c) != 0:
+        m = '{} mrids were found in the given message!'.format(len(mrids_c))
+        raise ValueError(m)
+
+    # All done, return.
+    return out
 
 
 class PlatformManager:
