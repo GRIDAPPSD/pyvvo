@@ -172,7 +172,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
                  "SELECT ?name "
                  "WHERE { "
                  '?s c:IdentifiedObject.mRID'
-                 '  "_A5866105-A527-F682-C982-69807C0E088B". '
+                 '  "_ECD83869-013C-B0E5-C39F-20255C9DB897". '
                  "?s c:IdentifiedObject.name ?name. "
                  "} "
                  "ORDER BY ?name "
@@ -371,14 +371,14 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.mock_query(
             function_string='query_measurements_for_bus',
             query='MEASUREMENTS_FOR_BUS_QUERY',
-            bus_mrid='_E555E153-3529-7B82-1649-B015B154BFA6',
+            bus_mrid='_DFFCDF39-6380-0C43-D88C-C432A8DCB845',
             to_numeric=False
         )
 
     def test_sparql_manager_query_measurements_for_bus_expected_return(self):
         # NOTE: bus_mrid is for the substation source bus.
         actual = self.sparql.query_measurements_for_bus(
-            bus_mrid='_E555E153-3529-7B82-1649-B015B154BFA6')
+            bus_mrid='_DFFCDF39-6380-0C43-D88C-C432A8DCB845')
 
         # Uncomment to recreate expected value.
         # actual.to_csv('query_measurements_for_bus.csv')

@@ -267,7 +267,7 @@ class SPARQLManager:
 
     # Define query prefix
     PREFIX = ("PREFIX r: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
-              "PREFIX c: <http://iec.ch/TC57/2012/CIM-schema-cim17#>\n"
+              "PREFIX c: <http://iec.ch/TC57/CIM100#>\n"
               "PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
               )
 
@@ -314,7 +314,7 @@ class SPARQLManager:
          "?ctl c:RegulatingControl.Terminal ?trm. "
          "?trm c:Terminal.ConductingEquipment ?eq. "
          "?eq a ?classraw. "
-         'bind(strafter(str(?classraw),"cim17#") as ?monclass) '
+         'bind(strafter(str(?classraw),"CIM100#") as ?monclass) '
          "?eq c:IdentifiedObject.name ?moneq. "
          "?trm c:Terminal.ConnectivityNode ?moncn. "
          "?moncn c:IdentifiedObject.name ?monbus. "
