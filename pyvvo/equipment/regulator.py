@@ -40,7 +40,7 @@ def initialize_controllable_regulators(df):
             reg_list.append(RegulatorSinglePhase(**items.loc[idx].to_dict()))
 
         # Create three-phase regulator and add to output.
-        reg_three_phase = RegulatorThreePhase(reg_list)
+        reg_three_phase = RegulatorMultiPhase(reg_list)
         out[reg_three_phase.name] = reg_three_phase
 
     return out
@@ -87,14 +87,14 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
     return tap_pos + neutral_step
 
 
-class RegulatorThreePhase:
+class RegulatorMultiPhase:
     """
     Class that essentially acts as a container for RegulatorSinglePhase
     objects.
     """
 
     def __init__(self, regulator_list):
-        """Take in 3 RegulatorSinglePhase objects.
+        """Take in list of RegulatorSinglePhase objects.
 
         :param regulator_list: list of three RegulatorSinglePhase
             objects.
@@ -106,8 +106,14 @@ class RegulatorThreePhase:
         if not isinstance(regulator_list, (list, tuple)):
             raise TypeError('regulator_list must be a list or tuple.')
 
-        if len(regulator_list) != 3:
-            raise ValueError('regulator_list must have length 3.')
+        if (len(regulator_list) < 1) or (len(regulator_list) > 3):
+            m = 'regulator_list must meet 1 <= len(regulator_list) <= 3.'
+            raise ValueError(m)
+
+        # Initialize phases to None.
+        self._a = None
+        self._b = None
+        self._c = None
 
         # Loop over the list.
         for regulator in regulator_list:
@@ -148,7 +154,7 @@ class RegulatorThreePhase:
             setattr(self, '_' + regulator.phase.lower(), regulator)
 
     def __repr__(self):
-        return '<RegulatorThreePhase. name: {}'.format(self.name)
+        return '<RegulatorMultiPhase. name: {}'.format(self.name)
 
     ####################################################################
     # Getter methods
@@ -161,17 +167,14 @@ class RegulatorThreePhase:
     def mrid(self):
         return self._mrid
 
-    # noinspection PyUnresolvedReferences
     @property
     def a(self):
         return self._a
 
-    # noinspection PyUnresolvedReferences
     @property
     def b(self):
         return self._b
 
-    # noinspection PyUnresolvedReferences
     @property
     def c(self):
         return self._c

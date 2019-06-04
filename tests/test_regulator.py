@@ -22,10 +22,10 @@ class InitializeControllableRegulatorsTestCase(unittest.TestCase):
         self.assertEqual(len(self.regs), 4)
 
     def test_all_regs(self):
-        """Every item should be a RegulatorThreePhase"""
+        """Every item should be a RegulatorMultiPhase"""
         for key, reg in self.regs.items():
             with self.subTest('reg = {}'.format(reg)):
-                self.assertIsInstance(reg, regulator.RegulatorThreePhase)
+                self.assertIsInstance(reg, regulator.RegulatorMultiPhase)
 
     def test_ltc_filter(self):
         """If a regulator's ltc_flag is false, it shouldn't be included.
@@ -86,7 +86,7 @@ class TapGLDToCIMTestCase(unittest.TestCase):
 
 class MockRegulatorSinglePhase:
     """Simple class for mocking RegulatorSinglePhase for the purpose of
-    testing RegulatorThreePhase
+    testing RegulatorMultiPhase
     """
     def __init__(self, name, mrid, phase):
         self.name = name
@@ -94,24 +94,30 @@ class MockRegulatorSinglePhase:
         self.phase = phase
 
 
-class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
+class RegulatorMultiPhaseInitializationTestCase(unittest.TestCase):
 
     def test_bad_input_type(self):
-        self.assertRaises(TypeError, regulator.RegulatorThreePhase,
+        self.assertRaises(TypeError, regulator.RegulatorMultiPhase,
                           'hello')
 
-    def test_bad_input_list_length(self):
-        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
-                          [1, 2])
+    def test_bad_input_list_length_1(self):
+        with self.assertRaisesRegex(ValueError,
+                                    r'1 <= len\(regulator_list\) <= 3'):
+            regulator.RegulatorMultiPhase([])
+
+    def test_bad_input_list_length_2(self):
+        with self.assertRaisesRegex(ValueError,
+                                    r'1 <= len\(regulator_list\) <= 3'):
+            regulator.RegulatorMultiPhase([1, 2, 3, 4])
 
     def test_bad_input_list_type(self):
-        self.assertRaises(TypeError, regulator.RegulatorThreePhase,
+        self.assertRaises(TypeError, regulator.RegulatorMultiPhase,
                           (1, 2, 3))
 
     # noinspection PyArgumentList
     @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
            new=MockRegulatorSinglePhase)
-    def test_successful_init(self):
+    def test_successful_init_1(self):
         """Pass three mocked single phase regs."""
         reg1 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
                                               phase='a')
@@ -120,13 +126,50 @@ class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
         reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
                                               phase='C')
 
-        reg_3_phs = regulator.RegulatorThreePhase((reg1, reg2, reg3))
+        reg_multi_phase = regulator.RegulatorMultiPhase((reg1, reg2, reg3))
 
-        self.assertEqual(reg_3_phs.name, 'reg')
-        self.assertEqual(reg_3_phs.mrid, '123')
-        self.assertIs(reg_3_phs.a, reg1)
-        self.assertIs(reg_3_phs.b, reg2)
-        self.assertIs(reg_3_phs.c, reg3)
+        self.assertEqual(reg_multi_phase.name, 'reg')
+        self.assertEqual(reg_multi_phase.mrid, '123')
+        self.assertIs(reg_multi_phase.a, reg1)
+        self.assertIs(reg_multi_phase.b, reg2)
+        self.assertIs(reg_multi_phase.c, reg3)
+
+    # noinspection PyArgumentList
+    @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
+           new=MockRegulatorSinglePhase)
+    def test_successful_init_2(self):
+        """Pass two mocked single phase regs."""
+        # noinspection SpellCheckingInspection
+        reg1 = regulator.RegulatorSinglePhase(name='regreg', mrid='1234',
+                                              phase='a')
+
+        # noinspection SpellCheckingInspection
+        reg3 = regulator.RegulatorSinglePhase(name='regreg', mrid='1234',
+                                              phase='C')
+
+        reg_multi_phase = regulator.RegulatorMultiPhase((reg1, reg3))
+
+        # noinspection SpellCheckingInspection
+        self.assertEqual(reg_multi_phase.name, 'regreg')
+        self.assertEqual(reg_multi_phase.mrid, '1234')
+        self.assertIs(reg_multi_phase.a, reg1)
+        self.assertIs(reg_multi_phase.c, reg3)
+
+    # noinspection PyArgumentList
+    @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
+           new=MockRegulatorSinglePhase)
+    def test_successful_init_3(self):
+        """Pass a single mocked single phase regs."""
+        # noinspection SpellCheckingInspection
+        reg1 = regulator.RegulatorSinglePhase(name='regreg', mrid='1234',
+                                              phase='a')
+
+        reg_multi_phase = regulator.RegulatorMultiPhase((reg1, ))
+
+        # noinspection SpellCheckingInspection
+        self.assertEqual(reg_multi_phase.name, 'regreg')
+        self.assertEqual(reg_multi_phase.mrid, '1234')
+        self.assertIs(reg_multi_phase.a, reg1)
 
     # noinspection PyArgumentList
     @patch(target='pyvvo.equipment.regulator.RegulatorSinglePhase',
@@ -140,7 +183,7 @@ class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
         reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='123',
                                               phase='C')
 
-        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
+        self.assertRaises(ValueError, regulator.RegulatorMultiPhase,
                           (reg1, reg2, reg3))
 
     # noinspection PyArgumentList
@@ -155,7 +198,7 @@ class RegulatorThreePhaseInitializationTestCase(unittest.TestCase):
         reg3 = regulator.RegulatorSinglePhase(name='reg', mrid='1234',
                                               phase='C')
 
-        self.assertRaises(ValueError, regulator.RegulatorThreePhase,
+        self.assertRaises(ValueError, regulator.RegulatorMultiPhase,
                           (reg1, reg2, reg3))
 
 
