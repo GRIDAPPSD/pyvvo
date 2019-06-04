@@ -75,6 +75,10 @@ class GetGADObjectTestCase(unittest.TestCase):
         # Get model information from the platform.
         actual_info = self.gad.query_model_info()
 
+        # Uncomment to update.
+        # with open(MODEL_INFO, 'w') as f:
+        #     json.dump(actual_info, f)
+
         # Load the expected result.
         with open(MODEL_INFO, 'r') as f:
             expected_info = json.load(f)
@@ -380,7 +384,6 @@ class PlatformManagerTestCase(unittest.TestCase):
                           sim_id=None)
 
     def test_platform_manager_send_command_valid(self):
-        # There's no return, which implicitly returns None.
         with patch.object(self.platform.gad, 'send',
                           return_value=None) as mock:
             with self.assertLogs(logger=self.platform.log, level="INFO"):
