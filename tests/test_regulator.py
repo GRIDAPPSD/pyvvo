@@ -52,62 +52,36 @@ class TapCIMToGLDTestCase(unittest.TestCase):
     """
 
     def test_tap_cim_to_gld_1(self):
-        actual = regulator._tap_cim_to_gld(step=1.0125,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(2, actual)
+        actual = regulator._tap_cim_to_gld(step=16, neutral_step=16)
+        self.assertEqual(0, actual)
 
     def test_tap_cim_to_gld_2(self):
-        actual = regulator._tap_cim_to_gld(step=1.00625,
-                                           step_voltage_increment=0.625)
-
-        self.assertEqual(1, actual)
+        actual = regulator._tap_cim_to_gld(step=1, neutral_step=8)
+        self.assertEqual(-7, actual)
 
     def test_tap_cim_to_gld_3(self):
-        actual = regulator._tap_cim_to_gld(step=0.99375,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(-1, actual)
+        actual = regulator._tap_cim_to_gld(step=24, neutral_step=16)
+        self.assertEqual(8, actual)
 
     def test_tap_cim_to_gld_4(self):
-        actual = regulator._tap_cim_to_gld(step=0.9,
-                                           step_voltage_increment=0.625)
+        actual = regulator._tap_cim_to_gld(step=0, neutral_step=16)
         self.assertEqual(-16, actual)
-
-    def test_tap_cim_to_gld_5(self):
-        actual = regulator._tap_cim_to_gld(step=1.1,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(16, actual)
 
 
 class TapGLDToCIMTestCase(unittest.TestCase):
-    """NOTE: The way the platform currently handles 'step' is likely
-    wrong. Test this after there's a way forward identified.
-    """
 
     def test_tap_gld_to_cim_1(self):
-        actual = regulator._tap_gld_to_cim(tap_pos=2,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(1.0125, actual)
+        actual = regulator._tap_gld_to_cim(tap_pos=2, neutral_step=8)
+        self.assertEqual(10, actual)
 
     def test_tap_gld_to_cim_2(self):
-        actual = regulator._tap_gld_to_cim(tap_pos=1,
-                                           step_voltage_increment=0.625)
+        actual = regulator._tap_gld_to_cim(tap_pos=-10, neutral_step=16)
 
-        self.assertEqual(1.00625, actual)
+        self.assertEqual(6, actual)
 
     def test_tap_gld_to_cim_3(self):
-        actual = regulator._tap_gld_to_cim(tap_pos=-1,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(0.99375, actual)
-
-    def test_tap_gld_to_cim_4(self):
-        actual = regulator._tap_gld_to_cim(tap_pos=-16,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(0.9, actual)
-
-    def test_tap_gld_to_cim_5(self):
-        actual = regulator._tap_gld_to_cim(tap_pos=16,
-                                           step_voltage_increment=0.625)
-        self.assertEqual(1.1, actual)
+        actual = regulator._tap_gld_to_cim(tap_pos=0, neutral_step=10)
+        self.assertEqual(10, actual)
 
 
 class MockRegulatorSinglePhase:
@@ -194,7 +168,7 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
              'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
              'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
              'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
-             'step': 1.0125, 'step_voltage_increment': 0.625}
+             'step': 18, 'step_voltage_increment': 0.625}
 
         cls.reg = regulator.RegulatorSinglePhase(**cls.inputs)
 
@@ -310,7 +284,7 @@ class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
     def test_bad_step_type(self):
         # TODO: Update when platform is updated.
         i = deepcopy(self.inputs)
-        i['step'] = 2
+        i['step'] = 2.0
         self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
 
 

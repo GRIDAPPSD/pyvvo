@@ -46,14 +46,17 @@ def initialize_controllable_regulators(df):
     return out
 
 
-def _tap_cim_to_gld(step, step_voltage_increment):
+def _tap_cim_to_gld(step, neutral_step):
     """Convert step and step_voltage_increment in CIM terms to tap_pos
      in GridLAB-D terms.
 
-     :param step: CIM setting of voltage regulator, which is a
-        multiplier of nominal voltage, e.g. 1.0125
-    :param step_voltage_increment: voltage step as percent multiplier
-        of nominal voltage, e.g. 0.625.
+     TODO: With updates coming for CIM 100, this may not be necessary,
+        or may need updated.
+
+    :param step: CIM tap position of voltage regulator. E.g., 1, 16, 20,
+        or 32. CIM taps start at 0.
+    :param neutral_step: CIM neutral tap position. This will likely and
+        often be 16 on a 32 tap regulator.
 
     :returns tap_pos: tap position as GridLAB-D would denote it. E.g.
         10 or -2.
@@ -62,25 +65,26 @@ def _tap_cim_to_gld(step, step_voltage_increment):
     as inputs are not checked.
     """
 
-    return round((step - 1) * 100 / step_voltage_increment)
+    return step - neutral_step
 
 
-def _tap_gld_to_cim(tap_pos, step_voltage_increment, num_digits=5):
+def _tap_gld_to_cim(tap_pos, neutral_step):
     """Convert tap position as GridLAB-D denotes it to step as CIM
     denotes it.
 
-    :param tap_pos: tap position as GridLAB-D would denote it.
-    :param step_voltage_increment: voltage step increment in CIM.
-    :param num_digits: number of digits after the decimal to round
-        result to.
+     TODO: With updates coming for CIM 100, this may not be necessary,
+        or may need updated.
 
-    :returns step: CIM setting of voltage regulator, which is a
-        multiplier of nominal voltage, e.g. 1.0125.
+    :param tap_pos: tap position as GridLAB-D would denote it.
+    :param neutral_step: CIM neutral tap position. This will likely and
+        often be 16 on a 32 tap regulator.
+
+    :returns step: CIM tap position of the voltage regulator.
 
     NOTE: This method is private to this module, so don't go calling it,
     as inputs are not checked.
     """
-    return round(tap_pos * step_voltage_increment / 100 + 1, num_digits)
+    return tap_pos + neutral_step
 
 
 class RegulatorThreePhase:
@@ -306,8 +310,8 @@ class RegulatorSinglePhase:
                              'low_step <= neutral_step <= high_step')
 
         # TODO: Update when the platform is updated.
-        if not isinstance(step, (float, np.floating)):
-            raise TypeError('step must be a float.')
+        if not isinstance(step, (int, np.integer)):
+            raise TypeError('step must be an integer.')
 
         self._step = step
 
@@ -330,8 +334,7 @@ class RegulatorSinglePhase:
         # TODO: This will need updated when the handling of 'step' is
         #   fixed in the platform.
         self._tap_pos = \
-            _tap_cim_to_gld(step=self.step, step_voltage_increment=
-                            self.step_voltage_increment)
+            _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
 
     def __repr__(self):
         return '<RegulatorSinglePhase. name: {}, phase: {}>'.format(self.name,
