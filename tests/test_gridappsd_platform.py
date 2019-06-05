@@ -1,7 +1,7 @@
 # Standard library
 import os
 import unittest
-from unittest.mock import patch, Mock, create_autospec
+from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
 
 # PyVVO + GridAPPS-D
@@ -114,12 +114,17 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
 # Create some dummy functions for the SimOutRouter.
 mock_fn_1 = Mock(return_value='yay')
 mock_fn_2 = Mock(return_value=42)
-mock_fn_3 = Mock(return_value='stuff and things')
 
 # Create a dummy platform manager.
 mock_platform_manager = create_autospec(gridappsd_platform.PlatformManager)
 mock_platform_manager.gad = Mock()
 mock_platform_manager.gad.subscribe = Mock()
+
+
+class DummyClass:
+    """Dummy class for testing the SimOutRouter."""
+    def __init__(self):
+        pass
 
 
 class SimOutRouterTestCase(unittest.TestCase):
@@ -147,10 +152,16 @@ class SimOutRouterTestCase(unittest.TestCase):
         cls.mrids = [[meas[i]['measurement_mrid'] for i in sub_i] for sub_i in
                      cls.indices]
 
+        # Create dummy class.
+        cls.dummy_class = DummyClass()
+        cls.dummy_class.my_func = MagicMock(return_value=3,
+                                            side_effect=print('mocked func.'))
+
         # Hard-code list input for the SimOutRouter.
         cls.fn_mrid_list = [{'function': mock_fn_1, 'mrids': cls.mrids[0]},
                             {'function': mock_fn_2, 'mrids': cls.mrids[1]},
-                            {'function': mock_fn_3, 'mrids': cls.mrids[2]}
+                            {'function': cls.dummy_class.my_func,
+                             'mrids': cls.mrids[2]}
                             ]
 
         cls.router = \
@@ -202,21 +213,17 @@ class SimOutRouterTestCase(unittest.TestCase):
 
     def test_on_message_calls_methods(self):
         """Ensure that all our mock functions get called."""
-        # Patch the functions with mock objects so we can ensure they
-        # truly only are ever called once.
-        with patch.object(self.router, attribute='functions',
-                          new=[Mock(), Mock(), Mock()]) as m1:
-            # Patch _filter_output_by_mrid as we don't need that to
-            # actually be called.
-            with patch.object(self.router,
-                              attribute='_filter_output_by_mrid',
-                              return_value=[[0], [1], [2]]) as m2:
-                # Call the _on_message method.
-                _ = self.router._on_message(header=self.header,
-                                            message=json.dumps(self.meas))
+        # Patch _filter_output_by_mrid as we don't need that to
+        # actually be called.
+        with patch.object(self.router,
+                          attribute='_filter_output_by_mrid',
+                          return_value=[[0], [1], [2]]) as m2:
+            # Call the _on_message method.
+            _ = self.router._on_message(header=self.header,
+                                        message=json.dumps(self.meas))
 
         # Ensure each method was called appropriately.
-        for idx, mock_func in enumerate(m1):
+        for idx, mock_func in enumerate(self.router.functions):
             mock_func.assert_called_once_with(m2.return_value[idx])
 
 

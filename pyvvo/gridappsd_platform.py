@@ -14,6 +14,8 @@ import re
 from datetime import datetime
 import copy
 from pyvvo import utils
+from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
+from pyvvo.utils import simulation_output_timestamp_to_dt as simulation_dt
 from pyvvo import timeseries
 
 # Setup log.
@@ -146,23 +148,22 @@ class SimOutRouter:
         """Callback which is hit each time a new simulation output
         message comes in.
         """
-        # Extract the times from header.
-        # TODO: Move this into a helper function?
-        t = datetime.utcfromtimestamp(
-            int(header['timestamp']) / 1000).strftime(DATE_FORMAT)
-        # self.log.info('Received simulation output, header timestamped '
-        #               + t)
+        # Log header time (time sent, I think).
+        self.log.debug(
+            'Received simulation output, header timestamped '
+            + platform_dt(int(header['timestamp'])).strftime(DATE_FORMAT)
+        )
 
         # Get message as json.
         # TODO: Eventually we won't need to do this, as the API will
         #   return json.
         m = json.loads(message)
 
-        # Extract simulation time.
-        # TODO: Move this into a helper function?
-        sim_t = datetime.utcfromtimestamp(
-            m['message']['timestamp']).strftime(DATE_FORMAT)
-        # self.log.info('Simulation timestamp: {}'.format(sim_t))
+        # Log simulation time.
+        self.log.debug(
+            'Simulation timestamp: '
+            + simulation_dt(
+                int(m['message']['timestamp'])).strftime(DATE_FORMAT))
 
         # Filter the message.
         result = self._filter_output_by_mrid(message=m)
