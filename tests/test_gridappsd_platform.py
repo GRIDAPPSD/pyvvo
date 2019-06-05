@@ -114,6 +114,7 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
 # Create some dummy functions for the SimOutRouter.
 mock_fn_1 = Mock(return_value='yay')
 mock_fn_2 = Mock(return_value=42)
+mock_fn_3 = Mock(return_value='bleh')
 
 # Create a dummy platform manager.
 mock_platform_manager = create_autospec(gridappsd_platform.PlatformManager)
@@ -158,9 +159,9 @@ class SimOutRouterTestCase(unittest.TestCase):
                                             side_effect=print('mocked func.'))
 
         # Hard-code list input for the SimOutRouter.
-        cls.fn_mrid_list = [{'function': mock_fn_1, 'mrids': cls.mrids[0]},
-                            {'function': mock_fn_2, 'mrids': cls.mrids[1]},
-                            {'function': cls.dummy_class.my_func,
+        cls.fn_mrid_list = [{'functions': mock_fn_1, 'mrids': cls.mrids[0]},
+                            {'functions': mock_fn_2, 'mrids': cls.mrids[1]},
+                            {'functions': [cls.dummy_class.my_func, mock_fn_3],
                              'mrids': cls.mrids[2]}
                             ]
 
@@ -224,7 +225,13 @@ class SimOutRouterTestCase(unittest.TestCase):
 
         # Ensure each method was called appropriately.
         for idx, mock_func in enumerate(self.router.functions):
-            mock_func.assert_called_once_with(m2.return_value[idx])
+            try:
+                # Simple function case.
+                mock_func.assert_called_once_with(m2.return_value[idx])
+            except AttributeError:
+                # List of functions case.
+                for f in self.router.functions[idx]:
+                    f.assert_called_once_with(m2.return_value[idx])
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)

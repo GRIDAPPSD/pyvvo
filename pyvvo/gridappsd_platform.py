@@ -113,10 +113,11 @@ class SimOutRouter:
         :param platform_manager: Initialized PlatformManager object.
         :param sim_id: Simulation ID on which to listen to.
         :param fn_mrid_list: list of dictionaries of the form
-            {'function': <function>, 'mrids': [<mrid1>, <mrid2>,...]}
-            where 'function' is a callable that will accept a list of
-            measurements, and 'mrids' is a list of mrids to extract
-            from the simulation output.
+            {'functions': <function>, 'mrids': [<mrid1>, <mrid2>,...]}
+            where 'functions' can either be a callable or list of
+            callables that will accept a list of measurements, and
+            'mrids' is a list of mrids to extract from the simulation
+            output.
         """
         # Setup logging.
         self.log = logging.getLogger(__name__)
@@ -138,7 +139,7 @@ class SimOutRouter:
         # functions.
         for d in fn_mrid_list:
             self.mrids.append(d['mrids'])
-            self.functions.append(d['function'])
+            self.functions.append(d['functions'])
 
         # Subscribe to the simulation output.
         self.platform.gad.subscribe(topic=self.output_topic,
@@ -171,7 +172,17 @@ class SimOutRouter:
         # Iterate over the result, and call each corresponding
         # function.
         for idx, output in enumerate(result):
-            self.functions[idx](output)
+            # If we have a list of functions:
+            try:
+                func_iter = iter(self.functions[idx])
+            except TypeError:
+                # We have a simple function, which isn't iterable. Call
+                # it.
+                self.functions[idx](output)
+            else:
+                # Call each function.
+                for f in func_iter:
+                    f(output)
 
     def _filter_output_by_mrid(self, message):
         """Given an output message from the simulator, return only the
