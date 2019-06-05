@@ -4,7 +4,7 @@ import math
 import cmath
 import subprocess
 import logging
-
+from datetime import datetime, timezone
 import pandas as pd
 
 # Setup log.
@@ -191,6 +191,32 @@ def dt_to_us_from_epoch(dt):
     :returns: microseconds since the epoch as a string.
     """
     return '{:.0f}'.format(dt.timestamp() * 1e6)
+
+
+def platform_header_timestamp_to_dt(timestamp):
+    """Convert timestamp (milliseconds from epoch) to datetime object.
+    This is specifically built for reading the 'timestamp' field of the
+    header which comes in from the GridAPPS-D platform.
+
+    :param timestamp: Integer or float. Milliseconds since
+        1970-01-01 00:00:00.000. Assumed to be in UTC.
+
+    :returns dt: timezone aware (UTC) datetime.datetime object.
+    """
+    return datetime.fromtimestamp(timestamp / 1000, timezone.utc)
+
+
+def simulation_output_timestamp_to_dt(timestamp):
+    """Convert timestamp (seconds from epoch) to datetime object.
+    This is specifically built for reading the 'timestamp' field of the
+    message object which comes from the GridAPPS-D simulator output.
+
+    :param timestamp: Integer or float. Seconds since
+        1970-01-01 00:00:00.000. Assumed to be in UTC.
+
+    :returns: dt: timezone aware (UTC) datetime.datetime object.
+    """
+    return datetime.fromtimestamp(timestamp, timezone.utc)
 
 
 # noinspection PyShadowingBuiltins

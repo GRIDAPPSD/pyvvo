@@ -2,7 +2,7 @@ import unittest
 import math
 import cmath
 from pyvvo import utils
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import pandas as pd
 import os
 
@@ -203,6 +203,45 @@ class MapDataFrameColumnsTestCase(unittest.TestCase):
         actual = utils.map_dataframe_columns(map=map, df=df, cols=cols)
 
         pd.testing.assert_frame_equal(actual, expected)
+
+
+class PlatformHeaderTimestampToDTTestCase(unittest.TestCase):
+    """Test platform_header_timestamp_to_dt."""
+
+    def test_int(self):
+        actual = utils.platform_header_timestamp_to_dt(1559770227*1000)
+        expected = datetime(2019, 6, 5, 21, 30, 27, tzinfo=timezone.utc)
+        diff = actual - expected
+        self.assertEqual(diff.seconds, timedelta(seconds=0).seconds)
+
+    def test_float(self):
+        actual = utils.platform_header_timestamp_to_dt(1559770227.2*1000)
+        expected = datetime(2019, 6, 5, 21, 30, 27, 2000, tzinfo=timezone.utc)
+        diff = actual - expected
+        self.assertEqual(diff.seconds, timedelta(seconds=0).seconds)
+
+    def test_string(self):
+        with self.assertRaises(TypeError):
+            utils.platform_header_timestamp_to_dt(str(1559770227.2 * 1000))
+
+
+class SimulationOutputTimestampToDTTestCase(unittest.TestCase):
+    """Test simulation_output_timestamp_to_dt."""
+    def test_int(self):
+        actual = utils.simulation_output_timestamp_to_dt(1559770227)
+        expected = datetime(2019, 6, 5, 21, 30, 27, tzinfo=timezone.utc)
+        diff = actual - expected
+        self.assertEqual(diff.seconds, timedelta(seconds=0).seconds)
+
+    def test_float(self):
+        actual = utils.simulation_output_timestamp_to_dt(1559770227.2)
+        expected = datetime(2019, 6, 5, 21, 30, 27, 2000, tzinfo=timezone.utc)
+        diff = actual - expected
+        self.assertEqual(diff.seconds, timedelta(seconds=0).seconds)
+
+    def test_string(self):
+        with self.assertRaises(TypeError):
+            utils.simulation_output_timestamp_to_dt(str(1559770227.2))
 
 
 if __name__ == '__main__':
