@@ -125,8 +125,10 @@ class SimOutRouter:
         # Assign topic to subscribe to.
         # TODO: Update this when new app-container-base container is
         #   built. We should use topics.py from gridappsd.
-        self.output_topic = "{}.{}.{}".format(topics.BASE_SIMULATION_TOPIC,
-                                              'sensors', sim_id)
+        # self.output_topic = "{}.{}.{}".format(topics.BASE_SIMULATION_TOPIC,
+        #                                       'sensors', sim_id)
+        self.output_topic = \
+            topics.simulation_output_topic(simulation_id=sim_id)
 
         self.mrids = []
         self.functions = []
@@ -148,8 +150,8 @@ class SimOutRouter:
         # TODO: Move this into a helper function?
         t = datetime.utcfromtimestamp(
             int(header['timestamp']) / 1000).strftime(DATE_FORMAT)
-        self.log.info('Received simulation output, header timestamped '
-                      + t)
+        # self.log.info('Received simulation output, header timestamped '
+        #               + t)
 
         # Get message as json.
         # TODO: Eventually we won't need to do this, as the API will
@@ -160,7 +162,7 @@ class SimOutRouter:
         # TODO: Move this into a helper function?
         sim_t = datetime.utcfromtimestamp(
             m['message']['timestamp']).strftime(DATE_FORMAT)
-        self.log.info('Simulation timestamp: {}'.format(sim_t))
+        # self.log.info('Simulation timestamp: {}'.format(sim_t))
 
         # Filter the message.
         result = self._filter_output_by_mrid(message=m)
@@ -397,9 +399,7 @@ class PlatformManager:
                                        utils.dt_to_us_from_epoch(end_time)},
                    'responseFormat': 'JSON'}
 
-        # TODO: Update gridappsd-python
-        topic = '/queue/goss.gridappsd.process.request.data.timeseries'
-
+        topic = topics.TIMESERIES
         data = self.gad.get_response(topic=topic, message=payload,
                                      timeout=self.timeout)
 
@@ -436,6 +436,66 @@ class PlatformManager:
         )
         return data_df
 
+    def get_historic_measurements(self, sim_id, mrid=None):
+        """"""
+        # TODO: Use topics from gridappsd-python when fixed.
+        t = '/queue/goss.gridappsd.process.request.data.timeseries'
+        payload = {'queryMeasurement': 'PROVEN_MEASUREMENT',
+                   'queryFilter': {'simulation_id': sim_id,
+                                   'measurement_mrid': mrid},
+                                   #'hasSimulationMessageType': 'OUTPUT'},
+                                   #'hasSimulationMessageType': 'INPUT'},
+                                   # 'hasMrid': mrid},
+                   'responseFormat': 'JSON'}
+
+        return self.gad.get_response(topic=t, message=payload, timeout=30)
+
+    def run_simulation(self):
+        """Start a simulation and return the simulation ID.
+
+        TODO: stop hard-coding, take inputs.
+        """
+        # Hard-code simulation request to start simulation. This was
+        # obtained by copy + pasting from the terminal in the viz app.
+        geo_name = "_24809814-4EC6-29D2-B509-7F8BFB646437"
+        subgeo_name = "_1CD7D2EE-3C91-3248-5662-A43EFEFAC224"
+        # 13-node:
+        # model_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
+        # sim_name = "ieee13nodeckt"
+        # 8500 node:
+        # model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
+        # sim_name = "ieee8500"
+        # 123-node:
+        model_mrid = '_C1C3E687-6FFD-C753-582B-632A27E28507'
+        sim_name = 'ieee123'
+        sim_request = \
+            {
+                "power_system_config": {
+                    "GeographicalRegion_name": geo_name,
+                    "SubGeographicalRegion_name": subgeo_name,
+                    "Line_name": model_mrid
+                },
+                "application_config": {"applications": [{"name":"sample_app","config_string":""}]},
+                "simulation_config": {
+                    "start_time": "1248152400",
+                    "duration": "30",
+                    "simulator": "GridLAB-D",
+                    "timestep_frequency": "1000",
+                    "timestep_increment": "1000",
+                    "run_realtime": True,
+                    "simulation_name": sim_name,
+                    "power_flow_solver_method": "NR",
+                    "model_creation_config": {
+                        "load_scaling_factor": "1",
+                        "schedule_name": "ieeezipload",
+                        "z_fraction": "0",
+                        "i_fraction": "1",
+                        "p_fraction": "0",
+                        "randomize_zipload_fractions": False,
+                        "use_houses": True
+                    }
+                }
+            }
 
         # Run simulation.
         sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,

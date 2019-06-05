@@ -1,6 +1,75 @@
-"""Module for handling weather data."""
-import pandas as pd
+"""Module for handling timeseries data from the platform.
+https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
+"""
 
+import pandas as pd
+import logging
+
+# Setup log.
+LOG = logging.getLogger(__name__)
+
+
+def parse_timeseries(data):
+    """Helper to parse platform timeseries data.
+
+    :param data: dictionary with results from calling the timeseries
+        API (either for weather data or simulation data). Ultimately,
+        this is a return from gridappsd.GridAPPSD.get_response. It is
+        assumed that data['data'] is not None, as that check is done
+        at a higher level. See gridappsd_platform.py.
+    """
+    # Ensure data is a dictionary. We won't check its integrity, and
+    # let a KeyError get raised if it's incorrectly formatted.
+    if not isinstance(data, dict):
+        raise TypeError('data must be a dictionary!')
+
+    # Initialize dictionary for flattening the interesting return
+    # from the platform.
+    flat_dict = {}
+
+    # The measurements can come back with mixed types. However, I'm not
+    # going to support that. Query filters should be used to avoid these
+    # situations.
+    #
+    # Grab the 'keys' for the very first entry. Yes, this depth and
+    # hard-coding are insane.
+    for entry in data['data']['measurements'][0]['points'][0]['row']['entry']:
+        flat_dict[entry['key']] = []
+
+    # Loop over the "rows."
+    for row in data['data']['measurements'][0]['points']:
+        # Keep track of which keys have been accessed - we need to
+        # ensure consistency.
+        keys = list(flat_dict.keys())
+
+        # Loop over all the measurements, since they aren't properly
+        # keyed.
+        for meas_dict in row['row']['entry']:
+            # Grab type and value of measurement.
+            meas_type = meas_dict['key']
+            meas_value = meas_dict['value']
+
+            # Place the measurement in the dictionary.
+            try:
+                # Attempt to append to the list.
+                flat_dict[meas_type].append(meas_value)
+            except KeyError:
+                # We have inconsistent data.
+                m = ('The data is inconsistent! Found field {} which was '
+                     + 'not present in the first entry/row!').format(meas_type)
+                raise ValueError(m) from None
+
+            # Remove the meas_type from the keys list.
+            keys.remove(meas_type)
+
+        # Ensure we used up all the keys.
+        if len(keys) != 0:
+            m = ('The data is inconsistent! Found row which is missing '
+                 + 'the following fields: {}').format(keys)
+            raise ValueError(m)
+
+    # Return a DataFrame.
+    return pd.DataFrame(flat_dict)
 
 def parse_weather(data):
     """Helper to parse the ridiculous platform weather data return.

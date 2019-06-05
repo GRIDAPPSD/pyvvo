@@ -828,7 +828,7 @@ class NestedObjectsIEEE13TestCase(unittest.TestCase):
 
     def test_nested_objects_ieee_13_solar_in_dict(self):
         self.assertEqual(self.glm.model_dict[13]['name'],
-                         '"pv_school_PVPanels"')
+                         '"pv_school"')
 
 
 class NestedObjectsDoubleNestTestCase(unittest.TestCase):

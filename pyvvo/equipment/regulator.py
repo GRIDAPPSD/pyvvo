@@ -93,6 +93,9 @@ class RegulatorMultiPhase:
     objects.
     """
 
+    # Allowable phases.
+    PHASES = ('A', 'B', 'C')
+
     def __init__(self, regulator_list):
         """Take in list of RegulatorSinglePhase objects.
 
@@ -110,7 +113,7 @@ class RegulatorMultiPhase:
             m = 'regulator_list must meet 1 <= len(regulator_list) <= 3.'
             raise ValueError(m)
 
-        # Initialize phases to None.
+        # Initialize phases to None. We'll use case-insensitive attributes.
         self._a = None
         self._b = None
         self._c = None
@@ -177,6 +180,21 @@ class RegulatorMultiPhase:
 
     @property
     def c(self):
+        return self._c
+
+    # noinspection PyPep8Naming
+    @property
+    def A(self):
+        return self._a
+
+    # noinspection PyPep8Naming
+    @property
+    def B(self):
+        return self._b
+
+    # noinspection PyPep8Naming
+    @property
+    def C(self):
         return self._c
 
 
