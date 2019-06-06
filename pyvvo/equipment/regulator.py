@@ -3,6 +3,7 @@ import logging
 
 import pyvvo.utils as utils
 
+from pandas import DataFrame
 import numpy as np
 
 LOG = logging.getLogger(__name__)
@@ -79,6 +80,118 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
     as inputs are not checked.
     """
     return tap_pos + neutral_step
+
+
+class RegulatorManager:
+    """Class to keep RegulatorMultiPhase objects up to date as a
+    simulation proceeds.
+
+    This is meant to be used in conjunction with a SimOutRouter from
+    gridappsd_platform.py.
+
+    TODO: initialize_controllable_regulators filters our regulators,
+        but really we want ALL of them here.
+    """
+    def __init__(self, reg_dict, reg_measurements):
+        """Initialize.
+
+        :param reg_dict: Dictionary of RegulatorMultiPhase objects
+            as returned by initialize_controllable_regulators.
+        :param reg_measurements: Pandas DataFrame as returned by
+            sparql.SPARQLManager's query_rtc_measurements method.
+        """
+        # Logging.
+        self.log = logging.getLogger(__name__)
+
+        # Simple type checking.
+        if not isinstance(reg_dict, dict):
+            raise TypeError('reg_dict must be a dictionary.')
+
+        if not isinstance(reg_measurements, DataFrame):
+            raise TypeError('reg_measurements must be a Pandas DataFrame.')
+
+        # Create a mapping of measurement MRIDs to RegulatorSinglePhase
+        #   objects.
+        self.reg_meas_map = {}
+
+        for reg_name, reg_obj in reg_dict.items():
+            # Get entries from the DataFrame which match this regulator.
+            view = reg_measurements[reg_measurements['eqid'] == reg_obj.mrid]
+
+            # If this view is empty, warn.
+            if view.shape[0] == 0:
+                self.log.warning("There are no measurements for regulator "
+                                 "'{}'".format(reg_name))
+                # Move to the next loop iteration.
+                continue
+
+            # Loop over the phases of the regulator to match up
+            # measurements with phases.
+            for phase in reg_obj.PHASES:
+                # Grab the RegulatorSinglePhase for this phase.
+                reg_single_phase = getattr(reg_obj, phase)
+
+                # If this phase isn't present, we'll receive None.
+                if reg_single_phase is None:
+                    continue
+
+                # Extract measurements which correspond to this phase.
+                single_view = view[view['phases'] == phase.upper()]
+
+                # For now, only allow one measurement.
+                if single_view.shape[0] > 1:
+                    raise ValueError('The RegulatorManager currently only '
+                                     'supports one measurement per phase.')
+                elif single_view.shape[0] == 0:
+                    # Warn if we get zero.
+                    self.log.warning("Phase {} of regulator '{}' does not have"
+                                     " any measurements!".format(phase,
+                                                                 reg_name))
+                    continue
+
+                # Map it!
+                self.reg_meas_map[single_view['id'].values[0]] = \
+                    reg_single_phase
+
+    def update_regs(self, msg):
+        """Given a message from a gridappsd_platform SimOutRouter,
+        update regulator positions.
+
+        :param msg: list passed to this method via a SimOutRouter's
+            "_on_message" method.
+        """
+        # # Dump message for testing:
+        # import json
+        # with open('reg_meas_message.json', 'w') as f:
+        #     json.dump(msg, f)
+
+        # Type checking:
+        if not isinstance(msg, list):
+            raise TypeError('msg must be a list!')
+
+        # Iterate over the message and update regulators.
+        for m in msg:
+            # Type checking:
+            if not isinstance(m, dict):
+                raise TypeError('Each entry in msg must be a dict!')
+            # Update!
+            # TODO: For now this is tap_pos (GLD). Update to use step
+            #   (CIM) when issue 754 is resolved:
+            #   https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/754
+
+            # Grab mrid and value.
+            mrid = m['measurement_mrid']
+            value = m['value']
+
+            try:
+                self.reg_meas_map[mrid].tap_pos = value
+            except KeyError:
+                self.log.warning('MRID {} not present in the map!'.format(
+                    mrid))
+            else:
+                self.log.debug('Regulator {} tap_pos updated to: {}'.format(
+                    str(self.reg_meas_map[mrid]), value
+                ))
 
 
 class RegulatorMultiPhase:
@@ -246,9 +359,7 @@ class RegulatorSinglePhase:
         :param neutral_step: Definition from CIM: "The neutral tap step
             position for this winding. The attribute shall be equal or
             greater than lowStep and equal or less than highStep."
-        :param step: NOTE: The platform needs updated to conform to a
-            CIM revision. For now, we'll be treating this as a floating
-            point tap ratio. TODO: Update when platform is updated.
+        :param step: Integer only, no float.
             CIM definition (new): "Tap changer position. Starting step
             for a steady state solution. Non integer values are allowed
             to support continuous tap variables. The reasons for
@@ -257,7 +368,7 @@ class RegulatorSinglePhase:
             where a narrow voltage band force the tap step to oscillate
             or accommodate for a continuous solution as input. The
             attribute shall be equal or greater than lowStep and equal
-            or less than highStep.
+            or less than highStep."
         """
         # Setup logging.
         self.log = logging.getLogger(__name__)
@@ -332,10 +443,7 @@ class RegulatorSinglePhase:
             raise ValueError('The following is not True: '
                              'low_step <= neutral_step <= high_step')
 
-        # Ensure step is an integer.
-        if not isinstance(step, (int, np.integer)):
-            raise TypeError('step must be an integer.')
-
+        # The test for step being an integer is in its setter method.
         # NOTE: setting _step here ALSO sets self._tap_pos. tap_pos is
         # for GridLAB-D, while 'step' is CIM.
         self._tap_pos = None
@@ -412,7 +520,19 @@ class RegulatorSinglePhase:
     @step.setter
     def step(self, value):
         """Set the step (CIM) and also the tap_pos (GLD)"""
+        if not isinstance(value, (int, np.integer)):
+            raise TypeError('step must be an integer.')
+
+        # Ensure we aren't getting an out of range value.
+        if value < self.low_step or value > self.high_step:
+            raise ValueError(
+                'step must be between low_step ({}) and '
+                'high_step ({}) (inclusive)'.format(self.low_step,
+                                                    self.high_step))
+
+        # Set step.
         self._step = value
+        # Calculate and update tap_pos.
         self._tap_pos = \
             _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
 
@@ -424,6 +544,17 @@ class RegulatorSinglePhase:
     @tap_pos.setter
     def tap_pos(self, value):
         """Set the tap_pos (GLD) and also the step (CIM)"""
+        if not isinstance(value, (int, np.integer)):
+            raise TypeError('tap_pos must be an integer.')
+
+        # Ensure value is valid.
+        if value < -self.lower_taps or value > self.raise_taps:
+            raise ValueError(
+                'tap_pos must be between lower_taps ({}) and '
+                'raise_taps ({}) (inclusive)'.format(-self.lower_taps,
+                                                     self.raise_taps))
+
+        # Set new tap_pos and step.
         self._tap_pos = value
         self._step = _tap_gld_to_cim(tap_pos=value,
                                      neutral_step=self.neutral_step)

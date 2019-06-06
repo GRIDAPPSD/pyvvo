@@ -1,13 +1,15 @@
 import unittest
-from unittest.mock import patch
 import pyvvo.equipment.regulator as regulator
 from copy import copy, deepcopy
 import os
 import pandas as pd
+import json
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
+REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
+REG_MEAS_MSG = os.path.join(THIS_DIR, 'reg_meas_message.json')
 
 
 class InitializeControllableRegulatorsTestCase(unittest.TestCase):
@@ -258,6 +260,24 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
         self.assertEqual(reg.step, 1)
         self.assertEqual(reg.tap_pos, -15)
 
+    def test_update_step_bad_type(self):
+        reg = regulator.RegulatorSinglePhase(**self.inputs)
+        with self.assertRaisesRegex(TypeError, 'step must be an integer'):
+            reg.step = 1.0
+
+    def test_update_tap_pos_bad_type(self):
+        reg = regulator.RegulatorSinglePhase(**self.inputs)
+        with self.assertRaisesRegex(TypeError, 'tap_pos must be an integer'):
+            reg.tap_pos = -1.0
+
+    def test_update_step_out_of_range(self):
+        with self.assertRaisesRegex(ValueError, 'step must be between'):
+            self.reg.step = 100
+
+    def test_update_tap_pos_out_of_range(self):
+        with self.assertRaisesRegex(ValueError, 'tap_pos must be between'):
+            self.reg.tap_pos = 17
+
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
@@ -336,27 +356,200 @@ class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
         i['low_step'] = 17
         i['neutral_step'] = 16
         i['high_step'] = 20
-        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **i)
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            regulator.RegulatorSinglePhase(**i)
 
     def test_bad_step_values_2(self):
         i = deepcopy(self.inputs)
         i['low_step'] = 0
         i['neutral_step'] = 21
         i['high_step'] = 20
-        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **i)
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            regulator.RegulatorSinglePhase(**i)
 
     def test_bad_step_values_3(self):
         i = deepcopy(self.inputs)
         i['low_step'] = 0
         i['neutral_step'] = 0
         i['high_step'] = -1
-        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **i)
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            regulator.RegulatorSinglePhase(**i)
 
     def test_bad_step_type(self):
-        # TODO: Update when platform is updated.
         i = deepcopy(self.inputs)
         i['step'] = 2.0
         self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+
+    def test_step_out_of_range_1(self):
+        i = deepcopy(self.inputs)
+        i['step'] = 33
+        with self.assertRaisesRegex(ValueError, 'between low_step '):
+            regulator.RegulatorSinglePhase(**i)
+
+    def test_step_out_of_range_2(self):
+        i = deepcopy(self.inputs)
+        i['step'] = -1
+        with self.assertRaisesRegex(ValueError, 'between low_step '):
+            regulator.RegulatorSinglePhase(**i)
+
+
+class RegulatorManagerTestCase(unittest.TestCase):
+    """Test RegulatorManager"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.reg_meas = pd.read_csv(REG_MEAS)
+        cls.reg_dict = \
+            regulator.initialize_controllable_regulators(
+                pd.read_csv(REGULATORS))
+        with open(REG_MEAS_MSG, 'r') as f:
+            cls.reg_meas_msg = json.load(f)
+        cls.reg_mgr = regulator.RegulatorManager(reg_dict=cls.reg_dict,
+                                                 reg_measurements=cls.reg_meas)
+
+    def test_all_regs_mapped(self):
+        """Ensure all our single phase regulators got mapped.
+
+        If this fails, we may have some sort of file inconsistency.
+        """
+        # Loop over regulators.
+        for reg_multi in self.reg_dict.values():
+            # Loop over single phase regulators.
+            for phase in reg_multi.PHASES:
+                reg_single = getattr(reg_multi, phase)
+
+                if reg_single is None:
+                    continue
+
+                with self.subTest(msg=str(reg_single)):
+                    self.assertIn(reg_single,
+                                  self.reg_mgr.reg_meas_map.values())
+
+    def test_all_measurements_mapped(self):
+        """Ensure all measurements are in the map."""
+        for meas_mrid in self.reg_meas['id'].values:
+            with self.subTest():
+                self.assertIn(meas_mrid, self.reg_mgr.reg_meas_map.keys())
+
+    def test_no_meas_for_reg(self):
+        """Remove measurements for given regulator, ensure we get
+        proper exception.
+        """
+        meas_view = self.reg_meas[
+            ~(self.reg_meas['eqid'] == self.reg_meas['eqid'][0])
+        ]
+
+        with self.assertLogs(level='WARNING') as cm:
+            _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                           reg_measurements=meas_view)
+
+        self.assertIn('There are no measurements for regulator',
+                      cm.output[0])
+
+    def test_bad_reg_dict_type(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'reg_dict must be a dictionary'):
+            _ = regulator.RegulatorManager(reg_dict=10,
+                                           reg_measurements=self.reg_meas)
+
+    def test_bad_reg_meas_type(self):
+        with self.assertRaisesRegex(TypeError,
+                                    'reg_measurements must be a Pandas'):
+            _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                           reg_measurements=pd.Series())
+
+    def test_no_meas_for_single_phase_reg(self):
+        meas_view = self.reg_meas.drop(0, axis=0)
+        with self.assertLogs(level='WARNING') as cm:
+            _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                           reg_measurements=meas_view)
+
+        self.assertIn('does not have any measurements!', cm.output[0])
+
+    def test_two_meas_for_single_phase_reg(self):
+        reg_meas = self.reg_meas.append(self.reg_meas.iloc[0])
+
+        with self.assertRaisesRegex(ValueError, 'one measurement per phase'):
+            _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                           reg_measurements=reg_meas)
+
+    def test_update_regs_simple(self):
+        """Just ensure it runs without error."""
+        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                         reg_measurements=self.reg_meas)
+
+        # At the time of writing, the debug line is the last one in the
+        # function, so ensuring it gets hit is adequate.
+        with self.assertLogs(level='DEBUG'):
+            mgr.update_regs(self.reg_meas_msg)
+
+    def test_update_regs_changes_taps(self):
+        """Ensure our taps changed appropriately. We'll hard-code
+        this for simplicity.
+        """
+        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                         reg_measurements=self.reg_meas)
+        mgr.update_regs(self.reg_meas_msg)
+
+        # Loop over the message.
+        for msg_dict in self.reg_meas_msg:
+            # Grab the MRID.
+            meas_mrid = msg_dict['measurement_mrid']
+            meas_value = msg_dict['value']
+
+            # Look up the measurement mrid.
+            row = self.reg_meas[self.reg_meas['id'] == meas_mrid]
+
+            # Grab regulator mrid and phase.
+            reg_mrid = row['eqid'].values[0]
+            reg_phase = row['phases'].values[0]
+
+            # Loop to find the multi-phase regulator. This isn't
+            # efficient, and that's okay since this is a test.
+            for multi_reg_name, multi_reg in self.reg_dict.items():
+                if multi_reg.mrid == reg_mrid:
+                    break
+
+            # Ensure this regulator got updated.
+            with self.subTest(meas_mrid=meas_mrid):
+                # noinspection PyUnboundLocalVariable
+                single_reg = getattr(self.reg_dict[multi_reg_name], reg_phase)
+                self.assertEqual(single_reg.tap_pos, meas_value)
+
+    def test_update_regs_bad_mrid(self):
+        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                         reg_measurements=self.reg_meas)
+        reg_meas_msg = deepcopy(self.reg_meas_msg)
+        reg_meas_msg.append({'measurement_mrid': '1234', 'value': 12})
+
+        with self.assertLogs(level='WARNING'):
+            mgr.update_regs(reg_meas_msg)
+
+    def test_update_regs_bad_entry_1(self):
+        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                         reg_measurements=self.reg_meas)
+        reg_meas_msg = deepcopy(self.reg_meas_msg)
+        reg_meas_msg.append({'measurement_mrId': '1234', 'value': 12})
+
+        with self.assertRaisesRegex(KeyError, 'measurement_mrid'):
+            mgr.update_regs(reg_meas_msg)
+
+    def test_update_regs_bad_entry_2(self):
+        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                         reg_measurements=self.reg_meas)
+        reg_meas_msg = deepcopy(self.reg_meas_msg)
+        reg_meas_msg.append({'measurement_mrid': '1234', 'valu3': 12})
+
+        with self.assertRaisesRegex(KeyError, 'value'):
+            mgr.update_regs(reg_meas_msg)
+
+    def test_update_regs_bad_type(self):
+        with self.assertRaisesRegex(TypeError, 'msg must be a list'):
+            self.reg_mgr.update_regs(msg='hello there')
+
+    def test_update_regs_bad_type_2(self):
+        with self.assertRaisesRegex(TypeError, 'must be a dict'):
+            self.reg_mgr.update_regs(msg=['hello there'])
 
 
 if __name__ == '__main__':
