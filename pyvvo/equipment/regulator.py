@@ -50,9 +50,6 @@ def _tap_cim_to_gld(step, neutral_step):
     """Convert step and step_voltage_increment in CIM terms to tap_pos
      in GridLAB-D terms.
 
-     TODO: With updates coming for CIM 100, this may not be necessary,
-        or may need updated.
-
     :param step: CIM tap position of voltage regulator. E.g., 1, 16, 20,
         or 32. CIM taps start at 0.
     :param neutral_step: CIM neutral tap position. This will likely and
@@ -71,9 +68,6 @@ def _tap_cim_to_gld(step, neutral_step):
 def _tap_gld_to_cim(tap_pos, neutral_step):
     """Convert tap position as GridLAB-D denotes it to step as CIM
     denotes it.
-
-     TODO: With updates coming for CIM 100, this may not be necessary,
-        or may need updated.
 
     :param tap_pos: tap position as GridLAB-D would denote it.
     :param neutral_step: CIM neutral tap position. This will likely and
@@ -153,8 +147,16 @@ class RegulatorMultiPhase:
                         '"mrid" attributes.'
                     raise ValueError(m)
 
-            # Check regulator phase, and set the attribute accordingly.
-            setattr(self, '_' + regulator.phase.lower(), regulator)
+            # Get this phase attribute for self.
+            attr_str = '_' + regulator.phase.lower()
+            attr = getattr(self, attr_str)
+            # Ensure this attribute has not yet been set to anything
+            # other than None.
+            if attr is not None:
+                raise ValueError('Multiple regulators for phase {} were '
+                                 'given!'.format(regulator.phase.lower()))
+
+            setattr(self, attr_str, regulator)
 
     def __repr__(self):
         return '<RegulatorMultiPhase. name: {}'.format(self.name)
@@ -330,11 +332,14 @@ class RegulatorSinglePhase:
             raise ValueError('The following is not True: '
                              'low_step <= neutral_step <= high_step')
 
-        # TODO: Update when the platform is updated.
+        # Ensure step is an integer.
         if not isinstance(step, (int, np.integer)):
             raise TypeError('step must be an integer.')
 
-        self._step = step
+        # NOTE: setting _step here ALSO sets self._tap_pos. tap_pos is
+        # for GridLAB-D, while 'step' is CIM.
+        self._tap_pos = None
+        self.step = step
 
         ################################################################
         # GridLAB-D properties
@@ -350,12 +355,6 @@ class RegulatorSinglePhase:
         # a magnitude.
         self._raise_taps = high_step - neutral_step
         self._lower_taps = neutral_step - low_step
-
-        # Set the default tap position.
-        # TODO: This will need updated when the handling of 'step' is
-        #   fixed in the platform.
-        self._tap_pos = \
-            _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
 
     def __repr__(self):
         return '<RegulatorSinglePhase. name: {}, phase: {}>'.format(self.name,
@@ -410,7 +409,25 @@ class RegulatorSinglePhase:
     def step(self):
         return self._step
 
-    # GridLAB-D attributes.
+    @step.setter
+    def step(self, value):
+        """Set the step (CIM) and also the tap_pos (GLD)"""
+        self._step = value
+        self._tap_pos = \
+            _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
+
+    # GridLAB-D attributes:
+    @property
+    def tap_pos(self):
+        return self._tap_pos
+
+    @tap_pos.setter
+    def tap_pos(self, value):
+        """Set the tap_pos (GLD) and also the step (CIM)"""
+        self._tap_pos = value
+        self._step = _tap_gld_to_cim(tap_pos=value,
+                                     neutral_step=self.neutral_step)
+
     @property
     def raise_taps(self):
         return self._raise_taps
@@ -418,7 +435,3 @@ class RegulatorSinglePhase:
     @property
     def lower_taps(self):
         return self._lower_taps
-
-    @property
-    def tap_pos(self):
-        return self._tap_pos

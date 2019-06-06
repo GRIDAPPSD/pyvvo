@@ -238,6 +238,26 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
     def test_tap_pos(self):
         self.assertEqual(self.reg.tap_pos, 2)
 
+    def test_update_step(self):
+        reg = regulator.RegulatorSinglePhase(**self.inputs)
+
+        self.assertEqual(reg.step, 18)
+        self.assertEqual(reg.tap_pos, 2)
+
+        reg.step = 15
+        self.assertEqual(reg.step, 15)
+        self.assertEqual(reg.tap_pos, -1)
+
+    def test_update_tap_pos(self):
+        reg = regulator.RegulatorSinglePhase(**self.inputs)
+
+        self.assertEqual(reg.step, 18)
+        self.assertEqual(reg.tap_pos, 2)
+
+        reg.tap_pos = -15
+        self.assertEqual(reg.step, 1)
+        self.assertEqual(reg.tap_pos, -15)
+
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
