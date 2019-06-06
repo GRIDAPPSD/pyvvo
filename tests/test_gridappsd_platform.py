@@ -271,7 +271,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         glm = self.platform.get_glm(model_id=model_id)
 
         # Uncomment to recreate the expected return.
-        # with open('ieee_13.glm', 'w') as f:
+        # with open(IEEE_13, 'w') as f:
         #     f.write(glm)
 
         # Get expected.

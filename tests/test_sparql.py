@@ -229,7 +229,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = self.sparql.query_capacitors()
 
         # Uncomment to recreate expected output.
-        # actual.to_csv('query_capacitors.csv', index=False)
+        # actual.to_csv(CAPACITORS, index=False)
 
         # Compare results
         expected = pd.read_csv(CAPACITORS)
@@ -296,7 +296,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = full_actual[full_actual['load'] == '21395720c0']
 
         # Uncomment to recreate expected.
-        # actual.to_csv('query_load_measurements.csv', index=True)
+        # actual.to_csv(LOAD_MEAS, index=True)
 
         expected = pd.read_csv(LOAD_MEAS, index_col=0)
 
@@ -360,7 +360,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = self.sparql.query_substation_source()
 
         # Uncomment to regenerate expected return.
-        # actual.to_csv('query_substation_source.csv')
+        # actual.to_csv(SUBSTATION)
 
         expected = pd.read_csv(SUBSTATION, index_col=0)
 
@@ -381,7 +381,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
             bus_mrid='_DFFCDF39-6380-0C43-D88C-C432A8DCB845')
 
         # Uncomment to recreate expected value.
-        # actual.to_csv('query_measurements_for_bus.csv')
+        # actual.to_csv(BUS_MEAS)
 
         expected = pd.read_csv(BUS_MEAS, index_col=0)
 
