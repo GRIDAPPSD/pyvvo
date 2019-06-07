@@ -17,7 +17,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """Create CapacitorSinglePhase object."""
         cls.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state='OpEn', mode='ACTIVEpower')
+                                           state='OPEN', mode='ACTIVEpower')
 
     def test_name(self):
         self.assertEqual(self.cap.name, 'cap1')
@@ -47,6 +47,22 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
     def test_repr(self):
         self.assertEqual(str(self.cap), self.cap.name)
 
+    def test_state_update(self):
+        cap = \
+            capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
+                                           state=None, mode='voltage')
+
+        self.assertIsNone(cap.state)
+
+        cap.state = 'OPEN'
+
+        self.assertEqual(cap.state, 'OPEN')
+        self.assertEqual(cap.state_old, None)
+
+        cap.state = 'CLOSED'
+
+        self.assertEqual(cap.state, 'CLOSED')
+        self.assertEqual(cap.state_old, 'OPEN')
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     """Test bad inputs to CapacitorSinglePhase"""

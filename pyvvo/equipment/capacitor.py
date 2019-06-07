@@ -105,31 +105,31 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         # Assign.
         self._mode = lower_mode
 
-        # Check and assign state.
-        if state is None:
-            # If state is None, simply set.
-            self._state = None
-        elif isinstance(state, str):
-            # Cast to upper case.
-            upper_state = state.upper()
-
-            # Ensure it's valid.
-            if upper_state not in self.STATES:
-                state_str = list_to_string(self.STATES, 'or')
-                m = 'state must be {} (case insensitive).'.format(state_str)
-                raise ValueError(m)
-
-            # Assign.
-            self._state = upper_state
-        else:
-            # State is a bad type.
-            raise TypeError('state must None or be a string.')
+        # Assign state, casting to upper case. Note that type checking
+        # happens in _check_state.
+        self.state = state
 
         self.log.debug('CapacitorSinglePhase {} '.format(self.name)
                        + 'initialized.')
 
     def __repr__(self):
         return self.name
+
+    def _check_state(self, value):
+        """Method required by base class, called before setting state."""
+        if value is None:
+            # If state is None, simply set.
+            self._state = None
+        elif isinstance(value, str):
+
+            # Ensure it's valid.
+            if value not in self.STATES:
+                state_str = list_to_string(self.STATES, 'or')
+                m = 'state must be {} (case sensitive).'.format(state_str)
+                raise ValueError(m)
+        else:
+            # State is a bad type.
+            raise TypeError('state must None or be a string.')
 
     ####################################################################
     # PUBLIC METHODS
@@ -166,8 +166,3 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     def mode(self):
         """Control mode."""
         return self._mode
-
-    @property
-    def state(self):
-        """State capacitor is in. OPEN/CLOSED/None. None --> unknown."""
-        return self._state
