@@ -131,7 +131,7 @@ class InitializeControllableCapacitors(unittest.TestCase):
         """Not supporting multi-phase controllable capacitors until
         necessary to."""
         df = self.df.copy(deep=True)
-        df.loc[3, 'phs'] = np.nan
+        df.loc[3, 'phase'] = np.nan
 
         self.assertRaises(NotImplementedError,
                           capacitor.initialize_controllable_capacitors,

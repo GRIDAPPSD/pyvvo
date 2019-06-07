@@ -275,7 +275,7 @@ class SPARQLManager:
     # a feeder ID: .format(feeder_mrid=feeder_mrid)
     CAPACITOR_QUERY = \
         (PREFIX +
-         "SELECT ?name ?basev ?nomu ?bsection ?bus ?conn ?grnd ?phs "
+         "SELECT ?name ?basev ?nomu ?bsection ?bus ?conn ?grnd ?phase "
          "?ctrlenabled ?discrete ?mode ?deadband ?setpoint ?delay "
          "?monclass ?moneq ?monbus ?monphs ?mrid ?feeder_mrid "
          "WHERE {{ "
@@ -296,7 +296,7 @@ class SPARQLManager:
          "?scp c:ShuntCompensatorPhase.ShuntCompensator ?s. "
          "?scp c:ShuntCompensatorPhase.phase ?phsraw. "
          'bind(strafter(str(?phsraw),"SinglePhaseKind.")'
-         " as ?phs) "
+         " as ?phase) "
          "}} "
          "OPTIONAL {{ "
          "?ctl c:RegulatingControl.RegulatingCondEq ?s. "

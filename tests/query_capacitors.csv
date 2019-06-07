@@ -1,4 +1,4 @@
-basev,bsection,bus,conn,ctrlenabled,deadband,delay,discrete,feeder_mrid,grnd,mode,monbus,monclass,moneq,monphs,mrid,name,nomu,phs,setpoint
+basev,bsection,bus,conn,ctrlenabled,deadband,delay,discrete,feeder_mrid,grnd,mode,monbus,monclass,moneq,monphs,mrid,name,nomu,phase,setpoint
 12470,0.007716049399999999,r42246,Y,True,-500000.0,100.0,True,_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3,True,reactivePower,q16642,ACLineSegment,cap_3a,A,_ECD83869-013C-B0E5-C39F-20255C9DB897,capbank0a,7200.0,A,-50000.0
 12470,0.007716049399999999,r42246,Y,True,-500000.0,101.0,True,_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3,True,reactivePower,q16642,ACLineSegment,cap_3b,B,_7DC99401-3C86-FB0E-6E8B-94DD09ED78FF,capbank0b,7200.0,B,-50000.0
 12470,0.007716049399999999,r42246,Y,True,-500000.0,102.0,True,_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3,True,reactivePower,q16642,ACLineSegment,cap_3c,C,_4AA97AB0-318F-0469-E99C-71780248C246,capbank0c,7200.0,C,-50000.0

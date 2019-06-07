@@ -41,7 +41,7 @@ def initialize_controllable_capacitors(df):
     # A NaN in the phase column indicates a multi-phase capacitor. I
     # have not yet seen a controllable multi-phase capacitor in the CIM,
     # so we'll cross that bridge when we get there.
-    if c_cap['phs'].isnull().any():
+    if c_cap['phase'].isnull().any():
         # TODO: handle multi-phase controllable caps.
         raise NotImplementedError('Currently single phase controllable '
                                   'capacitors are supported.')
@@ -52,7 +52,7 @@ def initialize_controllable_capacitors(df):
     for row in c_cap.itertuples():
         # Build a capacitor object.
         out[row.name] = \
-            CapacitorSinglePhase(name=row.name, mrid=row.mrid, phase=row.phs,
+            CapacitorSinglePhase(name=row.name, mrid=row.mrid, phase=row.phase,
                                  state=None, mode=row.mode)
 
     return out
