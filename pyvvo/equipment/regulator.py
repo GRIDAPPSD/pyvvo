@@ -1,6 +1,6 @@
 """Module for all things regulators."""
 import logging
-
+from collections import deque
 import pyvvo.utils as utils
 
 from pandas import DataFrame
@@ -443,8 +443,13 @@ class RegulatorSinglePhase:
             raise ValueError('The following is not True: '
                              'low_step <= neutral_step <= high_step')
 
+        # Create a deque (pronounced "deck") to make shifting old/new
+        # values easy.
+        self._tap_pos_deque = deque([None, None], 2)
+        self._step_deque = deque([None, None], 2)
+
         # The test for step being an integer is in its setter method.
-        # NOTE: setting _step here ALSO sets self._tap_pos. tap_pos is
+        # NOTE: setting step here ALSO sets self._tap_pos. tap_pos is
         # for GridLAB-D, while 'step' is CIM.
         self._tap_pos = None
         self.step = step
@@ -454,7 +459,9 @@ class RegulatorSinglePhase:
         ################################################################
         # Derive GridLAB-D properties from CIM properties.
         # http://gridlab-d.shoutwiki.com/wiki/Power_Flow_User_Guide.
-
+        #
+        # NOTE: tap_pos is a GridLAB-D parameter.
+        #
         # In CIM, tap position is on interval [low_step, high_step] with
         # neutral_step being in the interval. In GridLAB-D, the
         # neutral_step is always 0, so the interval is
@@ -536,6 +543,16 @@ class RegulatorSinglePhase:
         self._tap_pos = \
             _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
 
+        # Update the deques.
+        # noinspection PyTypeChecker
+        self._step_deque.appendleft(self._step)
+        self._tap_pos_deque.appendleft(self._tap_pos)
+
+    @property
+    def step_old(self):
+        """The old value is on the right hand side of the deque."""
+        return self._step_deque[-1]
+
     # GridLAB-D attributes:
     @property
     def tap_pos(self):
@@ -558,6 +575,16 @@ class RegulatorSinglePhase:
         self._tap_pos = value
         self._step = _tap_gld_to_cim(tap_pos=value,
                                      neutral_step=self.neutral_step)
+
+        # Update the deques.
+        self._step_deque.appendleft(self._step)
+        # noinspection PyTypeChecker
+        self._tap_pos_deque.appendleft(self._tap_pos)
+
+    @property
+    def tap_pos_old(self):
+        """The old value is on the right hand side of the deque."""
+        return self._tap_pos_deque[-1]
 
     @property
     def raise_taps(self):
