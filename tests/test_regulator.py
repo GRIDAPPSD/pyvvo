@@ -4,6 +4,7 @@ from copy import copy, deepcopy
 import os
 import pandas as pd
 import json
+from random import randint
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -413,13 +414,21 @@ class RegulatorManagerTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.reg_meas = pd.read_csv(REG_MEAS)
-        cls.reg_dict = \
-            regulator.initialize_controllable_regulators(
-                pd.read_csv(REGULATORS))
         with open(REG_MEAS_MSG, 'r') as f:
             cls.reg_meas_msg = json.load(f)
-        cls.reg_mgr = regulator.RegulatorManager(reg_dict=cls.reg_dict,
-                                                 reg_measurements=cls.reg_meas)
+
+    def setUp(self):
+        # Gotta be careful with these mutable types... Get fresh
+        # instances each time. It won't be that slow, I promise.
+        self.reg_dict = \
+            regulator.initialize_controllable_regulators(
+                pd.read_csv(REGULATORS))
+        self.reg_mgr = \
+            regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                       reg_measurements=self.reg_meas)
+
+    def test_reg_dict_attribute(self):
+        self.assertIs(self.reg_dict, self.reg_mgr.reg_dict)
 
     def test_all_regs_mapped(self):
         """Ensure all our single phase regulators got mapped.
@@ -489,21 +498,17 @@ class RegulatorManagerTestCase(unittest.TestCase):
 
     def test_update_regs_simple(self):
         """Just ensure it runs without error."""
-        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                         reg_measurements=self.reg_meas)
 
         # At the time of writing, the debug line is the last one in the
         # function, so ensuring it gets hit is adequate.
         with self.assertLogs(level='DEBUG'):
-            mgr.update_regs(self.reg_meas_msg)
+            self.reg_mgr.update_regs(self.reg_meas_msg)
 
     def test_update_regs_changes_taps(self):
         """Ensure our taps changed appropriately. We'll hard-code
         this for simplicity.
         """
-        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                         reg_measurements=self.reg_meas)
-        mgr.update_regs(self.reg_meas_msg)
+        self.reg_mgr.update_regs(self.reg_meas_msg)
 
         # Loop over the message.
         for msg_dict in self.reg_meas_msg:
@@ -531,31 +536,25 @@ class RegulatorManagerTestCase(unittest.TestCase):
                 self.assertEqual(single_reg.tap_pos, meas_value)
 
     def test_update_regs_bad_mrid(self):
-        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                         reg_measurements=self.reg_meas)
         reg_meas_msg = deepcopy(self.reg_meas_msg)
         reg_meas_msg.append({'measurement_mrid': '1234', 'value': 12})
 
         with self.assertLogs(level='WARNING'):
-            mgr.update_regs(reg_meas_msg)
+            self.reg_mgr.update_regs(reg_meas_msg)
 
     def test_update_regs_bad_entry_1(self):
-        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                         reg_measurements=self.reg_meas)
         reg_meas_msg = deepcopy(self.reg_meas_msg)
         reg_meas_msg.append({'measurement_mrId': '1234', 'value': 12})
 
         with self.assertRaisesRegex(KeyError, 'measurement_mrid'):
-            mgr.update_regs(reg_meas_msg)
+            self.reg_mgr.update_regs(reg_meas_msg)
 
     def test_update_regs_bad_entry_2(self):
-        mgr = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                         reg_measurements=self.reg_meas)
         reg_meas_msg = deepcopy(self.reg_meas_msg)
         reg_meas_msg.append({'measurement_mrid': '1234', 'valu3': 12})
 
         with self.assertRaisesRegex(KeyError, 'value'):
-            mgr.update_regs(reg_meas_msg)
+            self.reg_mgr.update_regs(reg_meas_msg)
 
     def test_update_regs_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'msg must be a list'):
@@ -564,6 +563,63 @@ class RegulatorManagerTestCase(unittest.TestCase):
     def test_update_regs_bad_type_2(self):
         with self.assertRaisesRegex(TypeError, 'must be a dict'):
             self.reg_mgr.update_regs(msg=['hello there'])
+
+    def test_build_regulator_commands(self):
+        """One stop big function which probably should be spun off into
+        its own test case.
+
+        NOTE: This test is fragile as it currently relies on how the
+        looping is performed in build_regulator_commands.
+        """
+        reg_dict_forward = deepcopy(self.reg_dict)
+
+        # Randomly update steps.
+        forward_vals = []
+        for reg_multi in reg_dict_forward.values():
+            for phase in reg_multi.PHASES:
+                reg_single = getattr(reg_multi, phase)
+                new_step = randint(reg_single.low_step, reg_single.high_step)
+                reg_single.step = new_step
+                forward_vals.append(new_step)
+
+        # Grab reverse values.
+        reverse_vals = []
+        for reg_multi in self.reg_dict.values():
+            for phase in reg_multi.PHASES:
+                reg_single = getattr(reg_multi, phase)
+                reverse_vals.append(reg_single.step)
+
+        # Just use the same dictionary to make a "do nothing" command.
+        out = self.reg_mgr.build_regulator_commands(
+            reg_dict_forward=reg_dict_forward)
+
+        # Ensure we're getting the fields we need.
+        self.assertIn('object_ids', out)
+        self.assertIn('attributes', out)
+        self.assertIn('forward_values', out)
+        self.assertIn('reverse_values', out)
+
+        # Ensure our forward values match. WARNING: this is quite
+        # fragile as it depends on looping order.
+        self.assertListEqual(forward_vals, out['forward_values'])
+        # Ensure reverse values match (also fragile).
+        self.assertListEqual(reverse_vals, out['reverse_values'])
+
+        # Ensure the lengths are equal to all our single phases.
+        # I'm just going to hard-code the fact that the 8500 node model
+        # has 4 3-phase regs.
+        for v in out.values():
+            self.assertIsInstance(v, list)
+            self.assertEqual(len(v), 12)
+
+    def test_build_regulator_commands_mismatch(self):
+        """Send mismatched reg dicts in."""
+        reg_dict_forward = deepcopy(self.reg_dict)
+        reg_dict_forward['blah'] = \
+            reg_dict_forward.pop(list(reg_dict_forward.keys())[0])
+
+        with self.assertRaisesRegex(ValueError, 'not matching up with'):
+            self.reg_mgr.build_regulator_commands(reg_dict_forward)
 
 
 if __name__ == '__main__':

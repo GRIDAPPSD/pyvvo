@@ -110,11 +110,14 @@ class RegulatorManager:
         if not isinstance(reg_measurements, DataFrame):
             raise TypeError('reg_measurements must be a Pandas DataFrame.')
 
+        # Keep track of the given reg dict.
+        self.reg_dict = reg_dict
+
         # Create a mapping of measurement MRIDs to RegulatorSinglePhase
         #   objects.
         self.reg_meas_map = {}
 
-        for reg_name, reg_obj in reg_dict.items():
+        for reg_name, reg_obj in self.reg_dict.items():
             # Get entries from the DataFrame which match this regulator.
             view = reg_measurements[reg_measurements['eqid'] == reg_obj.mrid]
 
@@ -192,6 +195,67 @@ class RegulatorManager:
                 self.log.debug('Regulator {} tap_pos updated to: {}'.format(
                     str(self.reg_meas_map[mrid]), value
                 ))
+
+    def build_regulator_commands(self, reg_dict_forward):
+        """Function to build command for regulator tap positions. The
+        command itself would be sent with a
+        gridappsd_platform.PlatformManager object's send_command method.
+
+        This object's reg_dict is considered to have the current/old
+        regulator positions.
+
+        NOTE: It isn't 100% clear if this is the best home for this
+        method, but hey, that's okay.
+
+        :param reg_dict_forward: dictionary of
+            regulator.RegulatorMultiPhase objects as would come as
+            output from regulator.initialize_controllable_regulators.
+            The tap positions for these objects will be what the
+            regulators in the simulation will be commanded to.
+
+        :returns dictionary with keys corresponding to the send_command
+            method of a gridappsd_platform.PlatformManager object.
+
+        NOTE: reg_dict_forward and reg_dict_reverse should have
+            identical contents except for the tap positions.
+        """
+        # Initialize lists of parameters.
+        reg_ids = []
+        reg_attr = []
+        reg_forward = []
+        reg_reverse = []
+
+        # Loop over regulators.
+        for reg_name, multi_reg in reg_dict_forward.items():
+            # Loop over the phases in the regulator.
+            for p in multi_reg.PHASES:
+                # Get the single phase regulator.
+                single_reg_forward = getattr(multi_reg, p)
+
+                # Move along if its None.
+                if single_reg_forward is None:
+                    continue
+
+                try:
+                    single_reg_reverse = getattr(self.reg_dict[reg_name], p)
+                except KeyError:
+                    m = 'The given reg_dict_forward is not matching up with '\
+                        'self.reg_dict! Ensure these reg_dicts came from the '\
+                        'same model, etc.'
+
+                    raise ValueError(m) from None
+
+                # Add the tap change mrid.
+                reg_ids.append(single_reg_forward.tap_changer_mrid)
+                # Add the attribute.
+                reg_attr.append('TapChanger.step')
+                # Add the forward position.
+                reg_forward.append(single_reg_forward.step)
+                # Grab the reverse position.
+                reg_reverse.append(single_reg_reverse.step)
+
+        return {"object_ids": reg_ids, "attributes": reg_attr,
+                "forward_values": reg_forward, "reverse_values": reg_reverse}
 
 
 class RegulatorMultiPhase:
