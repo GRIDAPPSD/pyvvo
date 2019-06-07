@@ -51,9 +51,6 @@ class InitializeControllableRegulatorsTestCase(unittest.TestCase):
 
 
 class TapCIMToGLDTestCase(unittest.TestCase):
-    """NOTE: The way the platform currently handles 'step' is likely
-    wrong. Test this after there's a way forward identified.
-    """
 
     def test_tap_cim_to_gld_1(self):
         actual = regulator._tap_cim_to_gld(step=16, neutral_step=16)
@@ -71,6 +68,10 @@ class TapCIMToGLDTestCase(unittest.TestCase):
         actual = regulator._tap_cim_to_gld(step=0, neutral_step=16)
         self.assertEqual(-16, actual)
 
+    def test_tap_cim_to_gld_5(self):
+        actual = regulator._tap_cim_to_gld(step=-2, neutral_step=-1)
+        self.assertEqual(-1, actual)
+
 
 class TapGLDToCIMTestCase(unittest.TestCase):
 
@@ -86,6 +87,11 @@ class TapGLDToCIMTestCase(unittest.TestCase):
     def test_tap_gld_to_cim_3(self):
         actual = regulator._tap_gld_to_cim(tap_pos=0, neutral_step=10)
         self.assertEqual(10, actual)
+
+    def test_tap_gld_to_cim_4(self):
+        actual = regulator._tap_gld_to_cim(tap_pos=5, neutral_step=-5)
+        self.assertEqual(0, actual)
+
 
 class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
     @classmethod
