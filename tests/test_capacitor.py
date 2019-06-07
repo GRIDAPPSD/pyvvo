@@ -17,15 +17,10 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """Create CapacitorSinglePhase object."""
         cls.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state='OpEn', name_prefix='cap_',
-                                           mode='ACTIVEpower')
-
-    def test_name_prefix(self):
-        self.assertEqual('cap_', self.cap.name_prefix)
+                                           state='OpEn', mode='ACTIVEpower')
 
     def test_name(self):
-        """Ensure the prefix was added to the name."""
-        self.assertEqual(self.cap.name, 'cap_cap1')
+        self.assertEqual(self.cap.name, 'cap1')
 
     def test_mrid(self):
         self.assertEqual('1', self.cap.mrid)
@@ -46,8 +41,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """None is a valid state to initialize a capacitor."""
         cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state=None, name_prefix='cap_',
-                                           mode='voltage')
+                                           state=None, mode='voltage')
         self.assertIsNone(cap.state)
 
     def test_repr(self):
@@ -57,50 +51,45 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     """Test bad inputs to CapacitorSinglePhase"""
 
-    def test_name_prefix_bad_type(self):
-        self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
-                          name='cap', mrid='1', phase='A', state='OPEN',
-                          name_prefix=1, mode='admittance')
-
     def test_name_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name=[1, 2, 3], mrid='1', phase='A', state='OPEN',
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_mrid_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid={'a': 1}, phase='A', state='OPEN',
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_phase_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase=7, state='OPEN',
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_phase_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='N', state='OPEN',
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_state_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='c', state=True,
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_state_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          name_prefix='blah', mode='admittance')
+                          mode='admittance')
 
     def test_mode_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          name_prefix='blah', mode=0)
+                          mode=0)
 
     def test_mode_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          name_prefix='blah', mode='vvo')
+                          mode='vvo')
 
 
 class InitializeControllableCapacitors(unittest.TestCase):

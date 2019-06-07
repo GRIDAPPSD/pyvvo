@@ -19,15 +19,16 @@ class EquipmentSinglePhase:
             raise TypeError('name must be a string.')
         self._name = name
 
+        if not isinstance(phase, str):
+            raise TypeError('phase must be string.')
+
         # Phase is case insensitive. Cast to upper.
         u_phase = phase.upper()
         if u_phase not in self.PHASES:
             m = 'phase must be on of ' + utils.list_to_string(self.PHASES, ',')
             raise ValueError(m)
 
-        if not isinstance(phase, str):
-            raise TypeError('phase must be string.')
-        self._phase = phase
+        self._phase = u_phase
 
     @property
     def mrid(self):
