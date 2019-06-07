@@ -1,10 +1,12 @@
 """Module for general equipment classes etc. that can be shared amongst
 other modules.
 """
+from abc import ABC, abstractmethod
+from collections import deque
 from pyvvo import utils
 
 
-class EquipmentSinglePhase:
+class EquipmentSinglePhase(ABC):
     """Generic 'equipment' class, for e.g. capacitors and regulators."""
 
     PHASES = ('A', 'B', 'C')
@@ -30,6 +32,13 @@ class EquipmentSinglePhase:
 
         self._phase = u_phase
 
+        # The state_deque will be used to track the current (index 0)
+        # and previous (index 1) states.
+        self._state_deque = deque([None, None], 2)
+
+    ####################################################################
+    # PROPERTIES
+    ####################################################################
     @property
     def mrid(self):
         return self._mrid
@@ -41,3 +50,27 @@ class EquipmentSinglePhase:
     @property
     def phase(self):
         return self._phase
+
+    @property
+    def state(self):
+        return self._state_deque[0]
+
+    @state.setter
+    def state(self, value):
+        self._check_state(value)
+        self._state_deque.appendleft(value)
+
+    @property
+    def state_old(self):
+        return self._state_deque[-1]
+
+    ####################################################################
+    # METHODS
+    ####################################################################
+    @abstractmethod
+    def _check_state(self, value):
+        """Children of this class should institute a _check_state method
+        which ensures the given state is valid. This will be called
+        BEFORE setting the state.
+        """
+        pass

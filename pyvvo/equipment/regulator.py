@@ -485,15 +485,9 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
             raise ValueError('The following is not True: '
                              'low_step <= neutral_step <= high_step')
 
-        # Create a deque (pronounced "deck") to make shifting old/new
-        # values easy.
-        self._tap_pos_deque = deque([None, None], 2)
-        self._step_deque = deque([None, None], 2)
-
         # The test for step being an integer is in its setter method.
         # NOTE: setting step here ALSO sets self._tap_pos. tap_pos is
         # for GridLAB-D, while 'step' is CIM.
-        self._tap_pos = None
         self.step = step
 
         ################################################################
@@ -516,6 +510,30 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
     def __repr__(self):
         return '<RegulatorSinglePhase. name: {}, phase: {}>'.format(self.name,
                                                                     self.phase)
+
+    def _check_state(self, value):
+        """Ensure 'step' is valid before setting it."""
+        if not isinstance(value, (int, np.integer)):
+            raise TypeError('step must be an integer.')
+
+        # Ensure we aren't getting an out of range value.
+        if value < self.low_step or value > self.high_step:
+            raise ValueError(
+                'step must be between low_step ({}) and '
+                'high_step ({}) (inclusive)'.format(self.low_step,
+                                                    self.high_step))
+
+    def _check_tap_pos(self, value):
+        """Ensure tap_pos is valid before setting it."""
+        if not isinstance(value, (int, np.integer)):
+            raise TypeError('tap_pos must be an integer.')
+
+        # Ensure value is valid.
+        if value < -self.lower_taps or value > self.raise_taps:
+            raise ValueError(
+                'tap_pos must be between lower_taps ({}) and '
+                'raise_taps ({}) (inclusive)'.format(-self.lower_taps,
+                                                     self.raise_taps))
 
     ####################################################################
     # Getter methods
@@ -552,69 +570,48 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
 
     @property
     def step(self):
-        return self._step
+        """Step is mapped to _state."""
+        return self.state
 
     @step.setter
     def step(self, value):
         """Set the step (CIM) and also the tap_pos (GLD)"""
-        if not isinstance(value, (int, np.integer)):
-            raise TypeError('step must be an integer.')
-
-        # Ensure we aren't getting an out of range value.
-        if value < self.low_step or value > self.high_step:
-            raise ValueError(
-                'step must be between low_step ({}) and '
-                'high_step ({}) (inclusive)'.format(self.low_step,
-                                                    self.high_step))
-
-        # Set step.
-        self._step = value
-        # Calculate and update tap_pos.
-        self._tap_pos = \
-            _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
-
-        # Update the deques.
-        # noinspection PyTypeChecker
-        self._step_deque.appendleft(self._step)
-        self._tap_pos_deque.appendleft(self._tap_pos)
+        # This is mapped to the state property.
+        # Note the setter for state is defined in the base class.
+        self.state = value
 
     @property
     def step_old(self):
-        """The old value is on the right hand side of the deque."""
-        return self._step_deque[-1]
+        """Step is mapped to the base class's state."""
+        return self.state_old
 
     # GridLAB-D attributes:
     @property
     def tap_pos(self):
-        return self._tap_pos
+        """Return the GridLAB-D style tap position."""
+        # NOTE: while it might be slightly more efficient to store this
+        # as a property rather than recompute each time, this vastly
+        # simplifies the process of using the base class to handle state
+        # updates.
+        return _tap_cim_to_gld(step=self.step, neutral_step=self.neutral_step)
 
     @tap_pos.setter
     def tap_pos(self, value):
         """Set the tap_pos (GLD) and also the step (CIM)"""
-        if not isinstance(value, (int, np.integer)):
-            raise TypeError('tap_pos must be an integer.')
-
-        # Ensure value is valid.
-        if value < -self.lower_taps or value > self.raise_taps:
-            raise ValueError(
-                'tap_pos must be between lower_taps ({}) and '
-                'raise_taps ({}) (inclusive)'.format(-self.lower_taps,
-                                                     self.raise_taps))
-
-        # Set new tap_pos and step.
-        self._tap_pos = value
-        self._step = _tap_gld_to_cim(tap_pos=value,
-                                     neutral_step=self.neutral_step)
-
-        # Update the deques.
-        self._step_deque.appendleft(self._step)
-        # noinspection PyTypeChecker
-        self._tap_pos_deque.appendleft(self._tap_pos)
+        self._check_tap_pos(value)
+        # Update the step. Note that the tap_pos getter uses 'step,' so
+        # we're good.
+        self.step = _tap_gld_to_cim(tap_pos=value,
+                                    neutral_step=self.neutral_step)
 
     @property
     def tap_pos_old(self):
-        """The old value is on the right hand side of the deque."""
-        return self._tap_pos_deque[-1]
+        """See comments for tap_pos"""
+        if self.step_old is None:
+            return None
+        else:
+            return _tap_cim_to_gld(step=self.step_old,
+                                   neutral_step=self.neutral_step)
 
     @property
     def raise_taps(self):
