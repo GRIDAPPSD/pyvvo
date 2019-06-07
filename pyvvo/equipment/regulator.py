@@ -2,7 +2,7 @@
 import logging
 from collections import deque
 import pyvvo.utils as utils
-from .equipment import EquipmentSinglePhase
+from .equipment import EquipmentSinglePhase, EquipmentMultiPhase
 
 from pandas import DataFrame
 import numpy as np
@@ -42,7 +42,7 @@ def initialize_controllable_regulators(df):
             reg_list.append(RegulatorSinglePhase(**items.loc[idx].to_dict()))
 
         # Create three-phase regulator and add to output.
-        reg_three_phase = RegulatorMultiPhase(reg_list)
+        reg_three_phase = EquipmentMultiPhase(reg_list)
         out[reg_three_phase.name] = reg_three_phase
 
     return out
@@ -84,7 +84,8 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
 
 
 class RegulatorManager:
-    """Class to keep RegulatorMultiPhase objects up to date as a
+    """Class to keep EquipmentMultiPhase objects (comprised of
+    RegulatorSinglePhase objects in this case) up to date as a
     simulation proceeds.
 
     This is meant to be used in conjunction with a SimOutRouter from
@@ -96,7 +97,7 @@ class RegulatorManager:
     def __init__(self, reg_dict, reg_measurements):
         """Initialize.
 
-        :param reg_dict: Dictionary of RegulatorMultiPhase objects
+        :param reg_dict: Dictionary of EquipmentMultiPhase objects
             as returned by initialize_controllable_regulators.
         :param reg_measurements: Pandas DataFrame as returned by
             sparql.SPARQLManager's query_rtc_measurements method.
@@ -209,7 +210,7 @@ class RegulatorManager:
         method, but hey, that's okay.
 
         :param reg_dict_forward: dictionary of
-            regulator.RegulatorMultiPhase objects as would come as
+            equipment.EquipmentMultiPhase objects as would come as
             output from regulator.initialize_controllable_regulators.
             The tap positions for these objects will be what the
             regulators in the simulation will be commanded to.
@@ -257,125 +258,6 @@ class RegulatorManager:
 
         return {"object_ids": reg_ids, "attributes": reg_attr,
                 "forward_values": reg_forward, "reverse_values": reg_reverse}
-
-
-class RegulatorMultiPhase:
-    """
-    Class that essentially acts as a container for RegulatorSinglePhase
-    objects.
-    """
-
-    # Allowable phases.
-    PHASES = ('A', 'B', 'C')
-
-    def __init__(self, regulator_list):
-        """Take in list of RegulatorSinglePhase objects.
-
-        :param regulator_list: list of three RegulatorSinglePhase
-            objects.
-        """
-        # Setup logging.
-        self.log = logging.getLogger(__name__)
-
-        # Check input type.
-        if not isinstance(regulator_list, (list, tuple)):
-            raise TypeError('regulator_list must be a list or tuple.')
-
-        if (len(regulator_list) < 1) or (len(regulator_list) > 3):
-            m = 'regulator_list must meet 1 <= len(regulator_list) <= 3.'
-            raise ValueError(m)
-
-        # Initialize phases to None. We'll use case-insensitive attributes.
-        self._a = None
-        self._b = None
-        self._c = None
-
-        # Loop over the list.
-        for regulator in regulator_list:
-            if not isinstance(regulator, RegulatorSinglePhase):
-                m = ('All items in regulator_list must be RegulatorSinglePhase'
-                     + ' objects.')
-                raise TypeError(m)
-
-            # Set name attribute if necessary, ensure all
-            # RegulatorSinglePhase objects refer to the same name.
-            try:
-                name_match = regulator.name == self.name
-            except AttributeError:
-                # Set the name.
-                self._name = regulator.name
-            else:
-                # If the names don't match, raise exception.
-                if not name_match:
-                    m = 'RegulatorSinglePhase objects do not have matching '\
-                        '"name" attributes.'
-                    raise ValueError(m)
-
-            # Set mrid attribute if necessary, ensure all
-            # RegulatorSinglePhase objects refer to the same mrid.
-            try:
-                mrid_match = regulator.mrid == self.mrid
-            except AttributeError:
-                # Set mrid.
-                self._mrid = regulator.mrid
-            else:
-                if not mrid_match:
-                    # If the mrids don't match, raise exception.
-                    m = 'RegulatorSinglePhase objects do not have matching '\
-                        '"mrid" attributes.'
-                    raise ValueError(m)
-
-            # Get this phase attribute for self.
-            attr_str = '_' + regulator.phase.lower()
-            attr = getattr(self, attr_str)
-            # Ensure this attribute has not yet been set to anything
-            # other than None.
-            if attr is not None:
-                raise ValueError('Multiple regulators for phase {} were '
-                                 'given!'.format(regulator.phase.lower()))
-
-            setattr(self, attr_str, regulator)
-
-    def __repr__(self):
-        return '<RegulatorMultiPhase. name: {}'.format(self.name)
-
-    ####################################################################
-    # Getter methods
-    ####################################################################
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def mrid(self):
-        return self._mrid
-
-    @property
-    def a(self):
-        return self._a
-
-    @property
-    def b(self):
-        return self._b
-
-    @property
-    def c(self):
-        return self._c
-
-    # noinspection PyPep8Naming
-    @property
-    def A(self):
-        return self._a
-
-    # noinspection PyPep8Naming
-    @property
-    def B(self):
-        return self._b
-
-    # noinspection PyPep8Naming
-    @property
-    def C(self):
-        return self._c
 
 
 class RegulatorSinglePhase(EquipmentSinglePhase):
