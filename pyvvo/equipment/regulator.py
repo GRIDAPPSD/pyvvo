@@ -2,6 +2,7 @@
 import logging
 from collections import deque
 import pyvvo.utils as utils
+from .equipment import EquipmentSinglePhase
 
 from pandas import DataFrame
 import numpy as np
@@ -377,16 +378,13 @@ class RegulatorMultiPhase:
         return self._c
 
 
-class RegulatorSinglePhase:
+class RegulatorSinglePhase(EquipmentSinglePhase):
     """"""
 
     # Control modes taken from the CIM.
     CONTROL_MODES = ('voltage', 'activePower', 'reactivePower',
                      'currentFlow', 'admittance', 'timeScheduled',
                      'temperature', 'powerFactor')
-
-    # Allowable phases.
-    PHASES = ('A', 'B', 'C')
 
     def __init__(self, mrid, name, phase, tap_changer_mrid,
                  step_voltage_increment, control_mode, enabled, high_step,
@@ -440,28 +438,8 @@ class RegulatorSinglePhase:
         ################################################################
         # CIM Properties
         ################################################################
-
-        # Check inputs, set CIM properties.
-        if not isinstance(mrid, str):
-            raise TypeError('mrid must be a string.')
-
-        self._mrid = mrid
-
-        if not isinstance(name, str):
-            raise TypeError('name must be a string.')
-
-        self._name = name
-
-        if not isinstance(phase, str):
-            raise TypeError('phase must be string.')
-
-        # Phase is case insensitive. Cast to upper.
-        u_phase = phase.upper()
-        if u_phase not in self.PHASES:
-            m = 'phase must be on of ' + utils.list_to_string(self.PHASES, ',')
-            raise ValueError(m)
-
-        self._phase = u_phase
+        # Start with calling the super.
+        super().__init__(mrid=mrid, name=name, phase=phase)
 
         if not isinstance(tap_changer_mrid, str):
             raise TypeError('tap_changer_mrid must be a string.')
@@ -544,18 +522,6 @@ class RegulatorSinglePhase:
     ####################################################################
 
     # CIM attributes.
-    @property
-    def mrid(self):
-        return self._mrid
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def phase(self):
-        return self._phase
-
     @property
     def tap_changer_mrid(self):
         return self._tap_changer_mrid
