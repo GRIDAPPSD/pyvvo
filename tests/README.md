@@ -7,6 +7,10 @@ TODO: Probably worth listing what all is in here...
 Created in test_gridappsd_platform.py. GridLAB-D model for the IEEE 13
 bus model as provided by the platform.
 
+### query_cap_meas.csv
+Created in test_sparql.py, corresponds to capacitor measurements in 
+the IEEE 8500 model.
+
 ### query_capacitors.csv
 Created in test_sparql.py, corresponds to capacitors in IEEE 8500 model.
 

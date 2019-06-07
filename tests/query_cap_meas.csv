@@ -1,0 +1,13 @@
+,bus,class,eqid,eqname,eqtype,id,name,phases,trmid,type
+0,r42246,Discrete,_ECD83869-013C-B0E5-C39F-20255C9DB897,capbank0a,LinearShuntCompensator,_fbbbe3ff-5075-4cfc-954e-fea6f8ad1e91,LinearShuntCompensator_capbank0a,A,_2959CB78-50AE-E10F-42BA-1C6008B6C066,Pos
+1,r42246,Discrete,_7DC99401-3C86-FB0E-6E8B-94DD09ED78FF,capbank0b,LinearShuntCompensator,_299dda34-5b45-40f7-bb2b-74f928012680,LinearShuntCompensator_capbank0b,B,_200CEB92-6EF3-A1F2-CF5E-04D38FB93CB2,Pos
+2,r42246,Discrete,_4AA97AB0-318F-0469-E99C-71780248C246,capbank0c,LinearShuntCompensator,_8e740584-c1d4-4840-bf2f-96af78aca1d8,LinearShuntCompensator_capbank0c,C,_BD2354B3-E250-866F-330B-61DC5B310597,Pos
+3,r42247,Discrete,_1AC3994E-589B-2ACC-22D7-771294C87B4F,capbank1a,LinearShuntCompensator,_667113af-0bb0-4726-a79e-8cf56a1381e0,LinearShuntCompensator_capbank1a,A,_2AD5E4F7-F400-682A-FC54-FC747C0DAF46,Pos
+4,r42247,Discrete,_DE07EED4-2FBD-D7A6-833A-8B4256E26CD4,capbank1b,LinearShuntCompensator,_921f98d8-9cec-49a1-85ac-310829089710,LinearShuntCompensator_capbank1b,B,_5B98A948-068F-8113-2CC6-E97605E5E776,Pos
+5,r42247,Discrete,_2338DC78-0D10-5446-D669-99E076E0C4D0,capbank1c,LinearShuntCompensator,_140bc14e-7b6f-4b9f-aaa5-937e9dd747f7,LinearShuntCompensator_capbank1c,C,_654A7421-5630-6F6C-2239-9204738C6069,Pos
+6,r20185,Discrete,_528A7230-E0A7-449D-6830-FC201AD64EF5,capbank2a,LinearShuntCompensator,_5abd5324-95a3-4d37-be18-338c50bb1f92,LinearShuntCompensator_capbank2a,A,_A6931B4A-7BAF-620B-DFA6-A07AC1305296,Pos
+7,r20185,Discrete,_F2E2F6F2-C1E7-485B-0D19-EECEE4F3C990,capbank2b,LinearShuntCompensator,_d07cbcd6-33f9-49b7-bbca-094567877f6d,LinearShuntCompensator_capbank2b,B,_3F7DFF75-2B75-56A5-55F4-DDDA113AA232,Pos
+8,r20185,Discrete,_44EFE919-3BD8-0DA6-6CAF-4B4A08F768D7,capbank2c,LinearShuntCompensator,_75e4e359-56cb-40c9-84c6-54142b0aed23,LinearShuntCompensator_capbank2c,C,_8745AF56-DDD0-4EC2-7958-913185A4C790,Pos
+9,r18242,Discrete,_465D9845-4686-3A45-8D5C-0A2A53F6B1F1,capbank3,LinearShuntCompensator,_e9ba3f5a-21aa-481d-b615-0683f9b0fc54,LinearShuntCompensator_capbank3,A,_9DA588AE-F61F-3776-9918-AC9C9E938AC0,Pos
+10,r18242,Discrete,_465D9845-4686-3A45-8D5C-0A2A53F6B1F1,capbank3,LinearShuntCompensator,_5732e02f-9531-4db4-9fac-9cb7373eec58,LinearShuntCompensator_capbank3,B,_9DA588AE-F61F-3776-9918-AC9C9E938AC0,Pos
+11,r18242,Discrete,_465D9845-4686-3A45-8D5C-0A2A53F6B1F1,capbank3,LinearShuntCompensator,_43682eec-ff30-4f67-8f42-bb6ebd0ffd4f,LinearShuntCompensator_capbank3,C,_9DA588AE-F61F-3776-9918-AC9C9E938AC0,Pos

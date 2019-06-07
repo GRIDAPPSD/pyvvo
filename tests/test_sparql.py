@@ -24,6 +24,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
 REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
 REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
+CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas.csv')
 LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
 SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
 BUS_MEAS = os.path.join(THIS_DIR, 'query_measurements_for_bus.csv')
@@ -348,6 +349,41 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.mock_query(
             function_string='query_capacitor_measurements',
             query='CAPACITOR_STATUS_MEASUREMENT_QUERY', to_numeric=False)
+
+    def test_sparql_manager_query_capacitor_measurements_expected(self):
+        """The 8500 node system has a weird capacitor setup:
+
+        3 3 phase units, but each phase counted as an individual.
+        1 uncontrollable 3 phase unit, counted as a group.
+        """
+        cap_meas = self.sparql.query_capacitor_measurements()
+        cap_meas = cap_meas.sort_values(axis=0, by=['eqname', 'phases'])
+        cap_meas = cap_meas.reindex(np.arange(0, cap_meas.shape[0]))
+        # Uncomment to regenerate expected result.
+        # cap_meas.to_csv(CAP_MEAS, index=True)
+
+        # Read expected value.
+        expected = pd.read_csv(CAP_MEAS, index_col=0)
+        expected = expected.sort_values(axis=0, by=['eqname', 'phases'])
+        expected = cap_meas.reindex(np.arange(0, expected.shape[0]))
+
+        pd.testing.assert_frame_equal(cap_meas, expected)
+
+        # Ensure we get measurements associated with 10 capacitors.
+        # (3 * 3) + 1, see docstring.
+        caps = cap_meas['eqid'].unique()
+        self.assertEqual(10, len(caps))
+
+        # Ensure we have 9 measurements for the capacitors which are not
+        # capbank3.
+        mask = cap_meas['eqname'] != 'capbank3'
+        self.assertEqual(cap_meas[mask].shape[0], 9)
+
+        # Ensure we have 3 measurements for the rest.
+        self.assertEqual(cap_meas[~mask].shape[0], 3)
+
+        # Ensure all eqid's are unique for the initial mask.
+        self.assertEqual(cap_meas[mask]['eqid'].unique().shape[0], 9)
 
     def test_sparql_manager_query_substation_source_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
