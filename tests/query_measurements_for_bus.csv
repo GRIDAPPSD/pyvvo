@@ -1,7 +1,7 @@
 ,bus,class,eqid,eqname,eqtype,id,name,phases,trmid,type
-0,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_763bac91-c298-41b2-95c0-4070b09bcec3,ACLineSegment_hvmv_sub_hsb_Voltage,A,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
-1,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_341043d4-1028-4cc8-8e9c-7a8437f3bde6,ACLineSegment_hvmv_sub_hsb_Voltage,B,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
-2,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_db0c67fb-5764-4a6d-bd19-188242a95a98,ACLineSegment_hvmv_sub_hsb_Voltage,C,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
-3,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_ff8c3091-32db-4814-9a03-c7d7acc9d4e3,ACLineSegment_hvmv_sub_hsb_Power,A,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
-4,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_23b4dd0f-f96a-48a8-87f5-408a9aa7bb2e,ACLineSegment_hvmv_sub_hsb_Power,B,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
-5,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_0914ee50-7c62-462c-aee5-6c1448740fae,ACLineSegment_hvmv_sub_hsb_Power,C,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
+0,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_f21e2933-537a-41ae-bc29-686a3848f5c8,ACLineSegment_hvmv_sub_hsb_Voltage,A,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
+1,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_c1ce26ef-3c7b-477d-b76a-91ba81f6359e,ACLineSegment_hvmv_sub_hsb_Voltage,B,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
+2,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_5f1aa3a0-e067-47cb-acee-73cf010551b8,ACLineSegment_hvmv_sub_hsb_Voltage,C,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,PNV
+3,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_88b57fc0-8eaa-43b4-aae7-a788b761a429,ACLineSegment_hvmv_sub_hsb_Power,A,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
+4,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_6e8de5ab-f158-4554-8c4f-bae23849be88,ACLineSegment_hvmv_sub_hsb_Power,B,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
+5,sourcebus,Analog,_0780C78D-BEC6-C674-54DC-E20DF292FC84,hvmv_sub_hsb,ACLineSegment,_17d904fa-61d3-4da7-a750-7c6b156b2689,ACLineSegment_hvmv_sub_hsb_Power,C,_854095A9-C8D2-94CC-7AC5-FCB5BD248B07,VA
