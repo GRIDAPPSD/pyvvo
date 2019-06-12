@@ -168,12 +168,14 @@ class SPARQLManagerTestCase(unittest.TestCase):
                           bindings=[{'name': 10}])
 
     def test_sparql_manager_query_simple_query(self):
-        """Hard-coded MRID for 8500 node capacitor."""
+        """Hard-coded MRID for 8500 node capacitor (first line of
+        query_capacitors.csv)
+        """
         query = (self.sparql.PREFIX +
                  "SELECT ?name "
                  "WHERE { "
                  '?s c:IdentifiedObject.mRID'
-                 '  "_ECD83869-013C-B0E5-C39F-20255C9DB897". '
+                 '  "_2199D08B-9352-2085-102F-6B207E0BEBA3". '
                  "?s c:IdentifiedObject.name ?name. "
                  "} "
                  "ORDER BY ?name "
@@ -406,7 +408,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_measurements_for_bus_expected_return(self):
         # NOTE: bus_mrid is for the substation source bus.
         actual = self.sparql.query_measurements_for_bus(
-            bus_mrid='_DFFCDF39-6380-0C43-D88C-C432A8DCB845')
+            bus_mrid='_B55E2E1B-F342-4633-9B25-3BDFA78C0D83')
 
         # Uncomment to recreate expected value.
         # actual.to_csv(BUS_MEAS)
