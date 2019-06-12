@@ -517,14 +517,12 @@ class SPARQLManager:
 
          # Get the phase of the tank end.
          "?end c:TransformerTankEnd.phases ?endphsraw. "
-         'bind(strafter(str(?endphsraw),"PhaseCode.") as ?endphase). '
 
          # Get the measurement phase.
          '?s c:Measurement.phases ?measphsraw .'
-         '{{bind(strafter(str(?measphsraw),"PhaseCode.") as ?measphase)}}'
 
          # Only return triples where the phases match.
-         "FILTER(?measphase = ?endphase) "
+         "FILTER(?endphsraw = ?measphsraw) "
 
          '}} ORDER BY ?tap_changer_mrid'
          # ' ?name'
