@@ -67,7 +67,7 @@ class SPARQLManager:
         result = self._query(
             self.REGULATOR_QUERY.format(feeder_mrid=self.feeder_mrid),
             to_numeric=True)
-        
+
         # Map boolean columns.
         result = map_dataframe_columns(
             map=BOOLEAN_MAP, df=result,
@@ -356,7 +356,8 @@ class SPARQLManager:
          "?pxf c:IdentifiedObject.name ?name. "
          "?pxf c:IdentifiedObject.mRID ?mrid. "
          # "?tank c:IdentifiedObject.name ?tname. "
-         "?tap_changer c:RatioTapChanger.stepVoltageIncrement ?step_voltage_increment. "
+         "?tap_changer c:RatioTapChanger.stepVoltageIncrement "
+         "?step_voltage_increment. "
          # "?tap_changer c:RatioTapChanger.tculControlMode ?moderaw. "
          # 'bind(strafter(str(?moderaw),"TransformerControlMode.")'
          # " as ?mode) "
@@ -457,7 +458,7 @@ class SPARQLManager:
     ALL_MEASUREMENTS_QUERY = \
         (PREFIX +
          "SELECT ?class ?type ?name ?bus ?bus_mrid ?phases ?eqtype ?eqname "
-            "?eqid ?trmid ?id "
+         "?eqid ?trmid ?id "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -483,48 +484,49 @@ class SPARQLManager:
          '}} ORDER BY ?class ?type ?name'
          )
 
-    # Get measurements associated with power transformers which have
-    # discrete measurements.
-    # TODO: Rather than relying on a discrete measurement, only get
-    #   measurements attached to ratio tap changers.
+    # Get measurements associated with ratio tap changers (RTC)
     RTC_POSITION_MEASUREMENT_QUERY = \
         (PREFIX +
-         "SELECT ?class ?type ?phases ?eqid ?id "
+         # We're using this query to map measurements to tap changers,
+         # so all we need is the tap changer and measurement MRIDs.
+         "SELECT ?tap_changer_mrid ?pos_meas_mrid "
          # "?name ?trmid ?bus ?eqname ?eqtype"
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         # Ensure we're only grabbing 'position' measurements.
+         'VALUES ?type {{"Pos"}}'
+         # Filter by feeder.
          "?eq c:Equipment.EquipmentContainer ?fdr."
          "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
-         '{{ ?s r:type c:Discrete. bind ("Discrete" as ?class)}} '
-         # 'UNION '
-         # '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
+         '{{ ?s r:type c:Discrete. }} '
          '?s c:IdentifiedObject.name ?name .'
-         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:IdentifiedObject.mRID ?pos_meas_mrid .'
+         # Get the power system resource.
          '?s c:Measurement.PowerSystemResource ?eq .'
          '?s c:Measurement.Terminal ?trm .'
          '?s c:Measurement.measurementType ?type .'
-         # '?trm c:IdentifiedObject.mRID ?trmid.'
+
+         # Trace the power system resource, ensuring it's a tap changer.
          '?eq c:IdentifiedObject.mRID ?eqid.'
-         # '?eq c:IdentifiedObject.name ?eqname.'
          "?eq r:type c:PowerTransformer. "
-         # Commented stuff below includes failed attempt(s) to filter
-         #      by ratio tap changers only.
-         # "?tap_changer r:type c:RatioTapChanger. "
-         # "?tap_changer c:RatioTapChanger.TransformerEnd ?end. "
-         # "?eq c:RatioTapChanger ?tap_changer. "
-         # "?end c:TransformerTankEnd.TransformerTank ?tank. "
-         # "?tank c:TransformerTank.PowerTransformer ?pxf. "
-         # "?asset c:Asset.PowerSystemResources ?tap_changer. "
-         # "?eq r:type c:RatioTapChanger. "
-         # This is where the attempts to filter end. Lines commented out
-         # below were commented because the information is not needed.
-         # '?eq r:type ?typeraw.'
-         # 'bind(strafter(str(?typeraw),"#") as ?eqtype)'
-         '?trm c:Terminal.ConnectivityNode ?cn.'
-         # '?cn c:IdentifiedObject.name ?bus.'
-         '?s c:Measurement.phases ?phsraw .'
-         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
-         '}} ORDER BY ?class ?type'
+         "?tap_changer r:type c:RatioTapChanger. "
+         "?tap_changer c:IdentifiedObject.mRID ?tap_changer_mrid. "
+         "?tap_changer c:RatioTapChanger.TransformerEnd ?end. "
+         "?end c:TransformerTankEnd.TransformerTank ?tank. "
+         "?tank c:TransformerTank.PowerTransformer ?eq. "
+
+         # Get the phase of the tank end.
+         "?end c:TransformerTankEnd.phases ?endphsraw. "
+         'bind(strafter(str(?endphsraw),"PhaseCode.") as ?endphase). '
+
+         # Get the measurement phase.
+         '?s c:Measurement.phases ?measphsraw .'
+         '{{bind(strafter(str(?measphsraw),"PhaseCode.") as ?measphase)}}'
+
+         # Only return triples where the phases match.
+         "FILTER(?measphase = ?endphase) "
+
+         '}} ORDER BY ?tap_changer_mrid'
          # ' ?name'
          )
 
@@ -562,7 +564,7 @@ class SPARQLManager:
     SUBSTATION_SOURCE_QUERY = \
         (PREFIX +
          "SELECT ?name ?mrid ?bus ?bus_mrid ?basev ?nomv "
-            # "?vmag ?vang ?r1 ?x1 ?r0 ?x0 "
+         # "?vmag ?vang ?r1 ?x1 ?r0 ?x0 "
          "WHERE {{ "
          "?s r:type c:EnergySource. "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
@@ -590,7 +592,7 @@ class SPARQLManager:
     MEASUREMENTS_FOR_BUS_QUERY = \
         (PREFIX +
          "SELECT ?class ?type ?name ?bus ?bus_mrid ?phases ?eqtype ?eqname "
-            "?eqid ?trmid ?id "
+         "?eqid ?trmid ?id "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -629,6 +631,7 @@ class SPARQLQueryReturnEmptyError(Error):
         query -- SPARQL query that resulted in empty return.
         message -- explanation of the error.
     """
+
     def __init__(self, query, message):
         self.query = query.replace('\n', '\n    ')
         self.message = message

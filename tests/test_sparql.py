@@ -271,7 +271,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_load_nominal_voltage_expected_return(self):
         """Check one of the elements from query_load_nominal_voltage."""
         expected = pd.Series({'name': '2127146b0', 'bus': 'sx3160864b',
-                              'basev': 208, 'conn': 'Y', 'phases': 's1,s2'})
+                              'basev': 208, 'conn': 'Y', 'phases': 's2,s1'})
 
         full_actual = self.sparql.query_load_nominal_voltage()
 
@@ -317,32 +317,24 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_rtc_measurements_expected(self):
         """The 8500 node system has 4 regulators, all with measurements.
 
-        Ensure performing the actual query returns 4 named objects, and
-        that each of the named objects has 3 measurements.
-
-        This should probably be broken into multiple tests, but oh well.
+        Ensure performing the actual query returns 12 unique
+            measurements mapped to 12 unique tap changers.
         """
         rtc_meas = self.sparql.query_rtc_measurements()
-        rtc_meas = rtc_meas.sort_values(axis=0, by=['eqid', 'phases'])
-        rtc_meas = rtc_meas.reindex(np.arange(0, rtc_meas.shape[0]))
+
         # Uncomment to regenerate expected result.
         # rtc_meas.to_csv(REG_MEAS, index=True)
 
+        self.assertEqual(rtc_meas['tap_changer_mrid'].unique().shape[0],
+                         rtc_meas.shape[0])
+        self.assertEqual(rtc_meas['pos_meas_mrid'].unique().shape[0],
+                         rtc_meas.shape[0])
+
         # Read expected value.
         expected = pd.read_csv(REG_MEAS, index_col=0)
-        expected = expected.sort_values(axis=0, by=['eqid', 'phases'])
-        expected = rtc_meas.reindex(np.arange(0, expected.shape[0]))
 
+        # Ensure they're identical
         pd.testing.assert_frame_equal(rtc_meas, expected)
-
-        # Ensure we get measurements associated with four regulators.
-        regs = rtc_meas['eqid'].unique()
-        self.assertEqual(4, len(regs))
-
-        # For each of the four elements, ensure we have 3 measurements.
-        for reg in regs:
-            meas = rtc_meas[rtc_meas['eqid'] == reg]
-            self.assertEqual(3, meas.shape[0])
 
     def test_sparql_manager_query_capacitor_measurements_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
