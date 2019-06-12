@@ -1,7 +1,0 @@
-,bus,class,eqid,eqname,eqtype,id,name,phases,trmid,type
-0,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_bc653819-ee6c-48ad-96d0-70e084add66a,ACLineSegment_hvmv_sub_hsb_Voltage,A,_10B90320-CAB7-973D-6CAC-3C681D2705E5,PNV
-1,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_ace5522d-025a-4c58-a4c6-81d9d515cbe5,ACLineSegment_hvmv_sub_hsb_Voltage,B,_10B90320-CAB7-973D-6CAC-3C681D2705E5,PNV
-2,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_9cecc3a4-5eb6-40d7-92f1-42c43dd21d7b,ACLineSegment_hvmv_sub_hsb_Voltage,C,_10B90320-CAB7-973D-6CAC-3C681D2705E5,PNV
-3,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_bd9da472-fe9e-4d9b-b8c7-194f2cd82371,ACLineSegment_hvmv_sub_hsb_Power,A,_10B90320-CAB7-973D-6CAC-3C681D2705E5,VA
-4,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_24c2be9d-5961-4f12-987c-c54ea89760c7,ACLineSegment_hvmv_sub_hsb_Power,B,_10B90320-CAB7-973D-6CAC-3C681D2705E5,VA
-5,sourcebus,Analog,_BAE20C30-824F-ACE5-375A-38B207ACF483,hvmv_sub_hsb,ACLineSegment,_d9d20aa1-29b2-487c-9f64-fde5a09956fd,ACLineSegment_hvmv_sub_hsb_Power,C,_10B90320-CAB7-973D-6CAC-3C681D2705E5,VA

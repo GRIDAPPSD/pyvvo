@@ -1,7 +1,11 @@
+"""NOTE: In the "main" section, uncomment 'gen_expected_results()' to
+recreate files.
+"""
 # Standard library.
 import unittest
 from unittest.mock import patch
 import os
+from uuid import UUID
 
 # pyvvo.
 from pyvvo import sparql
@@ -27,7 +31,83 @@ REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
 CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas.csv')
 LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
 SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
-BUS_MEAS = os.path.join(THIS_DIR, 'query_measurements_for_bus.csv')
+
+
+def gen_expected_results():
+    """Helper to generate expected results. Uncomment in the "main"
+    section.
+    """
+    s = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
+
+    # Create list of lists to run everything. The third tuple element
+    # is used to truncate DataFrames (no reason to save 4000 entries
+    # to file for testing)
+    a = [
+        (s.query_capacitors, CAPACITORS),
+        (s.query_regulators, REGULATORS),
+        (s.query_rtc_measurements, REG_MEAS),
+        (s.query_capacitor_measurements, CAP_MEAS),
+        (s.query_load_measurements, LOAD_MEAS, 4),
+        (s.query_substation_source, SUBSTATION),
+    ]
+
+    for b in a:
+        # Run function.
+        actual_full = b[0]()
+
+        # Truncate if necessary.
+        try:
+            actual = actual_full.iloc[0:b[2]]
+        except IndexError:
+            actual = actual_full
+
+        # Read file.
+        expected = pd.read_csv(b[1])
+        # Ensure frames match except for MRIDs.
+        ensure_frame_equal_except_mrid(actual, expected)
+
+        # Write new file.
+        actual.to_csv(b[1], index=False)
+
+
+def ensure_frame_equal_except_mrid(left, right):
+    """Helper to ensure DataFrames are equal except for MRIDs.
+
+    When the platform blazegraph docker container gets updated, the
+    MRIDs of things can change.
+    """
+    # Filter columns.
+    left_non_id_cols, left_id_cols = get_non_id_cols(left)
+    right_non_id_cols, right_id_cols = get_non_id_cols(right)
+
+    # Ensure all the "non id" columns match exactly.
+    pd.testing.assert_frame_equal(left[left_non_id_cols],
+                                  right[right_non_id_cols])
+
+    # Ensure everything else is a properly formatted UUID (MRID in the
+    # CIM).
+    for df in [left[left_id_cols], right[right_id_cols]]:
+        for c in list(df.columns):
+            for v in df[c].values:
+                # GridAPPS-D prefixes all of the UUIDs with an
+                # underscore.
+                assert v[0] == '_'
+                UUID(v[1:])
+
+
+def get_non_id_cols(df):
+    """Assume all MRID related columns end with 'id.' This is a bit
+    fragile.
+    """
+    non_id_cols = []
+    id_cols = []
+    for c in list(df.columns.values):
+        if c.endswith('id'):
+            id_cols.append(c)
+        else:
+            non_id_cols.append(c)
+
+    return non_id_cols, id_cols
 
 
 class SPARQLManagerTestCase(unittest.TestCase):
@@ -116,7 +196,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
             mock.assert_called_once()
 
-        pd.testing.assert_frame_equal(expected, actual)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_bindings_to_dataframe_mismatched_lengths(self):
         """A warning should be thrown, output should have NaNs."""
@@ -144,7 +224,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
                                                         to_numeric=False)
 
         # Ensure values match.
-        pd.testing.assert_frame_equal(actual, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_bindings_to_dataframe_no_value(self):
         self.assertRaises(KeyError, self.sparql._bindings_to_dataframe,
@@ -156,12 +236,12 @@ class SPARQLManagerTestCase(unittest.TestCase):
                           bindings={'name': {'value': 'device',
                                              'type': 'stuff'}})
 
-    @unittest.expectedFailure
-    def test_sparql_manager_check_bindings_bad_second_element(self):
-        """Our test is primitive and only checks the first element."""
-        self.assertRaises(TypeError, self.sparql._check_bindings,
-                          bindings=[{'name': {'value': 'hi'}},
-                                    'Not a dict.'])
+    # @unittest.expectedFailure
+    # def test_sparql_manager_check_bindings_bad_second_element(self):
+    #     """Our test is primitive and only checks the first element."""
+    #     self.assertRaises(TypeError, self.sparql._check_bindings,
+    #                       bindings=[{'name': {'value': 'hi'}},
+    #                                 'Not a dict.'])
 
     def test_sparql_manager_bindings_to_dataframe_bad_binding_element(self):
         self.assertRaises(TypeError, self.sparql._bindings_to_dataframe,
@@ -183,7 +263,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         actual = self.sparql._query(query, to_numeric=False)
         expected = pd.DataFrame({'name': ['capbank0a']})
-        pd.testing.assert_frame_equal(actual, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_calls_query_platform(self):
         """Ensure _query_named_objects calls _query_platform, as
@@ -206,7 +286,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         # Test return value.
         expected = pd.DataFrame({'name': ['object1']})
-        pd.testing.assert_frame_equal(actual, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_platform_no_results(self):
         """Give a SPARQL query which won't return any data."""
@@ -231,12 +311,9 @@ class SPARQLManagerTestCase(unittest.TestCase):
         """Ensure we get the expected return."""
         actual = self.sparql.query_capacitors()
 
-        # Uncomment to recreate expected output.
-        # actual.to_csv(CAPACITORS, index=False)
-
         # Compare results
         expected = pd.read_csv(CAPACITORS)
-        pd.testing.assert_frame_equal(actual, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_capacitors_calls_query_and_map(self):
         """query_capacitors must call _query and map_dataframe_columns.
@@ -249,13 +326,8 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def test_sparql_manager_query_regulators_expected_return(self):
         """Ensure we get the expected return."""
         actual = self.sparql.query_regulators()
-
-        # Uncomment to recreated expected output.
-        # actual.to_csv(REGULATORS, index=False)
-
         expected = pd.read_csv(REGULATORS)
-
-        pd.testing.assert_frame_equal(actual, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_regulators_calls_query(self):
         """query_regulators must call _query."""
@@ -279,11 +351,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         self.assertIn(expected['name'], full_actual['name'].values)
 
-        actual = full_actual[full_actual['name'] == '2127146b0'].iloc[0]
-
-        pd.testing.assert_series_equal(actual.sort_index(),
-                                       expected.sort_index(),
-                                       check_names=False)
+        actual = full_actual[full_actual['name'] == expected['name']].iloc[0]
+        actual.sort_index(inplace=True)
+        expected.sort_index(inplace=True)
+        pd.testing.assert_series_equal(expected, actual, check_names=False)
 
     def test_sparql_manager_query_load_measurements_calls_query(self):
         """query_load_measurements must call _query."""
@@ -296,14 +367,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         full_actual = self.sparql.query_load_measurements()
 
-        actual = full_actual[full_actual['load'] == '21395720c0']
+        actual = full_actual.iloc[0:4]
 
-        # Uncomment to recreate expected.
-        # actual.to_csv(LOAD_MEAS, index=True)
-
-        expected = pd.read_csv(LOAD_MEAS, index_col=0)
-
-        pd.testing.assert_frame_equal(actual, expected)
+        expected = pd.read_csv(LOAD_MEAS)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_all_measurements_calls_query(self):
         """Ensure query_all_measurements calls _query."""
@@ -322,21 +389,18 @@ class SPARQLManagerTestCase(unittest.TestCase):
         Ensure performing the actual query returns 12 unique
             measurements mapped to 12 unique tap changers.
         """
-        rtc_meas = self.sparql.query_rtc_measurements()
+        actual = self.sparql.query_rtc_measurements()
 
-        # Uncomment to regenerate expected result.
-        # rtc_meas.to_csv(REG_MEAS, index=True)
-
-        self.assertEqual(rtc_meas['tap_changer_mrid'].unique().shape[0],
-                         rtc_meas.shape[0])
-        self.assertEqual(rtc_meas['pos_meas_mrid'].unique().shape[0],
-                         rtc_meas.shape[0])
+        self.assertEqual(actual['tap_changer_mrid'].unique().shape[0],
+                         actual.shape[0])
+        self.assertEqual(actual['pos_meas_mrid'].unique().shape[0],
+                         actual.shape[0])
 
         # Read expected value.
-        expected = pd.read_csv(REG_MEAS, index_col=0)
+        expected = pd.read_csv(REG_MEAS)
 
         # Ensure they're identical
-        pd.testing.assert_frame_equal(rtc_meas, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_capacitor_measurements_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
@@ -350,34 +414,32 @@ class SPARQLManagerTestCase(unittest.TestCase):
         3 3 phase units, but each phase counted as an individual.
         1 uncontrollable 3 phase unit, counted as a group.
         """
-        cap_meas = self.sparql.query_capacitor_measurements()
-        cap_meas = cap_meas.sort_values(axis=0, by=['eqname', 'phases'])
-        cap_meas = cap_meas.reindex(np.arange(0, cap_meas.shape[0]))
-        # Uncomment to regenerate expected result.
-        # cap_meas.to_csv(CAP_MEAS, index=True)
+        actual = self.sparql.query_capacitor_measurements()
+        actual = actual.sort_values(axis=0, by=['eqname', 'phases'])
+        actual = actual.reindex(np.arange(0, actual.shape[0]))
 
         # Read expected value.
-        expected = pd.read_csv(CAP_MEAS, index_col=0)
+        expected = pd.read_csv(CAP_MEAS)
         expected = expected.sort_values(axis=0, by=['eqname', 'phases'])
-        expected = cap_meas.reindex(np.arange(0, expected.shape[0]))
+        expected = actual.reindex(np.arange(0, expected.shape[0]))
 
-        pd.testing.assert_frame_equal(cap_meas, expected)
+        ensure_frame_equal_except_mrid(actual, expected)
 
         # Ensure we get measurements associated with 10 capacitors.
         # (3 * 3) + 1, see docstring.
-        caps = cap_meas['eqid'].unique()
+        caps = actual['eqid'].unique()
         self.assertEqual(10, len(caps))
 
         # Ensure we have 9 measurements for the capacitors which are not
         # capbank3.
-        mask = cap_meas['eqname'] != 'capbank3'
-        self.assertEqual(cap_meas[mask].shape[0], 9)
+        mask = actual['eqname'] != 'capbank3'
+        self.assertEqual(actual[mask].shape[0], 9)
 
         # Ensure we have 3 measurements for the rest.
-        self.assertEqual(cap_meas[~mask].shape[0], 3)
+        self.assertEqual(actual[~mask].shape[0], 3)
 
         # Ensure all eqid's are unique for the initial mask.
-        self.assertEqual(cap_meas[mask]['eqid'].unique().shape[0], 9)
+        self.assertEqual(actual[mask]['eqid'].unique().shape[0], 9)
 
     def test_sparql_manager_query_substation_source_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
@@ -389,12 +451,8 @@ class SPARQLManagerTestCase(unittest.TestCase):
         """Test return is as expected."""
         actual = self.sparql.query_substation_source()
 
-        # Uncomment to regenerate expected return.
-        # actual.to_csv(SUBSTATION)
-
-        expected = pd.read_csv(SUBSTATION, index_col=0)
-
-        pd.testing.assert_frame_equal(actual, expected)
+        expected = pd.read_csv(SUBSTATION)
+        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_measurements_for_bus_calls_query(self):
         # NOTE: bus_mrid is for the substation source bus.
@@ -405,18 +463,19 @@ class SPARQLManagerTestCase(unittest.TestCase):
             to_numeric=False
         )
 
-    def test_sparql_manager_query_measurements_for_bus_expected_return(self):
-        # NOTE: bus_mrid is for the substation source bus.
+    def test_sparql_manager_query_measurements_for_bus_not_empty(self):
+        # Grab the substation source bus.
+        sub = pd.read_csv(SUBSTATION)
+        bus_mrid = sub.iloc[0]['bus_mrid']
+
+        # Query to get measurements.
         actual = self.sparql.query_measurements_for_bus(
-            bus_mrid='_B55E2E1B-F342-4633-9B25-3BDFA78C0D83')
+            bus_mrid=bus_mrid)
 
-        # Uncomment to recreate expected value.
-        # actual.to_csv(BUS_MEAS)
-
-        expected = pd.read_csv(BUS_MEAS, index_col=0)
-
-        pd.testing.assert_frame_equal(actual, expected)
+        # Ensure we get 6 back (3 phases, current and voltage)
+        self.assertEqual(actual.shape[0], 6)
 
 
 if __name__ == '__main__':
+    # gen_expected_results()
     unittest.main()
