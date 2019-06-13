@@ -2,7 +2,7 @@
 import logging
 from collections import deque
 import pyvvo.utils as utils
-from .equipment import EquipmentSinglePhase, EquipmentMultiPhase
+from .equipment import EquipmentSinglePhase
 
 from pandas import DataFrame
 import numpy as np
@@ -12,8 +12,18 @@ LOG = logging.getLogger(__name__)
 
 def initialize_controllable_regulators(df):
     """Helper to initialize controllable regulators given a DataFrame
-    with regulator information. The DataFrame should come from
-    sparql.SPARQLManager.query_regulators.
+    with regulator information.
+
+    Note that this method relies on the fact that our SPARQL query for
+    regulators is tightly coupled to the __init__ inputs for
+    RegulatorSinglePhase objects.
+
+    :param df: Pandas DataFrame object from
+        sparql.SPARQLManager.query_regulators
+
+    :returns out: dictionary, keyed by tap_changer_mrid, of
+        RegulatorSinglePhase objects. Note that only controllable
+        regulators are returned.
     """
     # Filter by ltc_flag, and then drop the ltc_flag column. From the
     # CIM description for TapChanger.ltcFlag: "Specifies whether or not
@@ -26,24 +36,9 @@ def initialize_controllable_regulators(df):
         LOG.info('{} regulator phases were discarded because their CIM '
                  'ltcFlag was false.'.format(df.shape[0] - ltc_reg.shape[0]))
 
-    # Group by mrid and name. Both are of the parent regulator - the
-    # tap_changer_mrid is unique to the regulator phase.
-    groups = ltc_reg.groupby(['mrid', 'name'], sort=False)
-
-    # Initialize return.
-    out = {}
-
-    # Loop over the groups and initialize regulators.
-    for label in groups.groups:
-        items = groups.get_group(label)
-        # Create a regulator for each item.
-        reg_list = []
-        for idx in items.index:
-            reg_list.append(RegulatorSinglePhase(**items.loc[idx].to_dict()))
-
-        # Create three-phase regulator and add to output.
-        reg_three_phase = EquipmentMultiPhase(reg_list)
-        out[reg_three_phase.name] = reg_three_phase
+    # Use dictionary comprehension to create return.
+    out = {r['tap_changer_mrid']: RegulatorSinglePhase(**r)
+           for r in ltc_reg.to_dict('records')}
 
     return out
 
@@ -84,8 +79,7 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
 
 
 class RegulatorManager:
-    """Class to keep EquipmentMultiPhase objects (comprised of
-    RegulatorSinglePhase objects in this case) up to date as a
+    """Class to keep RegulatorSinglePhase objects up to date as a
     simulation proceeds.
 
     This is meant to be used in conjunction with a SimOutRouter from
@@ -94,13 +88,15 @@ class RegulatorManager:
     TODO: initialize_controllable_regulators filters our regulators,
         but really we want ALL of them here.
     """
-    def __init__(self, reg_dict, reg_measurements):
+    def __init__(self, reg_dict, reg_meas):
         """Initialize.
 
-        :param reg_dict: Dictionary of EquipmentMultiPhase objects
+        :param reg_dict: Dictionary of RegulatorSinglePhase objects
             as returned by initialize_controllable_regulators.
-        :param reg_measurements: Pandas DataFrame as returned by
+        :param reg_meas: Pandas DataFrame as returned by
             sparql.SPARQLManager's query_rtc_measurements method.
+
+        The reg_dict and reg_meas must have the same number of elements.
         """
         # Logging.
         self.log = logging.getLogger(__name__)
@@ -109,54 +105,28 @@ class RegulatorManager:
         if not isinstance(reg_dict, dict):
             raise TypeError('reg_dict must be a dictionary.')
 
-        if not isinstance(reg_measurements, DataFrame):
+        if not isinstance(reg_meas, DataFrame):
             raise TypeError('reg_measurements must be a Pandas DataFrame.')
 
-        # Keep track of the given reg dict.
+        if len(reg_dict) != reg_meas.shape[0]:
+            raise ValueError('The number of measurements and number of '
+                             'regulators do not match!')
+
+        # Simply assign.
         self.reg_dict = reg_dict
+        self.reg_meas = reg_meas
 
-        # Create a mapping of measurement MRIDs to RegulatorSinglePhase
-        #   objects.
-        self.reg_meas_map = {}
+        # Create a map from measurement MRID to RegulatorSinglePhase.
+        self.meas_reg_map = {}
 
-        for reg_name, reg_obj in self.reg_dict.items():
-            # Get entries from the DataFrame which match this regulator.
-            view = reg_measurements[reg_measurements['eqid'] == reg_obj.mrid]
+        for row in self.reg_meas.itertuples():
+            self.meas_reg_map[row.pos_meas_mrid] = \
+                self.reg_dict[row.tap_changer_mrid]
 
-            # If this view is empty, warn.
-            if view.shape[0] == 0:
-                self.log.warning("There are no measurements for regulator "
-                                 "'{}'".format(reg_name))
-                # Move to the next loop iteration.
-                continue
-
-            # Loop over the phases of the regulator to match up
-            # measurements with phases.
-            for phase in reg_obj.PHASES:
-                # Grab the RegulatorSinglePhase for this phase.
-                reg_single_phase = getattr(reg_obj, phase)
-
-                # If this phase isn't present, we'll receive None.
-                if reg_single_phase is None:
-                    continue
-
-                # Extract measurements which correspond to this phase.
-                single_view = view[view['phases'] == phase.upper()]
-
-                # For now, only allow one measurement.
-                if single_view.shape[0] > 1:
-                    raise ValueError('The RegulatorManager currently only '
-                                     'supports one measurement per phase.')
-                elif single_view.shape[0] == 0:
-                    # Warn if we get zero.
-                    self.log.warning("Phase {} of regulator '{}' does not have"
-                                     " any measurements!".format(phase,
-                                                                 reg_name))
-                    continue
-
-                # Map it!
-                self.reg_meas_map[single_view['id'].values[0]] = \
-                    reg_single_phase
+        if len(self.meas_reg_map) != len(self.reg_dict):
+            raise ValueError('The reg_dict and reg_meas inputs are '
+                             'inconsistent as the resulting map has '
+                             'a different shape.')
 
     def update_regs(self, msg):
         """Given a message from a gridappsd_platform SimOutRouter,
@@ -185,22 +155,23 @@ class RegulatorManager:
             #   https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/754
 
             # Grab mrid and value.
-            mrid = m['measurement_mrid']
+            meas_mrid = m['measurement_mrid']
             value = m['value']
 
             try:
-                self.reg_meas_map[mrid].tap_pos = value
+                self.meas_reg_map[meas_mrid].tap_pos = value
             except KeyError:
-                self.log.warning('MRID {} not present in the map!'.format(
-                    mrid))
+                self.log.warning(
+                    'Measurement MRID {} not present in the map!'.format(
+                        meas_mrid))
             else:
                 self.log.debug('Regulator {} tap_pos updated to: {}'.format(
-                    str(self.reg_meas_map[mrid]), value
+                    str(self.meas_reg_map[meas_mrid]), value
                 ))
 
     def build_regulator_commands(self, reg_dict_forward):
         """Function to build command for regulator tap positions. The
-        command itself would be sent with a
+        command itself should be sent with a
         gridappsd_platform.PlatformManager object's send_command method.
 
         This object's reg_dict is considered to have the current/old
@@ -210,7 +181,7 @@ class RegulatorManager:
         method, but hey, that's okay.
 
         :param reg_dict_forward: dictionary of
-            equipment.EquipmentMultiPhase objects as would come as
+            regulator.RegulatorSinglePhase objects as would come as
             output from regulator.initialize_controllable_regulators.
             The tap positions for these objects will be what the
             regulators in the simulation will be commanded to.
@@ -224,40 +195,34 @@ class RegulatorManager:
         # Initialize lists of parameters.
         reg_ids = []
         reg_attr = []
-        reg_forward = []
-        reg_reverse = []
+        reg_forward_list = []
+        reg_reverse_list = []
 
         # Loop over regulators.
-        for reg_name, multi_reg in reg_dict_forward.items():
+        for reg_mrid, reg_forward in reg_dict_forward.items():
             # Loop over the phases in the regulator.
-            for p in multi_reg.PHASES:
-                # Get the single phase regulator.
-                single_reg_forward = getattr(multi_reg, p)
 
-                # Move along if its None.
-                if single_reg_forward is None:
-                    continue
+            try:
+                reg_reverse = self.reg_dict[reg_mrid]
+            except KeyError:
+                m = 'The given reg_dict_forward is not matching up with '\
+                    'self.reg_dict! Ensure these reg_dicts came from the '\
+                    'same model, etc.'
 
-                try:
-                    single_reg_reverse = getattr(self.reg_dict[reg_name], p)
-                except KeyError:
-                    m = 'The given reg_dict_forward is not matching up with '\
-                        'self.reg_dict! Ensure these reg_dicts came from the '\
-                        'same model, etc.'
+                raise ValueError(m) from None
 
-                    raise ValueError(m) from None
-
-                # Add the tap change mrid.
-                reg_ids.append(single_reg_forward.tap_changer_mrid)
-                # Add the attribute.
-                reg_attr.append('TapChanger.step')
-                # Add the forward position.
-                reg_forward.append(single_reg_forward.step)
-                # Grab the reverse position.
-                reg_reverse.append(single_reg_reverse.step)
+            # Add the tap change mrid.
+            reg_ids.append(reg_mrid)
+            # Add the attribute.
+            reg_attr.append('TapChanger.step')
+            # Add the forward position.
+            reg_forward_list.append(reg_forward.step)
+            # Grab the reverse position.
+            reg_reverse_list.append(reg_reverse.step)
 
         return {"object_ids": reg_ids, "attributes": reg_attr,
-                "forward_values": reg_forward, "reverse_values": reg_reverse}
+                "forward_values": reg_forward_list,
+                "reverse_values": reg_reverse_list}
 
 
 class RegulatorSinglePhase(EquipmentSinglePhase):

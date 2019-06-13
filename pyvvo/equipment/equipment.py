@@ -76,118 +76,118 @@ class EquipmentSinglePhase(ABC):
         pass
 
 
-class EquipmentMultiPhase:
-    """
-    Class that essentially acts as a container for EquipmentSinglePhase
-    objects (and their derivatives)
-    """
-
-    # Allowable phases.
-    PHASES = ('A', 'B', 'C')
-
-    def __init__(self, equipment_list):
-        """Take in list of EquipmentSinglePhase objects.
-
-        :param equipment_list: list of three or less 
-            EquipmentSinglePhase objects.
-        """
-
-        # Check input type.
-        if not isinstance(equipment_list, (list, tuple)):
-            raise TypeError('equipment_list must be a list or tuple.')
-
-        if (len(equipment_list) < 1) or (len(equipment_list) > 3):
-            m = 'equipment_list must meet 1 <= len(equipment_list) <= 3.'
-            raise ValueError(m)
-
-        # Initialize phases to None. We'll use case-insensitive attributes.
-        self._a = None
-        self._b = None
-        self._c = None
-
-        # Loop over the list.
-        for equipment in equipment_list:
-            if not isinstance(equipment, EquipmentSinglePhase):
-                m = ('All items in equipment_list must be EquipmentSinglePhase'
-                     + ' objects (or derivatives).')
-                raise TypeError(m)
-
-            # Set name attribute if necessary, ensure all
-            # EquipmentSinglePhase objects refer to the same name.
-            try:
-                name_match = equipment.name == self.name
-            except AttributeError:
-                # Set the name.
-                self._name = equipment.name
-            else:
-                # If the names don't match, raise exception.
-                if not name_match:
-                    m = 'EquipmentSinglePhase objects do not have matching '\
-                        '"name" attributes.'
-                    raise ValueError(m)
-
-            # Set mrid attribute if necessary, ensure all
-            # EquipmentSinglePhase objects refer to the same mrid.
-            try:
-                mrid_match = equipment.mrid == self.mrid
-            except AttributeError:
-                # Set mrid.
-                self._mrid = equipment.mrid
-            else:
-                if not mrid_match:
-                    # If the mrids don't match, raise exception.
-                    m = 'EquipmentSinglePhase objects do not have matching '\
-                        '"mrid" attributes.'
-                    raise ValueError(m)
-
-            # Get this phase attribute for self.
-            attr_str = '_' + equipment.phase.lower()
-            attr = getattr(self, attr_str)
-            # Ensure this attribute has not yet been set to anything
-            # other than None.
-            if attr is not None:
-                raise ValueError('Multiple equipments for phase {} were '
-                                 'given!'.format(equipment.phase.lower()))
-
-            setattr(self, attr_str, equipment)
-
-    def __repr__(self):
-        return '<EquipmentMultiPhase. name: {}'.format(self.name)
-
-    ####################################################################
-    # Getter methods
-    ####################################################################
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def mrid(self):
-        return self._mrid
-
-    @property
-    def a(self):
-        return self._a
-
-    @property
-    def b(self):
-        return self._b
-
-    @property
-    def c(self):
-        return self._c
-
-    # noinspection PyPep8Naming
-    @property
-    def A(self):
-        return self._a
-
-    # noinspection PyPep8Naming
-    @property
-    def B(self):
-        return self._b
-
-    # noinspection PyPep8Naming
-    @property
-    def C(self):
-        return self._c
+# class EquipmentMultiPhase:
+#     """
+#     Class that essentially acts as a container for EquipmentSinglePhase
+#     objects (and their derivatives)
+#     """
+#
+#     # Allowable phases.
+#     PHASES = ('A', 'B', 'C')
+#
+#     def __init__(self, equipment_list):
+#         """Take in list of EquipmentSinglePhase objects.
+#
+#         :param equipment_list: list of three or less
+#             EquipmentSinglePhase objects.
+#         """
+#
+#         # Check input type.
+#         if not isinstance(equipment_list, (list, tuple)):
+#             raise TypeError('equipment_list must be a list or tuple.')
+#
+#         if (len(equipment_list) < 1) or (len(equipment_list) > 3):
+#             m = 'equipment_list must meet 1 <= len(equipment_list) <= 3.'
+#             raise ValueError(m)
+#
+#         # Initialize phases to None. We'll use case-insensitive attributes.
+#         self._a = None
+#         self._b = None
+#         self._c = None
+#
+#         # Loop over the list.
+#         for equipment in equipment_list:
+#             if not isinstance(equipment, EquipmentSinglePhase):
+#                 m = ('All items in equipment_list must be EquipmentSinglePhase'
+#                      + ' objects (or derivatives).')
+#                 raise TypeError(m)
+#
+#             # Set name attribute if necessary, ensure all
+#             # EquipmentSinglePhase objects refer to the same name.
+#             try:
+#                 name_match = equipment.name == self.name
+#             except AttributeError:
+#                 # Set the name.
+#                 self._name = equipment.name
+#             else:
+#                 # If the names don't match, raise exception.
+#                 if not name_match:
+#                     m = 'EquipmentSinglePhase objects do not have matching '\
+#                         '"name" attributes.'
+#                     raise ValueError(m)
+#
+#             # Set mrid attribute if necessary, ensure all
+#             # EquipmentSinglePhase objects refer to the same mrid.
+#             try:
+#                 mrid_match = equipment.mrid == self.mrid
+#             except AttributeError:
+#                 # Set mrid.
+#                 self._mrid = equipment.mrid
+#             else:
+#                 if not mrid_match:
+#                     # If the mrids don't match, raise exception.
+#                     m = 'EquipmentSinglePhase objects do not have matching '\
+#                         '"mrid" attributes.'
+#                     raise ValueError(m)
+#
+#             # Get this phase attribute for self.
+#             attr_str = '_' + equipment.phase.lower()
+#             attr = getattr(self, attr_str)
+#             # Ensure this attribute has not yet been set to anything
+#             # other than None.
+#             if attr is not None:
+#                 raise ValueError('Multiple equipments for phase {} were '
+#                                  'given!'.format(equipment.phase.lower()))
+#
+#             setattr(self, attr_str, equipment)
+#
+#     def __repr__(self):
+#         return '<EquipmentMultiPhase. name: {}'.format(self.name)
+#
+#     ####################################################################
+#     # Getter methods
+#     ####################################################################
+#     @property
+#     def name(self):
+#         return self._name
+#
+#     @property
+#     def mrid(self):
+#         return self._mrid
+#
+#     @property
+#     def a(self):
+#         return self._a
+#
+#     @property
+#     def b(self):
+#         return self._b
+#
+#     @property
+#     def c(self):
+#         return self._c
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def A(self):
+#         return self._a
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def B(self):
+#         return self._b
+#
+#     # noinspection PyPep8Naming
+#     @property
+#     def C(self):
+#         return self._c

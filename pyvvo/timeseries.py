@@ -71,6 +71,7 @@ def parse_timeseries(data):
     # Return a DataFrame.
     return pd.DataFrame(flat_dict)
 
+
 def parse_weather(data):
     """Helper to parse the ridiculous platform weather data return.
 
@@ -124,7 +125,8 @@ def parse_weather(data):
             "'TowerDryBulbTemp,' 'GlobalCM22', or 'time!'"
         raise ValueError(m)
 
-    # Note that Proven returns
+    # Note that Proven returns time in seconds despite requiring
+    # microseconds as input.
     t_index = pd.to_datetime(t, unit='s', utc=True, origin='unix',
                              box=True)
     # Convert to pandas DataFrame

@@ -150,11 +150,5 @@ class InitializeControllableCapacitors(unittest.TestCase):
                              capacitor.initialize_controllable_capacitors(df))
 
 
-class CapacitorSinglePhaseUpdateControlMode(unittest.TestCase):
-    """Test the 'update_control' method."""
-    def test_stub(self):
-        self.assertTrue(False, 'This method is not complete yet.')
-
-
 if __name__ == '__main__':
     unittest.main()

@@ -28,7 +28,7 @@ def initialize_controllable_capacitors(df):
     # Filter to get controllable capacitors. Uncontrollable capacitors
     # have a np.nan value in the ctrlenabled column.
     try:
-        ctrl_enabled= df['ctrlenabled']
+        ctrl_enabled = df['ctrlenabled']
     except KeyError:
         # We're missing the ctrlenabled flag, and thus have no
         # controllable capacitors. Return an empty dictionary, and warn.
@@ -130,15 +130,6 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         else:
             # State is a bad type.
             raise TypeError('state must None or be a string.')
-
-    ####################################################################
-    # PUBLIC METHODS
-    ####################################################################
-
-    def update_control(self):
-        # TODO: When the platform allows for explicit commanding of the
-        #   mode, write this method.
-        pass
 
     ####################################################################
     # PROPERTY GETTERS AND SETTERS

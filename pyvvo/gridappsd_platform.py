@@ -54,7 +54,7 @@ def get_platform_env_var():
 def get_gad_object(**kwargs):
     """Helper to get a GridAPPSD object.
 
-    :param **kwargs: Passed directly to the GridAPPSD constructor.
+    :param kwargs: Passed directly to the GridAPPSD constructor.
     """
     # Get platform address
     address = get_gad_address()
@@ -379,7 +379,7 @@ class PlatformManager:
         self.log.info('Preparing to send following command: {}'.format(msg))
 
         # Send command to simulation.
-        self.gad.send(topic=topics.fncs_input_topic(sim_id),
+        self.gad.send(topic=topics.simulation_input_topic(sim_id),
                       message=json.dumps(msg))
 
         # Return the message in case we want to examine it, audit, etc.
@@ -513,7 +513,7 @@ class PlatformManager:
         sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,
                                        message=json.dumps(sim_request))
 
-        return sim_id
+        return sim_id['simulationId']
 
 
 class Error(Exception):
