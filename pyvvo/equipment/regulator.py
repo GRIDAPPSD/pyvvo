@@ -159,7 +159,7 @@ class RegulatorManager:
             value = m['value']
 
             try:
-                self.meas_reg_map[meas_mrid].tap_pos = value
+                self.meas_reg_map[meas_mrid].state = value
             except KeyError:
                 self.log.warning(
                     'Measurement MRID {} not present in the map!'.format(
