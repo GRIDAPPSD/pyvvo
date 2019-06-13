@@ -16,20 +16,22 @@ REG_MEAS_MSG = os.path.join(THIS_DIR, 'reg_meas_message.json')
 
 class InitializeControllableRegulatorsTestCase(unittest.TestCase):
     """Test initialize_controllable_regulators"""
+
+    # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
         cls.df = pd.read_csv(REGULATORS)
         cls.regs = regulator.initialize_controllable_regulators(cls.df)
 
-    def test_four_regs(self):
-        """There should be 4 three phase regulators"""
-        self.assertEqual(len(self.regs), 4)
+    def test_twelve_tap_changers(self):
+        """There should be 12 single phase regulators (4 x 3 phase)"""
+        self.assertEqual(len(self.regs), 12)
 
     def test_all_regs(self):
-        """Every item should be a RegulatorMultiPhase"""
+        """Every item should be a RegulatorSinglePhase"""
         for key, reg in self.regs.items():
             with self.subTest('reg = {}'.format(reg)):
-                self.assertIsInstance(reg, equipment.EquipmentMultiPhase)
+                self.assertIsInstance(reg, regulator.RegulatorSinglePhase)
 
     def test_ltc_filter(self):
         """If a regulator's ltc_flag is false, it shouldn't be included.
@@ -46,10 +48,11 @@ class InitializeControllableRegulatorsTestCase(unittest.TestCase):
         with self.assertLogs(regulator.LOG, 'INFO'):
             regs = regulator.initialize_controllable_regulators(df)
 
-        # There should be three now instead of four.
-        self.assertEqual(len(regs), 3)
+        # There should be nine now instead of twelve.
+        self.assertEqual(len(regs), 9)
 
 
+# noinspection PyProtectedMember
 class TapCIMToGLDTestCase(unittest.TestCase):
 
     def test_tap_cim_to_gld_1(self):
@@ -73,6 +76,7 @@ class TapCIMToGLDTestCase(unittest.TestCase):
         self.assertEqual(-1, actual)
 
 
+# noinspection PyProtectedMember
 class TapGLDToCIMTestCase(unittest.TestCase):
 
     def test_tap_gld_to_cim_1(self):
@@ -94,6 +98,7 @@ class TapGLDToCIMTestCase(unittest.TestCase):
 
 
 class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
+    # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
         cls.inputs = \
@@ -176,6 +181,7 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
+    # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
         cls.inputs = \
@@ -291,12 +297,14 @@ class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 class RegulatorManagerTestCase(unittest.TestCase):
     """Test RegulatorManager"""
 
+    # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
         cls.reg_meas = pd.read_csv(REG_MEAS)
         with open(REG_MEAS_MSG, 'r') as f:
             cls.reg_meas_msg = json.load(f)
 
+    # noinspection PyPep8Naming
     def setUp(self):
         # Gotta be careful with these mutable types... Get fresh
         # instances each time. It won't be that slow, I promise.
@@ -305,76 +313,66 @@ class RegulatorManagerTestCase(unittest.TestCase):
                 pd.read_csv(REGULATORS))
         self.reg_mgr = \
             regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                       reg_measurements=self.reg_meas)
+                                       reg_meas=self.reg_meas)
 
     def test_reg_dict_attribute(self):
         self.assertIs(self.reg_dict, self.reg_mgr.reg_dict)
 
-    def test_all_regs_mapped(self):
-        """Ensure all our single phase regulators got mapped.
-
-        If this fails, we may have some sort of file inconsistency.
+    def test_inconsistent_inputs(self):
+        """Ensure we get an exception if inputs are not consistent.
         """
-        # Loop over regulators.
-        for reg_multi in self.reg_dict.values():
-            # Loop over single phase regulators.
-            for phase in reg_multi.PHASES:
-                reg_single = getattr(reg_multi, phase)
+        meas = self.reg_meas.copy(deep=True)
+        # Create a duplicate entry.
+        meas.iloc[0] = meas.iloc[1]
 
-                if reg_single is None:
-                    continue
-
-                with self.subTest(msg=str(reg_single)):
-                    self.assertIn(reg_single,
-                                  self.reg_mgr.reg_meas_map.values())
+        s = 'inputs are inconsistent'
+        with self.assertRaisesRegex(ValueError, s):
+            _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
+                                           reg_meas=meas)
 
     def test_all_measurements_mapped(self):
         """Ensure all measurements are in the map."""
-        for meas_mrid in self.reg_meas['id'].values:
+        for meas_mrid in self.reg_meas['pos_meas_mrid'].values:
             with self.subTest():
-                self.assertIn(meas_mrid, self.reg_mgr.reg_meas_map.keys())
+                self.assertIn(meas_mrid, self.reg_mgr.meas_reg_map.keys())
 
     def test_no_meas_for_reg(self):
         """Remove measurements for given regulator, ensure we get
         proper exception.
         """
         meas_view = self.reg_meas[
-            ~(self.reg_meas['eqid'] == self.reg_meas['eqid'][0])
+            ~(self.reg_meas['tap_changer_mrid']
+              == self.reg_meas['tap_changer_mrid'][0])
         ]
 
-        with self.assertLogs(level='WARNING') as cm:
+        with self.assertRaisesRegex(ValueError, 'do not match'):
             _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                           reg_measurements=meas_view)
-
-        self.assertIn('There are no measurements for regulator',
-                      cm.output[0])
+                                           reg_meas=meas_view)
 
     def test_bad_reg_dict_type(self):
         with self.assertRaisesRegex(TypeError,
                                     'reg_dict must be a dictionary'):
             _ = regulator.RegulatorManager(reg_dict=10,
-                                           reg_measurements=self.reg_meas)
+                                           reg_meas=self.reg_meas)
 
     def test_bad_reg_meas_type(self):
         with self.assertRaisesRegex(TypeError,
                                     'reg_measurements must be a Pandas'):
             _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                           reg_measurements=pd.Series())
+                                           reg_meas=pd.Series())
 
     def test_no_meas_for_single_phase_reg(self):
         meas_view = self.reg_meas.drop(0, axis=0)
-        with self.assertLogs(level='WARNING') as cm:
+        with self.assertRaisesRegex(ValueError, 'do not match'):
             _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                           reg_measurements=meas_view)
-
-        self.assertIn('does not have any measurements!', cm.output[0])
+                                           reg_meas=meas_view)
 
     def test_two_meas_for_single_phase_reg(self):
         reg_meas = self.reg_meas.append(self.reg_meas.iloc[0])
 
-        with self.assertRaisesRegex(ValueError, 'one measurement per phase'):
+        with self.assertRaisesRegex(ValueError, 'do not match'):
             _ = regulator.RegulatorManager(reg_dict=self.reg_dict,
-                                           reg_measurements=reg_meas)
+                                           reg_meas=reg_meas)
 
     def test_update_regs_simple(self):
         """Just ensure it runs without error."""
@@ -397,23 +395,15 @@ class RegulatorManagerTestCase(unittest.TestCase):
             meas_value = msg_dict['value']
 
             # Look up the measurement mrid.
-            row = self.reg_meas[self.reg_meas['id'] == meas_mrid]
+            row = self.reg_meas[self.reg_meas['pos_meas_mrid'] == meas_mrid]
 
             # Grab regulator mrid and phase.
-            reg_mrid = row['eqid'].values[0]
-            reg_phase = row['phases'].values[0]
-
-            # Loop to find the multi-phase regulator. This isn't
-            # efficient, and that's okay since this is a test.
-            for multi_reg_name, multi_reg in self.reg_dict.items():
-                if multi_reg.mrid == reg_mrid:
-                    break
+            reg_mrid = row['tap_changer_mrid'].values[0]
 
             # Ensure this regulator got updated.
             with self.subTest(meas_mrid=meas_mrid):
                 # noinspection PyUnboundLocalVariable
-                single_reg = getattr(self.reg_dict[multi_reg_name], reg_phase)
-                self.assertEqual(single_reg.tap_pos, meas_value)
+                self.assertEqual(self.reg_dict[reg_mrid].tap_pos, meas_value)
 
     def test_update_regs_bad_mrid(self):
         reg_meas_msg = deepcopy(self.reg_meas_msg)
@@ -452,22 +442,22 @@ class RegulatorManagerTestCase(unittest.TestCase):
         looping is performed in build_regulator_commands.
         """
         reg_dict_forward = deepcopy(self.reg_dict)
+        # For some reason the new reg_dict won't pickle?
+        # reg_dict_forward = \
+        #     regulator.initialize_controllable_regulators(
+        #         pd.read_csv(REGULATORS))
 
         # Randomly update steps.
         forward_vals = []
-        for reg_multi in reg_dict_forward.values():
-            for phase in reg_multi.PHASES:
-                reg_single = getattr(reg_multi, phase)
-                new_step = randint(reg_single.low_step, reg_single.high_step)
-                reg_single.step = new_step
-                forward_vals.append(new_step)
+        for reg_single in reg_dict_forward.values():
+            new_step = randint(reg_single.low_step, reg_single.high_step)
+            reg_single.step = new_step
+            forward_vals.append(new_step)
 
         # Grab reverse values.
         reverse_vals = []
-        for reg_multi in self.reg_dict.values():
-            for phase in reg_multi.PHASES:
-                reg_single = getattr(reg_multi, phase)
-                reverse_vals.append(reg_single.step)
+        for reg_single in self.reg_dict.values():
+            reverse_vals.append(reg_single.step)
 
         # Just use the same dictionary to make a "do nothing" command.
         out = self.reg_mgr.build_regulator_commands(

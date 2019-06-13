@@ -17,19 +17,19 @@ WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
 
 
-class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
-    """Test parse_timeseries, and pass it simulation measurements."""
-
-    @classmethod
-    def setUpClass(cls):
-        # Load measurement data
-        with open(MEASUREMENTS, 'r') as f:
-            cls.data = json.load(f)
-
-    def test_one(self):
-
-        parsed_data = timeseries.parse_timeseries(data=self.data)
-        self.assertTrue(False)
+# class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
+#     """Test parse_timeseries, and pass it simulation measurements."""
+#
+#     @classmethod
+#     def setUpClass(cls):
+#         # Load measurement data
+#         with open(MEASUREMENTS, 'r') as f:
+#             cls.data = json.load(f)
+#
+#     def test_one(self):
+#
+#         parsed_data = timeseries.parse_timeseries(data=self.data)
+#         self.assertTrue(False)
 
 
 class ParseWeatherTestCase(unittest.TestCase):
