@@ -64,6 +64,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         self.assertEqual(cap.state, 'CLOSED')
         self.assertEqual(cap.state_old, 'OPEN')
 
+
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     """Test bad inputs to CapacitorSinglePhase"""
 
@@ -127,25 +128,17 @@ class InitializeControllableCapacitors(unittest.TestCase):
         for _, cap in self.caps.items():
             self.assertIsInstance(cap, capacitor.CapacitorSinglePhase)
 
-    def test_multi_phase_capacitor(self):
-        """Not supporting multi-phase controllable capacitors until
-        necessary to."""
-        df = self.df.copy(deep=True)
-        df.loc[3, 'phase'] = np.nan
-
-        self.assertRaises(NotImplementedError,
-                          capacitor.initialize_controllable_capacitors,
-                          df=df)
-
     def test_value(self):
         self.assertEqual(
             self.caps['capbank1c'].mrid,
             self.df[self.df['name'] == 'capbank1c']['mrid'].iloc[0])
 
     def test_no_controllable_caps(self):
-        """If the ctrlenabled field isn't present, no caps are
-        controllable."""
-        df = self.df.drop(labels='ctrlenabled', axis=1)
+        """If an entry has nan in all REG_CONTROL columns, it is not
+        controllable.
+        """
+        df = self.df.copy(deep=True)
+        df.loc[:, capacitor.REG_CONTROL] = np.nan
         self.assertDictEqual({},
                              capacitor.initialize_controllable_capacitors(df))
 

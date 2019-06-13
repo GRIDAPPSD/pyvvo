@@ -18,6 +18,12 @@ LOG = logging.getLogger(__name__)
 #         self.phases = phases
 #
 
+# Attributes of RegulatingControl:
+# https://gridappsd.readthedocs.io/en/latest/_images/cim_CapacitorClass.png
+# These map to variable names in sparql.py.
+REG_CONTROL = ['discrete', 'ctrlenabled', 'mode', 'monphs', 'deadband',
+               'setpoint']
+
 
 def initialize_controllable_capacitors(df):
     """
@@ -26,25 +32,20 @@ def initialize_controllable_capacitors(df):
     sparql.SPARQLManager.query_capacitors.
     """
     # Filter to get controllable capacitors. Uncontrollable capacitors
-    # have a np.nan value in the ctrlenabled column.
-    try:
-        ctrl_enabled = df['ctrlenabled']
-    except KeyError:
-        # We're missing the ctrlenabled flag, and thus have no
-        # controllable capacitors. Return an empty dictionary, and warn.
+    # do not have a "RegulatingControl" object, and are thus missing
+    # the following attributes:
+    # discrete, ctrlenabled, mode, monphs, deadband, setpoint, and trm.
+    # These can be found in sparql.py, do a search for
+    # "RegulatingControl."
+    rc = df.loc[:, REG_CONTROL]
+    # If all of the REG_CONTROL columns are nan, this capacitor is not
+    # controllable.
+    c_cap = df[~rc.isnull().all(axis=1)]
+
+    if c_cap.shape[0] == 0:
         LOG.warning('There are no controllable capacitors present!')
         return {}
 
-    # Extract only controllable capacitors.
-    c_cap = df[~ctrl_enabled.isnull()]
-
-    # A NaN in the phase column indicates a multi-phase capacitor. I
-    # have not yet seen a controllable multi-phase capacitor in the CIM,
-    # so we'll cross that bridge when we get there.
-    if c_cap['phase'].isnull().any():
-        # TODO: handle multi-phase controllable caps.
-        raise NotImplementedError('Currently single phase controllable '
-                                  'capacitors are supported.')
     # Initialize return.
     out = dict()
 
