@@ -61,6 +61,11 @@ def gen_expected_results():
         except IndexError:
             actual = actual_full
 
+        # If changing column names, etc, you'll need to write to file
+        # here. Otherwise, to just update MRIDs the file gets written
+        # at the end of the loop.
+        # actual.to_csv(b[1], index=False)
+
         # Read file.
         expected = pd.read_csv(b[1])
         # Ensure frames match except for MRIDs.
@@ -415,31 +420,20 @@ class SPARQLManagerTestCase(unittest.TestCase):
         1 uncontrollable 3 phase unit, counted as a group.
         """
         actual = self.sparql.query_capacitor_measurements()
-        actual = actual.sort_values(axis=0, by=['eqname', 'phases'])
-        actual = actual.reindex(np.arange(0, actual.shape[0]))
 
         # Read expected value.
         expected = pd.read_csv(CAP_MEAS)
-        expected = expected.sort_values(axis=0, by=['eqname', 'phases'])
-        expected = actual.reindex(np.arange(0, expected.shape[0]))
 
         ensure_frame_equal_except_mrid(actual, expected)
 
         # Ensure we get measurements associated with 10 capacitors.
         # (3 * 3) + 1, see docstring.
-        caps = actual['eqid'].unique()
+        caps = actual['cap_mrid'].unique()
         self.assertEqual(10, len(caps))
 
-        # Ensure we have 9 measurements for the capacitors which are not
-        # capbank3.
-        mask = actual['eqname'] != 'capbank3'
-        self.assertEqual(actual[mask].shape[0], 9)
-
-        # Ensure we have 3 measurements for the rest.
-        self.assertEqual(actual[~mask].shape[0], 3)
-
-        # Ensure all eqid's are unique for the initial mask.
-        self.assertEqual(actual[mask]['eqid'].unique().shape[0], 9)
+        # Ensure the measurements are unique.
+        self.assertEqual(actual['state_meas_mrid'].unique().shape[0],
+                         actual.shape[0])
 
     def test_sparql_manager_query_substation_source_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
@@ -477,5 +471,5 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    # gen_expected_results()
-    unittest.main()
+    gen_expected_results()
+    # unittest.main()

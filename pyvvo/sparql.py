@@ -529,10 +529,10 @@ class SPARQLManager:
          )
 
     # Get status measurements for capacitors.
+    # TODO: This query could be optimized.
     CAPACITOR_STATUS_MEASUREMENT_QUERY = \
         (PREFIX +
-         "SELECT ?class ?type ?name ?bus ?phases ?eqtype ?eqname ?eqid ?trmid "
-         "?id "
+         "SELECT ?cap_mrid ?state_meas_mrid "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -541,13 +541,12 @@ class SPARQLManager:
          # 'UNION '
          # '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
          '?s c:IdentifiedObject.name ?name .'
-         '?s c:IdentifiedObject.mRID ?id .'
+         '?s c:IdentifiedObject.mRID ?state_meas_mrid .'
          '?s c:Measurement.PowerSystemResource ?eq .'
          '?s c:Measurement.Terminal ?trm .'
          '?s c:Measurement.measurementType ?type .'
          '?trm c:IdentifiedObject.mRID ?trmid.'
-         '?eq c:IdentifiedObject.mRID ?eqid.'
-         '?eq c:IdentifiedObject.name ?eqname.'
+         '?eq c:IdentifiedObject.mRID ?cap_mrid.'
          "?eq r:type c:LinearShuntCompensator. "
          '?eq r:type ?typeraw.'
          'bind(strafter(str(?typeraw),"#") as ?eqtype)'
@@ -555,7 +554,7 @@ class SPARQLManager:
          '?cn c:IdentifiedObject.name ?bus.'
          '?s c:Measurement.phases ?phsraw .'
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
-         '}} ORDER BY ?class ?type ?name'
+         '}} ORDER BY ?cap_mrid'
          )
 
     # substation source - DistSubstation
