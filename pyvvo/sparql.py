@@ -9,6 +9,13 @@ import pandas as pd
 # Map CIM booleans (come back as strings) to Python booleans.
 BOOLEAN_MAP = {'true': True, 'false': False}
 
+# Define constants for some variable names, which then get mapped to
+# DataFrame column names.
+REG_MEAS_MEAS_MRID_COL = 'pos_meas_mrid'
+REG_MEAS_REG_MRID_COL = 'tap_changer_mrid'
+CAP_MEAS_MEAS_MRID_COL = 'state_meas_mrid'
+CAP_MEAS_CAP_MRID_COL = 'cap_mrid'
+
 
 class SPARQLManager:
     """Class for querying and parsing SPARQL in GridAPPS-D.
@@ -16,6 +23,14 @@ class SPARQLManager:
     NOTE: While it's usually conventional to have class constants
     defined near the beginning of the class definition, we'll be
     defining them at the bottom since the SPARQL queries are huge.
+
+    TODO: Update query variables to be more reflective of what they are.
+        That's what you get for copy + paste... What the hell is this?
+
+    TODO: Some query variables should probably be constants which can
+        be imported by other modules. This way, we can avoid looking
+        through test files or query strings, and just find a listing
+        of constants at the top.
     """
 
     def __init__(self, feeder_mrid, timeout=30):
@@ -113,7 +128,8 @@ class SPARQLManager:
         """Query measurements attached to ratio tap changers."""
         result = self._query(
             self.RTC_POSITION_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid), to_numeric=False)
+                feeder_mrid=self.feeder_mrid, reg_mrid=REG_MEAS_REG_MRID_COL,
+                meas_mrid=REG_MEAS_MEAS_MRID_COL), to_numeric=False)
         self.log.info('Regulator tap position measurements obtained.')
         return result
 
@@ -121,7 +137,8 @@ class SPARQLManager:
         """Query status measurements attached to capacitors."""
         result = self._query(
             self.CAPACITOR_STATUS_MEASUREMENT_QUERY.format(
-                feeder_mrid=self.feeder_mrid), to_numeric=False)
+                feeder_mrid=self.feeder_mrid, cap_mrid=CAP_MEAS_CAP_MRID_COL,
+                meas_mrid=CAP_MEAS_MEAS_MRID_COL), to_numeric=False)
         self.log.info('Capacitor status measurements obtained.')
         return result
 
@@ -489,7 +506,7 @@ class SPARQLManager:
         (PREFIX +
          # We're using this query to map measurements to tap changers,
          # so all we need is the tap changer and measurement MRIDs.
-         "SELECT ?tap_changer_mrid ?pos_meas_mrid "
+         "SELECT ?{reg_mrid} ?{meas_mrid} "
          # "?name ?trmid ?bus ?eqname ?eqtype"
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
@@ -500,7 +517,7 @@ class SPARQLManager:
          "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
          '{{ ?s r:type c:Discrete. }} '
          '?s c:IdentifiedObject.name ?name .'
-         '?s c:IdentifiedObject.mRID ?pos_meas_mrid .'
+         '?s c:IdentifiedObject.mRID ?{meas_mrid} .'
          # Get the power system resource.
          '?s c:Measurement.PowerSystemResource ?eq .'
          '?s c:Measurement.Terminal ?trm .'
@@ -510,7 +527,7 @@ class SPARQLManager:
          '?eq c:IdentifiedObject.mRID ?eqid.'
          "?eq r:type c:PowerTransformer. "
          "?tap_changer r:type c:RatioTapChanger. "
-         "?tap_changer c:IdentifiedObject.mRID ?tap_changer_mrid. "
+         "?tap_changer c:IdentifiedObject.mRID ?{reg_mrid}. "
          "?tap_changer c:RatioTapChanger.TransformerEnd ?end. "
          "?end c:TransformerTankEnd.TransformerTank ?tank. "
          "?tank c:TransformerTank.PowerTransformer ?eq. "
@@ -524,7 +541,7 @@ class SPARQLManager:
          # Only return triples where the phases match.
          "FILTER(?endphsraw = ?measphsraw) "
 
-         '}} ORDER BY ?tap_changer_mrid'
+         '}} ORDER BY ?{reg_mrid}'
          # ' ?name'
          )
 
@@ -532,7 +549,7 @@ class SPARQLManager:
     # TODO: This query could be optimized.
     CAPACITOR_STATUS_MEASUREMENT_QUERY = \
         (PREFIX +
-         "SELECT ?cap_mrid ?state_meas_mrid "
+         "SELECT ?{cap_mrid} ?{meas_mrid} "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -541,12 +558,12 @@ class SPARQLManager:
          # 'UNION '
          # '{{ ?s r:type c:Analog. bind ("Analog" as ?class)}} '
          '?s c:IdentifiedObject.name ?name .'
-         '?s c:IdentifiedObject.mRID ?state_meas_mrid .'
+         '?s c:IdentifiedObject.mRID ?{meas_mrid} .'
          '?s c:Measurement.PowerSystemResource ?eq .'
          '?s c:Measurement.Terminal ?trm .'
          '?s c:Measurement.measurementType ?type .'
          '?trm c:IdentifiedObject.mRID ?trmid.'
-         '?eq c:IdentifiedObject.mRID ?cap_mrid.'
+         '?eq c:IdentifiedObject.mRID ?{cap_mrid}.'
          "?eq r:type c:LinearShuntCompensator. "
          '?eq r:type ?typeraw.'
          'bind(strafter(str(?typeraw),"#") as ?eqtype)'
@@ -554,7 +571,7 @@ class SPARQLManager:
          '?cn c:IdentifiedObject.name ?bus.'
          '?s c:Measurement.phases ?phsraw .'
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
-         '}} ORDER BY ?cap_mrid'
+         '}} ORDER BY ?{cap_mrid}'
          )
 
     # substation source - DistSubstation
