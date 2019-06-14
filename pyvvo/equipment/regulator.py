@@ -1,10 +1,7 @@
 """Module for all things regulators."""
 import logging
-from collections import deque
 import pyvvo.utils as utils
 from .equipment import EquipmentSinglePhase
-
-from pandas import DataFrame
 import numpy as np
 
 LOG = logging.getLogger(__name__)
@@ -78,155 +75,10 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
     return tap_pos + neutral_step
 
 
-class RegulatorManager:
-    """Class to keep RegulatorSinglePhase objects up to date as a
-    simulation proceeds.
-
-    This is meant to be used in conjunction with a SimOutRouter from
-    gridappsd_platform.py.
-
-    TODO: initialize_controllable_regulators filters our regulators,
-        but really we want ALL of them here.
-    """
-    def __init__(self, reg_dict, reg_meas):
-        """Initialize.
-
-        :param reg_dict: Dictionary of RegulatorSinglePhase objects
-            as returned by initialize_controllable_regulators.
-        :param reg_meas: Pandas DataFrame as returned by
-            sparql.SPARQLManager's query_rtc_measurements method.
-
-        The reg_dict and reg_meas must have the same number of elements.
-        """
-        # Logging.
-        self.log = logging.getLogger(__name__)
-
-        # Simple type checking.
-        if not isinstance(reg_dict, dict):
-            raise TypeError('reg_dict must be a dictionary.')
-
-        if not isinstance(reg_meas, DataFrame):
-            raise TypeError('reg_measurements must be a Pandas DataFrame.')
-
-        if len(reg_dict) != reg_meas.shape[0]:
-            raise ValueError('The number of measurements and number of '
-                             'regulators do not match!')
-
-        # Simply assign.
-        self.reg_dict = reg_dict
-        self.reg_meas = reg_meas
-
-        # Create a map from measurement MRID to RegulatorSinglePhase.
-        self.meas_reg_map = {}
-
-        for row in self.reg_meas.itertuples():
-            self.meas_reg_map[row.pos_meas_mrid] = \
-                self.reg_dict[row.tap_changer_mrid]
-
-        if len(self.meas_reg_map) != len(self.reg_dict):
-            raise ValueError('The reg_dict and reg_meas inputs are '
-                             'inconsistent as the resulting map has '
-                             'a different shape.')
-
-    def update_regs(self, msg):
-        """Given a message from a gridappsd_platform SimOutRouter,
-        update regulator positions.
-
-        :param msg: list passed to this method via a SimOutRouter's
-            "_on_message" method.
-        """
-        # # Dump message for testing:
-        # import json
-        # with open('reg_meas_message.json', 'w') as f:
-        #     json.dump(msg, f)
-
-        # Type checking:
-        if not isinstance(msg, list):
-            raise TypeError('msg must be a list!')
-
-        # Iterate over the message and update regulators.
-        for m in msg:
-            # Type checking:
-            if not isinstance(m, dict):
-                raise TypeError('Each entry in msg must be a dict!')
-            # Update!
-            # TODO: For now this is tap_pos (GLD). Update to use step
-            #   (CIM) when issue 754 is resolved:
-            #   https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/754
-
-            # Grab mrid and value.
-            meas_mrid = m['measurement_mrid']
-            value = m['value']
-
-            try:
-                self.meas_reg_map[meas_mrid].state = value
-            except KeyError:
-                self.log.warning(
-                    'Measurement MRID {} not present in the map!'.format(
-                        meas_mrid))
-            else:
-                self.log.debug('Regulator {} tap_pos updated to: {}'.format(
-                    str(self.meas_reg_map[meas_mrid]), value
-                ))
-
-    def build_regulator_commands(self, reg_dict_forward):
-        """Function to build command for regulator tap positions. The
-        command itself should be sent with a
-        gridappsd_platform.PlatformManager object's send_command method.
-
-        This object's reg_dict is considered to have the current/old
-        regulator positions.
-
-        NOTE: It isn't 100% clear if this is the best home for this
-        method, but hey, that's okay.
-
-        :param reg_dict_forward: dictionary of
-            regulator.RegulatorSinglePhase objects as would come as
-            output from regulator.initialize_controllable_regulators.
-            The tap positions for these objects will be what the
-            regulators in the simulation will be commanded to.
-
-        :returns dictionary with keys corresponding to the send_command
-            method of a gridappsd_platform.PlatformManager object.
-
-        NOTE: reg_dict_forward and reg_dict_reverse should have
-            identical contents except for the tap positions.
-        """
-        # Initialize lists of parameters.
-        reg_ids = []
-        reg_attr = []
-        reg_forward_list = []
-        reg_reverse_list = []
-
-        # Loop over regulators.
-        for reg_mrid, reg_forward in reg_dict_forward.items():
-            # Loop over the phases in the regulator.
-
-            try:
-                reg_reverse = self.reg_dict[reg_mrid]
-            except KeyError:
-                m = 'The given reg_dict_forward is not matching up with '\
-                    'self.reg_dict! Ensure these reg_dicts came from the '\
-                    'same model, etc.'
-
-                raise ValueError(m) from None
-
-            # Add the tap change mrid.
-            reg_ids.append(reg_mrid)
-            # Add the attribute.
-            reg_attr.append('TapChanger.step')
-            # Add the forward position.
-            reg_forward_list.append(reg_forward.step)
-            # Grab the reverse position.
-            reg_reverse_list.append(reg_reverse.step)
-
-        return {"object_ids": reg_ids, "attributes": reg_attr,
-                "forward_values": reg_forward_list,
-                "reverse_values": reg_reverse_list}
-
-
 class RegulatorSinglePhase(EquipmentSinglePhase):
     """"""
+    # 'state' corresponds to:
+    STATE_CIM_PROPERTY = 'TapChanger.step'
 
     # Control modes taken from the CIM.
     CONTROL_MODES = ('voltage', 'activePower', 'reactivePower',

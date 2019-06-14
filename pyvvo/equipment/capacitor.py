@@ -65,8 +65,10 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
 
     TODO: Accept all CIM parameters.
     """
+    # The 'state' attribute corresponds to:
+    STATE_CIM_PROPERTY = 'ShuntCompensator.sections'
 
-    # Allowed states (case insensitive)
+    # Allowed states (case sensitive for simplicity)
     STATES = ('OPEN', 'CLOSED')
 
     # Allowed control modes (case insensitive). Corresponds to CIM
@@ -106,8 +108,7 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         # Assign.
         self._mode = lower_mode
 
-        # Assign state, casting to upper case. Note that type checking
-        # happens in _check_state.
+        # Assign state. Note that type checking happens in _check_state.
         self.state = state
 
         self.log.debug('CapacitorSinglePhase {} '.format(self.name)

@@ -2,7 +2,9 @@
 other modules.
 """
 from abc import ABC, abstractmethod
+import logging
 from collections import deque
+from pandas import DataFrame
 from pyvvo import utils
 
 
@@ -39,6 +41,19 @@ class EquipmentSinglePhase(ABC):
     ####################################################################
     # PROPERTIES
     ####################################################################
+    # noinspection PyPep8Naming
+    @property
+    @abstractmethod
+    def STATE_CIM_PROPERTY(self):
+        """STATE_CIM_PROPERTY defines the CIM attribute which
+        corresponds to an object's 'state' attribute. E.g. for
+        regulators, it will be TapChanger.step, or for capacitors it
+        will be ShuntCompensator.sections. This property is used for
+        building commands in EquipmentManager's
+        "build_equipment_commands" method.
+        """
+        pass
+
     @property
     def mrid(self):
         return self._mrid
@@ -75,6 +90,155 @@ class EquipmentSinglePhase(ABC):
         """
         pass
 
+
+class EquipmentManager:
+    """Class to keep EquipmentSinglePhase objects up to date as a
+    simulation proceeds. E.g. capacitors or regulators.
+
+    This is meant to be used in conjunction with a SimOutRouter from
+    gridappsd_platform.py, which will route relevant simulation output
+    to the "update_state" method.
+    """
+
+    def __init__(self, eq_dict, eq_meas, meas_mrid_col, eq_mrid_col):
+        """Initialize.
+
+        :param eq_dict: Dictionary of EquipmentSinglePhase objects
+            as returned by regulator.initialize_controllable_regulators
+            or capacitor.initialize_controllable_capacitors.
+        :param eq_meas: Pandas DataFrame as returned by
+            sparql.SPARQLManager's query_rtc_measurements method, or
+            sparql.SPARQLManager's query query_capacitor_measurements
+            method.
+        :param meas_mrid_col: String. Column in eq_meas corresponding
+            to measurement MRIDs in the eq_meas DataFrame.
+        :param eq_mrid_col: String. Column in eq_meas corresponding to
+            the equipment MRIDs in the eq_meas DataFrame.
+
+        The eq_dict and eq_meas must have the same number of elements.
+        """
+        # Logging.
+        self.log = logging.getLogger(__name__)
+
+        # Simple type checking.
+        if not isinstance(eq_dict, dict):
+            raise TypeError('eq_dict must be a dictionary.')
+
+        if not isinstance(eq_meas, DataFrame):
+            raise TypeError('eq_meas must be a Pandas DataFrame.')
+
+        if len(eq_dict) != eq_meas.shape[0]:
+            raise ValueError('The number of measurements and number of '
+                             'regulators do not match!')
+
+        # Simply assign.
+        self.eq_dict = eq_dict
+        self.eq_meas = eq_meas
+
+        # Create a map from measurement MRID to RegulatorSinglePhase.
+        self.meas_eq_map = {}
+
+        for row in self.eq_meas.itertuples():
+            self.meas_eq_map[getattr(row, meas_mrid_col)] = \
+                self.eq_dict[getattr(row, eq_mrid_col)]
+
+        if len(self.meas_eq_map) != len(self.eq_dict):
+            raise ValueError('The eq_dict and eq_meas inputs are '
+                             'inconsistent as the resulting map has '
+                             'a different shape.')
+
+    def update_state(self, msg):
+        """Given a message from a gridappsd_platform SimOutRouter,
+        update regulator positions.
+
+        :param msg: list passed to this method via a SimOutRouter's
+            "_on_message" method.
+        """
+        # # Dump message for testing:
+        # import json
+        # with open('reg_meas_message.json', 'w') as f:
+        #     json.dump(msg, f)
+
+        # Type checking:
+        if not isinstance(msg, list):
+            raise TypeError('msg must be a list!')
+
+        # Iterate over the message and update regulators.
+        for m in msg:
+            # Type checking:
+            if not isinstance(m, dict):
+                raise TypeError('Each entry in msg must be a dict!')
+
+            # Grab mrid and value.
+            meas_mrid = m['measurement_mrid']
+            value = m['value']
+
+            # Update!
+            try:
+                self.meas_eq_map[meas_mrid].state = value
+            except KeyError:
+                self.log.warning(
+                    'Measurement MRID {} not present in the map!'.format(
+                        meas_mrid))
+            else:
+                self.log.debug('Equipment {} state updated to: {}'.format(
+                    str(self.meas_eq_map[meas_mrid]), value
+                ))
+
+    def build_equipment_commands(self, eq_dict_forward):
+        """Function to build command for changing equipment state. The
+        command itself should be sent with a
+        gridappsd_platform.PlatformManager object's send_command method.
+
+        This object's eq_dict is considered to have the current/old
+        states.
+
+        NOTE: It isn't 100% clear if this is the best home for this
+        method, but hey, that's okay.
+
+        :param eq_dict_forward: dictionary of
+            equipment.EquipmentSinglePhase objects as would be passed
+            to this classes' constructor. The states for these objects
+            will be what the equipment in the simulation will be
+            commanded to.
+
+        :returns dictionary with keys corresponding to the send_command
+            method of a gridappsd_platform.PlatformManager object.
+
+        NOTE: eq_dict_forward and self.eq_dict should be identical
+        except for object states.
+        """
+        # Initialize lists of parameters.
+        eq_ids = []
+        eq_attr = []
+        eq_forward_list = []
+        eq_reverse_list = []
+
+        # Loop over equipment.
+        for eq_mrid, eq_forward in eq_dict_forward.items():
+            # Lookup the equipment object in self's eq_dict
+            # corresponding to this piece of equipment.
+            try:
+                eq_reverse = self.eq_dict[eq_mrid]
+            except KeyError:
+                m = 'The given eq_dict_forward is not matching up with '\
+                    'self.eq_dict! Ensure these eq_dicts came from the '\
+                    'same model, etc.'
+
+                raise ValueError(m) from None
+
+            # Add the tap change mrid.
+            eq_ids.append(eq_mrid)
+            # Add the attribute.
+            eq_attr.append(eq_forward.STATE_CIM_PROPERTY)
+            # Add the forward position.
+            eq_forward_list.append(eq_forward.step)
+            # Grab the reverse position.
+            eq_reverse_list.append(eq_reverse.step)
+
+        return {"object_ids": eq_ids, "attributes": eq_attr,
+                "forward_values": eq_forward_list,
+                "reverse_values": eq_reverse_list}
 
 # class EquipmentMultiPhase:
 #     """
