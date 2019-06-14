@@ -17,7 +17,8 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """Create CapacitorSinglePhase object."""
         cls.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state='OPEN', mode='ACTIVEpower')
+                                           state='OPEN', mode='ACTIVEpower',
+                                           controllable=True)
 
     def test_name(self):
         self.assertEqual(self.cap.name, 'cap1')
@@ -30,8 +31,10 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         self.assertEqual('activepower', self.cap.mode)
 
     def test_phase(self):
-        """Lower case phase should be cast to upper case."""
         self.assertEqual('C', self.cap.phase)
+
+    def test_controllable(self):
+        self.assertTrue(self.cap.controllable)
 
     def test_state(self):
         """State should be cast to upper case."""
@@ -41,7 +44,8 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """None is a valid state to initialize a capacitor."""
         cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state=None, mode='voltage')
+                                           state=None, mode='voltage',
+                                           controllable=True)
         self.assertIsNone(cap.state)
 
     def test_repr(self):
@@ -50,7 +54,8 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
     def test_state_update(self):
         cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state=None, mode='voltage')
+                                           state=None, mode='voltage',
+                                           controllable=True)
 
         self.assertIsNone(cap.state)
 
@@ -71,42 +76,60 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
     def test_name_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name=[1, 2, 3], mrid='1', phase='A', state='OPEN',
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_mrid_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid={'a': 1}, phase='A', state='OPEN',
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_phase_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase=7, state='OPEN',
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_phase_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='N', state='OPEN',
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_state_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='c', state=True,
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_state_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          mode='admittance')
+                          mode='admittance', controllable=True)
 
     def test_mode_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          mode=0)
+                          mode=0, controllable=True)
 
     def test_mode_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
                           name='1', mrid='1', phase='b', state='stuck',
-                          mode='vvo')
+                          mode='vvo', controllable=True)
+
+    def test_controllable_bad_type(self):
+        with self.assertRaisesRegex(TypeError, 'controllable must be a bool'):
+            capacitor.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state='OPEN',
+                mode='temperature', controllable='True')
+
+    def test_mode_controllable_mismatch_1(self):
+        with self.assertRaisesRegex(ValueError, 'seem to conflict'):
+            capacitor.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state=None,
+                mode=None, controllable=True)
+
+    def test_mode_controllable_mismatch_2(self):
+        with self.assertRaisesRegex(ValueError, 'seem to conflict'):
+            capacitor.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state=None,
+                mode='voltage', controllable=False)
 
 
 class InitializeControllableCapacitors(unittest.TestCase):
@@ -118,29 +141,31 @@ class InitializeControllableCapacitors(unittest.TestCase):
         cls.caps = capacitor.initialize_controllable_capacitors(cls.df)
 
     def test_length(self):
-        """There should be 10-1=9 capacitors, because one capacitor is
-        not controllable"""
-        self.assertEqual(len(self.caps), 9)
-
-    def test_is_capacitor(self):
-        """Ensure each result is indeed a SinglePhaseCapacitor."""
-
-        for _, cap in self.caps.items():
-            self.assertIsInstance(cap, capacitor.CapacitorSinglePhase)
-
-    def test_value(self):
-        self.assertEqual(
-            self.caps['capbank1c'].mrid,
-            self.df[self.df['name'] == 'capbank1c']['mrid'].iloc[0])
-
-    def test_no_controllable_caps(self):
-        """If an entry has nan in all REG_CONTROL columns, it is not
-        controllable.
+        """The return should have 10 items, as there are 3 controllable
+        3 phase caps, and 1 non-controllable 3 phase cap.
         """
-        df = self.df.copy(deep=True)
-        df.loc[:, capacitor.REG_CONTROL] = np.nan
-        self.assertDictEqual({},
-                             capacitor.initialize_controllable_capacitors(df))
+        self.assertEqual(len(self.caps), 10)
+
+    def test_is_capacitor_or_dict(self):
+        """Ensure each result is indeed a SinglePhaseCapacitor."""
+        cap_count = 0
+        dict_count = 0
+        dict_cap_count = 0
+        for _, cap in self.caps.items():
+            self.assertIsInstance(cap, (capacitor.CapacitorSinglePhase, dict))
+            # If we have a dict, ensure all values are
+            # CapacitorSinglePhase.
+            if isinstance(cap, dict):
+                dict_count += 1
+                for c in cap.values():
+                    dict_cap_count += 1
+                    self.assertIsInstance(c, capacitor.CapacitorSinglePhase)
+            else:
+                cap_count += 1
+
+        self.assertEqual(cap_count, 9)
+        self.assertEqual(dict_count, 1)
+        self.assertEqual(dict_cap_count, 3)
 
 
 if __name__ == '__main__':

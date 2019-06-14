@@ -31,7 +31,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # Gotta be careful with these mutable types... Get fresh
         # instances each time. It won't be that slow, I promise.
         self.reg_dict = \
-            regulator.initialize_controllable_regulators(
+            regulator.initialize_regulators(
                 pd.read_csv(REGULATORS))
         self.reg_mgr = \
             equipment.EquipmentManager(
@@ -194,7 +194,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         reg_dict_forward = deepcopy(self.reg_dict)
         # For some reason the new eq_dict won't pickle?
         # reg_dict_forward = \
-        #     regulator.initialize_controllable_regulators(
+        #     regulator.initialize_regulators(
         #         pd.read_csv(REGULATORS))
 
         # Randomly update steps.
