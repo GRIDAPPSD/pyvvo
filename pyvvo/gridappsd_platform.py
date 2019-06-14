@@ -155,19 +155,14 @@ class SimOutRouter:
             + platform_dt(int(header['timestamp'])).strftime(DATE_FORMAT)
         )
 
-        # Get message as json.
-        # TODO: Eventually we won't need to do this, as the API will
-        #   return json.
-        m = json.loads(message)
-
         # Log simulation time.
         self.log.debug(
             'Simulation timestamp: '
             + simulation_dt(
-                int(m['message']['timestamp'])).strftime(DATE_FORMAT))
+                int(message['message']['timestamp'])).strftime(DATE_FORMAT))
 
         # Filter the message.
-        result = self._filter_output_by_mrid(message=m)
+        result = self._filter_output_by_mrid(message=message)
 
         # Iterate over the result, and call each corresponding
         # function.

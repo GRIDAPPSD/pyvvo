@@ -207,7 +207,7 @@ class SimOutRouterTestCase(unittest.TestCase):
         with patch.object(self.router,
                           attribute='_filter_output_by_mrid') as m:
             _ = self.router._on_message(header=self.header,
-                                        message=json.dumps(self.meas))
+                                        message=self.meas)
 
         # Ensure _filter_output_by_mrid was called.
         m.assert_called_once_with(message=self.meas)
@@ -221,7 +221,7 @@ class SimOutRouterTestCase(unittest.TestCase):
                           return_value=[[0], [1], [2]]) as m2:
             # Call the _on_message method.
             _ = self.router._on_message(header=self.header,
-                                        message=json.dumps(self.meas))
+                                        message=self.meas)
 
         # Ensure each method was called appropriately.
         for idx, mock_func in enumerate(self.router.functions):
