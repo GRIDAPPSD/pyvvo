@@ -7,8 +7,8 @@ import numpy as np
 LOG = logging.getLogger(__name__)
 
 
-def initialize_controllable_regulators(df):
-    """Helper to initialize controllable regulators given a DataFrame
+def initialize_regulators(df):
+    """Helper to initialize regulators given a DataFrame
     with regulator information.
 
     Note that this method relies on the fact that our SPARQL query for
@@ -19,23 +19,22 @@ def initialize_controllable_regulators(df):
         sparql.SPARQLManager.query_regulators
 
     :returns out: dictionary, keyed by tap_changer_mrid, of
-        RegulatorSinglePhase objects. Note that only controllable
-        regulators are returned.
+        RegulatorSinglePhase objects. Note that all regulators are
+        included, even if they aren't controllable.
     """
-    # Filter by ltc_flag, and then drop the ltc_flag column. From the
-    # CIM description for TapChanger.ltcFlag: "Specifies whether or not
-    # a TapChanger has load tap changing capabilities."
-    # We don't care about regulators that can't tap under load.
-    ltc_reg = df[df['ltc_flag']].drop('ltc_flag', axis=1)
-
-    # If we're "throwing away" some regulators, mention it.
-    if ltc_reg.shape[0] != df.shape[0]:
-        LOG.info('{} regulator phases were discarded because their CIM '
-                 'ltcFlag was false.'.format(df.shape[0] - ltc_reg.shape[0]))
+    # Rename the ltc_flag to 'controllable'. Note this isn't technically
+    # correct by the CIM definition - we should probably be looking
+    # instead for the presence of a TapChangerControl object. However,
+    # in PyVVO's case, a regulator is only controllable if it can tap
+    # under load.
+    #
+    # From the CIM description for TapChanger.ltcFlag: "Specifies
+    # whether or not a TapChanger has load tap changing capabilities."
+    df2 = df.rename({'ltc_flag': 'controllable'}, axis=1, copy=False)
 
     # Use dictionary comprehension to create return.
     out = {r['tap_changer_mrid']: RegulatorSinglePhase(**r)
-           for r in ltc_reg.to_dict('records')}
+           for r in df2.to_dict('records')}
 
     return out
 
@@ -85,7 +84,7 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
                      'currentFlow', 'admittance', 'timeScheduled',
                      'temperature', 'powerFactor')
 
-    def __init__(self, mrid, name, phase, tap_changer_mrid,
+    def __init__(self, mrid, name, phase, controllable, tap_changer_mrid,
                  step_voltage_increment, control_mode, enabled, high_step,
                  low_step, neutral_step, step):
         """Take in parameters from the CIM. See Figure 7 here:
@@ -103,6 +102,10 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
             TransformerTank.PowerTransformer.name.
         :param phase: Phase of the TransformerTankEnd associated with
             this regulator. So, phase of the regulator.
+        :param controllable: Boolean. Indicates if this regulator can be
+            controlled/commanded or not. The False case would be a
+            regulator that must physically be changed by a human (or a
+            robot? But then is a motorized control a robot? I digress.).
         :param tap_changer_mrid: MRID of the TapChanger.
         :param step_voltage_increment: Definition from CIM: "Tap step
             increment, in percent of neutral voltage, per step
@@ -139,6 +142,12 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
         ################################################################
         # Start with calling the super.
         super().__init__(mrid=mrid, name=name, phase=phase)
+
+        # Type checking and parameter setting:
+        if not isinstance(controllable, bool):
+            raise TypeError('controllable must be a boolean.')
+
+        self.controllable = controllable
 
         if not isinstance(tap_changer_mrid, str):
             raise TypeError('tap_changer_mrid must be a string.')

@@ -11,14 +11,14 @@ REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
 REG_MEAS_MSG = os.path.join(THIS_DIR, 'reg_meas_message.json')
 
 
-class InitializeControllableRegulatorsTestCase(unittest.TestCase):
-    """Test initialize_controllable_regulators"""
+class InitializeRegulatorsTestCase(unittest.TestCase):
+    """Test initialize_regulators"""
 
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
         cls.df = pd.read_csv(REGULATORS)
-        cls.regs = regulator.initialize_controllable_regulators(cls.df)
+        cls.regs = regulator.initialize_regulators(cls.df)
 
     def test_twelve_tap_changers(self):
         """There should be 12 single phase regulators (4 x 3 phase)"""
@@ -29,24 +29,6 @@ class InitializeControllableRegulatorsTestCase(unittest.TestCase):
         for key, reg in self.regs.items():
             with self.subTest('reg = {}'.format(reg)):
                 self.assertIsInstance(reg, regulator.RegulatorSinglePhase)
-
-    def test_ltc_filter(self):
-        """If a regulator's ltc_flag is false, it shouldn't be included.
-        """
-        # Get a copy of the DataFrame.
-        df = self.df.copy(deep=True)
-
-        # Set the first three ltc_flags to False.
-        # NOTE: This is hard-coding based on the DataFrame have regs in
-        # order.
-        df.loc[0:2, 'ltc_flag'] = False
-
-        # Create regulators. NOTE: This should log.
-        with self.assertLogs(regulator.LOG, 'INFO'):
-            regs = regulator.initialize_controllable_regulators(df)
-
-        # There should be nine now instead of twelve.
-        self.assertEqual(len(regs), 9)
 
 
 # noinspection PyProtectedMember
@@ -104,7 +86,8 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
              'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
              'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
              'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
-             'step': 18, 'step_voltage_increment': 0.625}
+             'step': 18, 'step_voltage_increment': 0.625,
+             'controllable': True}
 
         cls.reg = regulator.RegulatorSinglePhase(**cls.inputs)
 
@@ -175,120 +158,127 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'tap_pos must be between'):
             self.reg.tap_pos = 17
 
+    def test_controllable(self):
+        self.assertEqual(self.inputs['controllable'], self.reg.controllable)
+
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
-    # noinspection PyPep8Naming
-    @classmethod
-    def setUpClass(cls):
-        cls.inputs = \
+    def setUp(self):
+        """We want fresh inputs each time as we'll be modifying fields.
+        """
+        self.i = \
             {'control_mode': 'voltage',
              'enabled': True, 'high_step': 32, 'low_step': 0,
              'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
              'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
              'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
-             'step': 1.0125, 'step_voltage_increment': 0.625}
+             'step': 1.0125, 'step_voltage_increment': 0.625,
+             'controllable': True}
 
     def test_bad_mrid_type(self):
-        i = deepcopy(self.inputs)
-        i['mrid'] = 10
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        self.i['mrid'] = 10
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_name_type(self):
-        i = deepcopy(self.inputs)
-        i['name'] = {'name': 'reg'}
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        self.i['name'] = {'name': 'reg'}
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_phase_type(self):
-        i = deepcopy(self.inputs)
-        i['name'] = ['name', 'yo']
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['name'] = ['name', 'yo']
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_phase_value(self):
-        i = deepcopy(self.inputs)
-        i['phase'] = 'N'
-        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['phase'] = 'N'
+        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_tap_changer_mrid_type(self):
-        i = deepcopy(self.inputs)
-        i['tap_changer_mrid'] = 111
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['tap_changer_mrid'] = 111
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_step_voltage_increment_type(self):
-        i = deepcopy(self.inputs)
-        i['step_voltage_increment'] = 1
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['step_voltage_increment'] = 1
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_control_mode_type(self):
-        i = deepcopy(self.inputs)
-        i['control_mode'] = (0, 0, 1)
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['control_mode'] = (0, 0, 1)
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_control_mode_value(self):
-        i = deepcopy(self.inputs)
-        i['control_mode'] = 'my mode'
-        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['control_mode'] = 'my mode'
+        self.assertRaises(ValueError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_enabled_type(self):
-        i = deepcopy(self.inputs)
-        i['enabled'] = 'true'
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['enabled'] = 'true'
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_high_step_type(self):
-        i = deepcopy(self.inputs)
-        i['high_step'] = 10.1
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['high_step'] = 10.1
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_low_step_type(self):
-        i = deepcopy(self.inputs)
-        i['low_step'] = 10+1j
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['low_step'] = 10+1j
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_neutral_step_type(self):
-        i = deepcopy(self.inputs)
-        i['neutral_step'] = '16'
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['neutral_step'] = '16'
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_bad_step_values_1(self):
-        i = deepcopy(self.inputs)
-        i['low_step'] = 17
-        i['neutral_step'] = 16
-        i['high_step'] = 20
+        
+        self.i['low_step'] = 17
+        self.i['neutral_step'] = 16
+        self.i['high_step'] = 20
         with self.assertRaisesRegex(ValueError, 'The following is not True'):
-            regulator.RegulatorSinglePhase(**i)
+            regulator.RegulatorSinglePhase(**self.i)
 
     def test_bad_step_values_2(self):
-        i = deepcopy(self.inputs)
-        i['low_step'] = 0
-        i['neutral_step'] = 21
-        i['high_step'] = 20
+        
+        self.i['low_step'] = 0
+        self.i['neutral_step'] = 21
+        self.i['high_step'] = 20
         with self.assertRaisesRegex(ValueError, 'The following is not True'):
-            regulator.RegulatorSinglePhase(**i)
+            regulator.RegulatorSinglePhase(**self.i)
 
     def test_bad_step_values_3(self):
-        i = deepcopy(self.inputs)
-        i['low_step'] = 0
-        i['neutral_step'] = 0
-        i['high_step'] = -1
+        
+        self.i['low_step'] = 0
+        self.i['neutral_step'] = 0
+        self.i['high_step'] = -1
         with self.assertRaisesRegex(ValueError, 'The following is not True'):
-            regulator.RegulatorSinglePhase(**i)
+            regulator.RegulatorSinglePhase(**self.i)
 
     def test_bad_step_type(self):
-        i = deepcopy(self.inputs)
-        i['step'] = 2.0
-        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **i)
+        
+        self.i['step'] = 2.0
+        self.assertRaises(TypeError, regulator.RegulatorSinglePhase, **self.i)
 
     def test_step_out_of_range_1(self):
-        i = deepcopy(self.inputs)
-        i['step'] = 33
+        
+        self.i['step'] = 33
         with self.assertRaisesRegex(ValueError, 'between low_step '):
-            regulator.RegulatorSinglePhase(**i)
+            regulator.RegulatorSinglePhase(**self.i)
 
     def test_step_out_of_range_2(self):
-        i = deepcopy(self.inputs)
-        i['step'] = -1
+        
+        self.i['step'] = -1
         with self.assertRaisesRegex(ValueError, 'between low_step '):
-            regulator.RegulatorSinglePhase(**i)
+            regulator.RegulatorSinglePhase(**self.i)
+            
+    def test_controllable_bad_type(self):
+        self.i['controllable'] = 0
+        with self.assertRaisesRegex(TypeError, 'controllable'):
+            regulator.RegulatorSinglePhase(**self.i)
 
 
 if __name__ == '__main__':
