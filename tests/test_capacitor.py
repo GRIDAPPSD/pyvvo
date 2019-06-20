@@ -17,7 +17,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         """Create CapacitorSinglePhase object."""
         cls.cap = \
             capacitor.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
-                                           state='OPEN', mode='ACTIVEpower',
+                                           state=1, mode='ACTIVEpower',
                                            controllable=True)
 
     def test_name(self):
@@ -37,8 +37,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         self.assertTrue(self.cap.controllable)
 
     def test_state(self):
-        """State should be cast to upper case."""
-        self.assertEqual('OPEN', self.cap.state)
+        self.assertEqual(1, self.cap.state)
 
     def test_state_none(self):
         """None is a valid state to initialize a capacitor."""
@@ -59,15 +58,15 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 
         self.assertIsNone(cap.state)
 
-        cap.state = 'OPEN'
+        cap.state = 0
 
-        self.assertEqual(cap.state, 'OPEN')
+        self.assertEqual(cap.state, 0)
         self.assertEqual(cap.state_old, None)
 
-        cap.state = 'CLOSED'
+        cap.state = 1
 
-        self.assertEqual(cap.state, 'CLOSED')
-        self.assertEqual(cap.state_old, 'OPEN')
+        self.assertEqual(cap.state, 1)
+        self.assertEqual(cap.state_old, 0)
 
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
@@ -95,28 +94,28 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
     def test_state_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
-                          name='1', mrid='1', phase='c', state=True,
+                          name='1', mrid='1', phase='c', state=1.0,
                           mode='admittance', controllable=True)
 
     def test_state_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
-                          name='1', mrid='1', phase='b', state='stuck',
+                          name='1', mrid='1', phase='b', state=3,
                           mode='admittance', controllable=True)
 
     def test_mode_bad_type(self):
         self.assertRaises(TypeError, capacitor.CapacitorSinglePhase,
-                          name='1', mrid='1', phase='b', state='stuck',
+                          name='1', mrid='1', phase='b', state=0,
                           mode=0, controllable=True)
 
     def test_mode_bad_value(self):
         self.assertRaises(ValueError, capacitor.CapacitorSinglePhase,
-                          name='1', mrid='1', phase='b', state='stuck',
+                          name='1', mrid='1', phase='b', state=0,
                           mode='vvo', controllable=True)
 
     def test_controllable_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'controllable must be a bool'):
             capacitor.CapacitorSinglePhase(
-                name='1', mrid='1', phase='b', state='OPEN',
+                name='1', mrid='1', phase='b', state=0,
                 mode='temperature', controllable='True')
 
     def test_mode_controllable_mismatch_1(self):
@@ -132,13 +131,13 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
                 mode='voltage', controllable=False)
 
 
-class InitializeControllableCapacitors(unittest.TestCase):
-    """Test initialize_controllable_capacitors"""
+class InitializeCapacitors(unittest.TestCase):
+    """Test initialize_capacitors"""
 
     @classmethod
     def setUpClass(cls):
         cls.df = pd.read_csv(CAPACITORS)
-        cls.caps = capacitor.initialize_controllable_capacitors(cls.df)
+        cls.caps = capacitor.initialize_capacitors(cls.df)
 
     def test_length(self):
         """The return should have 10 items, as there are 3 controllable
@@ -147,7 +146,7 @@ class InitializeControllableCapacitors(unittest.TestCase):
         self.assertEqual(len(self.caps), 10)
 
     def test_is_capacitor_or_dict(self):
-        """Ensure each result is indeed a SinglePhaseCapacitor."""
+        """Ensure each result is CapacitorSinglePhase or dict of them."""
         cap_count = 0
         dict_count = 0
         dict_cap_count = 0

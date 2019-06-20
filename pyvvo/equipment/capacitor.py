@@ -33,7 +33,7 @@ REG_CONTROL = ['discrete', 'ctrlenabled', 'mode', 'monphs', 'deadband',
 CAP_INPUTS = ['name', 'mrid', 'phase', 'mode', 'controllable']
 
 
-def initialize_controllable_capacitors(df):
+def initialize_capacitors(df):
     """
     Helper to initialize controllable capacitors given a DataFrame with
     capacitor information. The DataFrame should come from
@@ -106,8 +106,8 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     # The 'state' attribute corresponds to:
     STATE_CIM_PROPERTY = 'ShuntCompensator.sections'
 
-    # Allowed states (case sensitive for simplicity)
-    STATES = ('OPEN', 'CLOSED')
+    # Allowed states. 0 for open, 1 for closed.
+    STATES = (0, 1)
 
     # Allowed control modes (case insensitive). Corresponds to CIM
     # RegulatingControlModeKind. May need to add "MANUAL" option in the
@@ -183,19 +183,15 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
 
     def _check_state(self, value):
         """Method required by base class, called before setting state."""
-        if value is None:
-            # If state is None, simply set.
-            self._state = None
-        elif isinstance(value, str):
+        if isinstance(value, int):
 
             # Ensure it's valid.
             if value not in self.STATES:
-                state_str = list_to_string(self.STATES, 'or')
-                m = 'state must be {} (case sensitive).'.format(state_str)
+                m = 'state must be one of {}.'.format(self.STATES)
                 raise ValueError(m)
-        else:
+        elif value is not None:
             # State is a bad type.
-            raise TypeError('state must None or be a string.')
+            raise TypeError('state must None or one of {}'.format(self.STATES))
 
     ####################################################################
     # PROPERTY GETTERS AND SETTERS
