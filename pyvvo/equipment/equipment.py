@@ -115,8 +115,8 @@ class EquipmentManager:
         """Initialize.
 
         :param eq_dict: Dictionary of EquipmentSinglePhase objects
-            as returned by regulator.initialize_controllable_regulators
-            or capacitor.initialize_controllable_capacitors.
+            as returned by regulator.initialize_regulators
+            or capacitor.initialize_capacitors.
         :param eq_meas: Pandas DataFrame as returned by
             sparql.SPARQLManager's query_rtc_measurements method, or
             sparql.SPARQLManager's query query_capacitor_measurements
@@ -138,25 +138,83 @@ class EquipmentManager:
         if not isinstance(eq_meas, DataFrame):
             raise TypeError('eq_meas must be a Pandas DataFrame.')
 
-        if len(eq_dict) != eq_meas.shape[0]:
-            raise ValueError('The number of measurements and number of '
-                             'regulators do not match!')
-
         # Simply assign.
         self.eq_dict = eq_dict
         self.eq_meas = eq_meas
 
-        # Create a map from measurement MRID to RegulatorSinglePhase.
+        # Create a map from measurement MRID to EquipmentSinglePhase.
         self.meas_eq_map = {}
 
-        for row in self.eq_meas.itertuples():
-            self.meas_eq_map[getattr(row, meas_mrid_col)] = \
-                self.eq_dict[getattr(row, eq_mrid_col)]
+        # Loop over the equipment dictionary.
+        for eq_mrid, eq_or_dict in self.eq_dict.items():
+            # Extract the relevant measurements.
+            meas = self.eq_meas[self.eq_meas[eq_mrid_col] == eq_mrid]
 
-        if len(self.meas_eq_map) != len(self.eq_dict):
-            raise ValueError('The eq_dict and eq_meas inputs are '
-                             'inconsistent as the resulting map has '
-                             'a different shape.')
+            # Ensure the length isn't 0.
+            if meas.shape[0] < 1:
+                raise ValueError('The eq_meas input is missing equipment '
+                                 'mrid {}'.format(eq_mrid))
+
+            if isinstance(eq_or_dict, dict):
+                # Ensure the length of meas matches the length of
+                # eq_or_dict
+                if len(eq_or_dict) != meas.shape[0]:
+                    raise ValueError('The number of measurements for '
+                                     'equipment with mrid {} does not '
+                                     'match the number of EquipmentSinglePhase'
+                                     ' objects for this piece of '
+                                     'equipment.'.format(eq_mrid))
+
+                # Loop over the phases and map measurements to objects.
+                for phase, eq in eq_or_dict.items():
+                    meas_phase = meas[meas['phase'] == phase]
+
+                    # Ensure there's just one measurement.
+                    if meas_phase.shape[0] != 1:
+                        raise ValueError('There is no measurement for phase '
+                                         '{} for equipment with mrid '
+                                         '{}'.format(phase, eq_mrid))
+
+                    # Map it.
+                    self.meas_eq_map[meas_phase[meas_mrid_col].values[0]] = eq
+
+            elif isinstance(eq_or_dict, EquipmentSinglePhase):
+                # Simple 1:1 mapping.
+                if meas.shape[0] != 1:
+                    raise ValueError('Received {} measurements for equipment '
+                                     'with mrid {}, but expected 1.'.format(
+                                      meas.shape[0], eq_mrid))
+
+                # Map it.
+                self.meas_eq_map[meas[meas_mrid_col].values[0]] = eq_or_dict
+
+    def lookup_eq_by_mrid_and_phase(self, mrid, phase=None):
+        """Helper function to look up equipment in the eq_dict.
+
+        :param mrid: MRID of the equipment to find.
+        :param phase: Optional. Phase of the equipment to find.
+        """
+        # Start by just grabbing the equipment.
+        eq = self.eq_dict[mrid]
+
+        # eq could be EquipmentSinglePhase or a dictionary.
+        if isinstance(eq, EquipmentSinglePhase):
+            # If given a phase, ensure it matches.
+            if (phase is not None) and (eq.phase != phase):
+                raise ValueError('The equipment with mrid {} has phase '
+                                 '{}, not {}'.format(mrid, eq.phase, phase))
+
+            # We're done here.
+            return eq
+
+        elif isinstance(eq, dict):
+            if phase is None:
+                raise ValueError('The equipment with mrid {} has multiple '
+                                 'EquipmentSinglePhase objects, but no phase '
+                                 'was specified!')
+
+            # Grab and return the phase entry.
+            return eq[phase]
 
     def update_state(self, msg):
         """Given a message from a gridappsd_platform SimOutRouter,
@@ -167,7 +225,7 @@ class EquipmentManager:
         """
         # # Dump message for testing:
         # import json
-        # with open('reg_meas_message.json', 'w') as f:
+        # with open('cap_meas_message.json', 'w') as f:
         #     json.dump(msg, f)
 
         # Type checking:
@@ -219,18 +277,17 @@ class EquipmentManager:
         NOTE: eq_dict_forward and self.eq_dict should be identical
         except for object states.
         """
-        # Initialize lists of parameters.
-        eq_ids = []
-        eq_attr = []
-        eq_forward_list = []
-        eq_reverse_list = []
+        # Nested helper function.
+        def update(mgr, out, eq_for, eq_for_mrid):
+            # If this equipment isn't controllable, don't build a
+            # command.
+            if not eq_for.controllable:
+                return
 
-        # Loop over equipment.
-        for eq_mrid, eq_forward in eq_dict_forward.items():
             # Lookup the equipment object in self's eq_dict
             # corresponding to this piece of equipment.
             try:
-                eq_reverse = self.eq_dict[eq_mrid]
+                eq_rev = mgr.eq_dict[eq_for_mrid]
             except KeyError:
                 m = 'The given eq_dict_forward is not matching up with '\
                     'self.eq_dict! Ensure these eq_dicts came from the '\
@@ -238,18 +295,30 @@ class EquipmentManager:
 
                 raise ValueError(m) from None
 
-            # Add the tap change mrid.
-            eq_ids.append(eq_mrid)
-            # Add the attribute.
-            eq_attr.append(eq_forward.STATE_CIM_PROPERTY)
-            # Add the forward position.
-            eq_forward_list.append(eq_forward.step)
-            # Grab the reverse position.
-            eq_reverse_list.append(eq_reverse.step)
+            # Append values to output.
+            out['object_ids'].append(eq_mrid)
+            out['attributes'].append(eq_for.STATE_CIM_PROPERTY)
+            out['forward_values'].append(eq_for.state)
+            out['reverse_values'].append(eq_rev.state)
 
-        return {"object_ids": eq_ids, "attributes": eq_attr,
-                "forward_values": eq_forward_list,
-                "reverse_values": eq_reverse_list}
+        # Initialize output.
+        output = {"object_ids": [], "attributes": [], "forward_values": [],
+                  "reverse_values": []}
+
+        # Loop over equipment.
+        for eq_mrid, eq_forward in eq_dict_forward.items():
+            if isinstance(eq_forward, EquipmentSinglePhase):
+                # Call helper.
+                update(mgr=self, out=output, eq_for=eq_forward,
+                       eq_for_mrid=eq_mrid)
+            elif isinstance(eq_forward, dict):
+                # Loop over the phases.
+                for eq_single in eq_forward.values():
+                    # Call helper.
+                    update(mgr=self, out=output, eq_for=eq_single,
+                           eq_for_mrid=eq_mrid)
+
+        return output
 
 # class EquipmentMultiPhase:
 #     """
