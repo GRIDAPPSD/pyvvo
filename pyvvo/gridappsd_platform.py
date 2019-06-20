@@ -464,45 +464,53 @@ class PlatformManager:
         """
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
-        geo_name = "_24809814-4EC6-29D2-B509-7F8BFB646437"
-        subgeo_name = "_1CD7D2EE-3C91-3248-5662-A43EFEFAC224"
+        geo_name = "_79C9D814-3CE0-DC11-534D-BDA1AF949810"
+        subgeo_name = "_A1170111-942A-6ABD-D325-C64886DC4D7D"
         # 13-node:
         # model_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
         # sim_name = "ieee13nodeckt"
         # 8500 node:
-        # model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
-        # sim_name = "ieee8500"
+        model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
+        sim_name = "ieee8500"
         # 123-node:
-        model_mrid = '_C1C3E687-6FFD-C753-582B-632A27E28507'
-        sim_name = 'ieee123'
+        # model_mrid = '_C1C3E687-6FFD-C753-582B-632A27E28507'
+        # sim_name = 'ieee123'
+
         sim_request = \
-            {
-                "power_system_config": {
-                    "GeographicalRegion_name": geo_name,
-                    "SubGeographicalRegion_name": subgeo_name,
-                    "Line_name": model_mrid
-                },
-                "application_config": {"applications": [{"name":"sample_app","config_string":""}]},
-                "simulation_config": {
-                    "start_time": "1248152400",
-                    "duration": "30",
-                    "simulator": "GridLAB-D",
-                    "timestep_frequency": "1000",
-                    "timestep_increment": "1000",
-                    "run_realtime": True,
-                    "simulation_name": sim_name,
-                    "power_flow_solver_method": "NR",
-                    "model_creation_config": {
-                        "load_scaling_factor": "1",
-                        "schedule_name": "ieeezipload",
-                        "z_fraction": "0",
-                        "i_fraction": "1",
-                        "p_fraction": "0",
-                        "randomize_zipload_fractions": False,
-                        "use_houses": True
-                    }
-                }
-            }
+            {"power_system_config": {
+                "GeographicalRegion_name": geo_name,
+                "SubGeographicalRegion_name": subgeo_name,
+                "Line_name": model_mrid},
+                "application_config": {"applications": []},
+                "simulation_config":
+                    {"start_time": "1560369428",
+                     "duration": "5",
+                     "simulator": "GridLAB-D",
+                     "timestep_frequency": "1000",
+                     "timestep_increment": "1000",
+                     "run_realtime": True,
+                     "simulation_name": sim_name,
+                     "power_flow_solver_method": "NR",
+                     "model_creation_config": {
+                         "load_scaling_factor": "1",
+                         "schedule_name": "ieeezipload",
+                         "z_fraction": "0", "i_fraction": "1",
+                         "p_fraction": "0",
+                         "randomize_zipload_fractions": False,
+                         "use_houses": False},
+                     "startTime": "2019-06-12 12:57:08",
+                     "runInRealtime": True,
+                     "simulationName": "ieee8500",
+                     "modelCreationConfig": {
+                         "load_scaling_factor": "1",
+                         "schedule_name": "ieeezipload",
+                         "z_fraction": "0", "i_fraction": "1",
+                         "p_fraction": "0",
+                         "randomize_zipload_fractions": False,
+                         "use_houses": False}},
+                "test_config": {"events": [],
+                                "appId":
+                                    "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"}}
 
         # Run simulation.
         sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,
