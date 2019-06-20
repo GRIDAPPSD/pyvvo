@@ -128,12 +128,18 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         :param mode: Control mode, must be one of MODES. In the CIM,
             this is a RegulatingControl.RegulatingControlModeKind. Note
             that if None, the capacitor is assumed to be uncontrollable.
+        :param controllable: Boolean. Whether or not this capacitor is
+            controllable. If False, PyVVO will never attempt to send a
+            command to this capacitor.
+        :param state: Integer, must be in STATES attribute. 0 indicates
+            open, 1 indicates closed.
         """
         # Get log.
         self.log = logging.getLogger(__name__)
 
         # Call super.
-        super().__init__(mrid=mrid, name=name, phase=phase)
+        super().__init__(mrid=mrid, name=name, phase=phase,
+                         controllable=controllable)
 
         # Check and assign MRID.
         if not isinstance(mrid, str):
@@ -159,12 +165,6 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         else:
             # The None case.
             self._mode = mode
-
-        # Check and assign controllable.
-        if not isinstance(controllable, (bool, bool_)):
-            raise TypeError('controllable must be a boolean.')
-
-        self._controllable = controllable
 
         # Ensure 'controllable' and 'mode' do not conflict.
         if ((self.mode is None) and self.controllable) \

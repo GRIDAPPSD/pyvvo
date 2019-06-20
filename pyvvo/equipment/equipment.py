@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 import logging
 from collections import deque
 from pandas import DataFrame
+from numpy import bool_
 from pyvvo import utils
 
 
@@ -13,7 +14,7 @@ class EquipmentSinglePhase(ABC):
 
     PHASES = ('A', 'B', 'C')
 
-    def __init__(self, mrid, name, phase):
+    def __init__(self, mrid, name, phase, controllable):
         # Check inputs and assign.
         if not isinstance(mrid, str):
             raise TypeError('mrid must be a string.')
@@ -37,6 +38,12 @@ class EquipmentSinglePhase(ABC):
         # The state_deque will be used to track the current (index 0)
         # and previous (index 1) states.
         self._state_deque = deque([None, None], 2)
+
+        # Check and assign controllable.
+        if not isinstance(controllable, (bool, bool_)):
+            raise TypeError('controllable must be a boolean.')
+
+        self._controllable = controllable
 
     ####################################################################
     # PROPERTIES
@@ -78,6 +85,10 @@ class EquipmentSinglePhase(ABC):
     @property
     def state_old(self):
         return self._state_deque[-1]
+
+    @property
+    def controllable(self):
+        return self._controllable
 
     ####################################################################
     # METHODS

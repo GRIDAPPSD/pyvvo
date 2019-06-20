@@ -141,13 +141,8 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
         # CIM Properties
         ################################################################
         # Start with calling the super.
-        super().__init__(mrid=mrid, name=name, phase=phase)
-
-        # Type checking and parameter setting:
-        if not isinstance(controllable, bool):
-            raise TypeError('controllable must be a boolean.')
-
-        self.controllable = controllable
+        super().__init__(mrid=mrid, name=name, phase=phase,
+                         controllable=controllable)
 
         if not isinstance(tap_changer_mrid, str):
             raise TypeError('tap_changer_mrid must be a string.')
