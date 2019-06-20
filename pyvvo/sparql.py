@@ -290,6 +290,10 @@ class SPARQLManager:
 
     # Query for getting capacitor information. Should be formatted with
     # a feeder ID: .format(feeder_mrid=feeder_mrid)
+    # NOTE: For whatever reason, adding
+    # "?s c:ShuntCompensator.sections ?state. " makes our query come
+    # back empty. Looking at the CIM diagram, this shouldn't be the
+    # case...
     CAPACITOR_QUERY = \
         (PREFIX +
          "SELECT ?name ?basev ?nomu ?bsection ?bus ?conn ?grnd ?phase "
@@ -549,7 +553,7 @@ class SPARQLManager:
     # TODO: This query could be optimized.
     CAPACITOR_STATUS_MEASUREMENT_QUERY = \
         (PREFIX +
-         "SELECT ?{cap_mrid} ?{meas_mrid} "
+         "SELECT ?{cap_mrid} ?{meas_mrid} ?phase "
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
          "?eq c:Equipment.EquipmentContainer ?fdr."
@@ -570,7 +574,7 @@ class SPARQLManager:
          '?trm c:Terminal.ConnectivityNode ?cn.'
          '?cn c:IdentifiedObject.name ?bus.'
          '?s c:Measurement.phases ?phsraw .'
-         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)}}'
          '}} ORDER BY ?{cap_mrid}'
          )
 
