@@ -647,7 +647,7 @@ class SPARQLManager:
 
     SWITCHES_QUERY = \
         (PREFIX +
-         "SELECT ?switch_name ?switch_mrid "
+         "SELECT ?name ?mrid "
          '(group_concat(distinct ?phs;separator="") as ?phase) '
          "WHERE {{ "
          'VALUES ?feeder_mrid {{"{feeder_mrid}"}}. '
@@ -655,16 +655,16 @@ class SPARQLManager:
          "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
          "?s c:Equipment.EquipmentContainer ?fdr. "
          "?s r:type ?cimraw. "
-         "?s c:IdentifiedObject.name ?switch_name. "
-         "?s c:IdentifiedObject.mRID ?switch_mrid. "
+         "?s c:IdentifiedObject.name ?name. "
+         "?s c:IdentifiedObject.mRID ?mrid. "
          "OPTIONAL {{ "
            "?swp c:SwitchPhase.Switch ?s. "
            "?swp c:SwitchPhase.phaseSide1 ?phsraw. "
            'bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs). ' 
            "}}"
          "}} "
-         "GROUP BY ?switch_name ?switch_mrid ?phase "
-         "ORDER BY ?switch_mrid "
+         "GROUP BY ?name ?mrid ?phase "
+         "ORDER BY ?mrid "
          )
 
 
