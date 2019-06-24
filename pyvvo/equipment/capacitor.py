@@ -141,10 +141,6 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         super().__init__(mrid=mrid, name=name, phase=phase,
                          controllable=controllable)
 
-        # Check and assign MRID.
-        if not isinstance(mrid, str):
-            raise TypeError('mrid must be a string.')
-
         # Check and assign mode.
         if (not isinstance(mode, str)) and (mode is not None):
             raise TypeError('mode must be a string or None.')
