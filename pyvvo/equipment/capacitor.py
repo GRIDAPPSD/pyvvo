@@ -35,64 +35,52 @@ CAP_INPUTS = ['name', 'mrid', 'phase', 'mode', 'controllable']
 
 def initialize_capacitors(df):
     """
-    Helper to initialize controllable capacitors given a DataFrame with
+    Helper to initialize capacitors given a DataFrame with
     capacitor information. The DataFrame should come from
     sparql.SPARQLManager.query_capacitors.
 
     ASSUMPTION: If the 'phase' column value is nan, the capacitor is
     a three phase cap.
-
-    TODO: This function could certainly be re-ordered/refactored to
-        be more efficient, but I'm not going to worry too much about
-        it for now.
     """
-    # If the 'phase' column is nan, replicate the row so we have one for
-    # phases A, B, and C.
-    nan_phase = df['phase'].isnull()
-    df_mod = df.append([df[nan_phase]] * 2, ignore_index=True)
-
-    # We've replicated the phases, but now need to update from nan to
-    # A, B, and C. Note this may not be hyper efficient, but really,
-    # how many capacitors are we going to be dealing with?
-    grouped = df_mod[df_mod['phase'].isnull()].groupby(['mrid'])
-    for idx in grouped.groups.values():
-        # Sanity check length of group.
-        if len(idx) != len(EquipmentSinglePhase.PHASES):
-            raise ValueError('Something really bizarre is going on.')
-
-        # Iterate over PHASES and update.
-        for p_idx, p in enumerate(EquipmentSinglePhase.PHASES):
-            df_mod.loc[idx[p_idx], 'phase'] = p
-
     # Filter to get controllable capacitors. Uncontrollable capacitors
     # do not have a "RegulatingControl" object, and are thus missing
     # the attributes in REG_CONTROL.
-    rc = df_mod.loc[:, REG_CONTROL]
+    rc = df.loc[:, REG_CONTROL]
     c_mask = ~rc.isnull().all(axis=1)
     # Add a 'controllable' column.
-    df_mod['controllable'] = c_mask
+    df['controllable'] = c_mask
 
     # Cast any nan modes to None.
-    df_mod.loc[~c_mask, 'mode'] = None
+    df.loc[~c_mask, 'mode'] = None
 
     # Initialize return.
     out = {}
 
-    grouped = df_mod.groupby(['mrid'])
+    # Loop over the DataFrame, considering only the columns we care
+    # about.
+    for row in df[CAP_INPUTS].itertuples(index=False):
+        # Get the row as a dictionary. Note these methods are not
+        # private, just named with an underscore to avoid name
+        # conflicts.
+        # https://docs.python.org/3/library/collections.html#collections.namedtuple
+        # noinspection PyProtectedMember
+        row_dict = row._asdict()
 
-    for mrid, idx in grouped.groups.items():
-        if len(idx) == 1:
-            # Simply create object.
-            out[mrid] = \
-                CapacitorSinglePhase(**df_mod[CAP_INPUTS].loc[idx[0]].to_dict())
-            # Move to next iteration of the loop.
-            continue
+        # If the phase is NaN, we'll be creating three single phase
+        # objects, one for each phase.
+        if pd.isna(row.phase):
+            out[row.mrid] = {}
+            # Loop over allowable phases and create an object for
+            # each one.
+            for p in EquipmentSinglePhase.PHASES:
+                # Overwrite the phase.
+                row_dict['phase'] = p
 
-        # If we're here, we need a dictionary.
-        out[mrid] = \
-            {df_mod.loc[i, 'phase']:
-             CapacitorSinglePhase(**df_mod[CAP_INPUTS].loc[i].to_dict())
-             for i in idx}
+                # Create an entry.
+                out[row.mrid][p] = CapacitorSinglePhase(**row_dict)
+        else:
+            # Simply create a CapacitorSinglePhase.
+            out[row.mrid] = CapacitorSinglePhase(**row_dict)
 
     return out
 
