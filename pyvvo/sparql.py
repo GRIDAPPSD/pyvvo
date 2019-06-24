@@ -160,6 +160,12 @@ class SPARQLManager:
             'Measurements associated with bus {} obtained.'.format(bus_mrid))
         return result
 
+    def query_switches(self):
+        result = self._query(self.SWITCHES_QUERY.format(
+            feeder_mrid=self.feeder_mrid), to_numeric=True)
+        self.log.info('Switch information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -232,6 +238,9 @@ class SPARQLManager:
         output = pd.DataFrame(list_of_dicts)
         if to_numeric:
             output = output.apply(pd.to_numeric, errors='ignore')
+
+        # Replace the empty string with nan.
+        output.replace(to_replace='', value=pd.np.nan, inplace=True)
 
         # Warn if there are NaNs.
         if output.isnull().values.any():
@@ -634,6 +643,28 @@ class SPARQLManager:
          '?s c:Measurement.phases ?phsraw .'
          '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phases)}}'
          '}} ORDER BY ?class ?type ?name'
+         )
+
+    SWITCHES_QUERY = \
+        (PREFIX +
+         "SELECT ?switch_name ?switch_mrid "
+         '(group_concat(distinct ?phs;separator="") as ?phase) '
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}}. '
+         'VALUES ?cimraw {{c:LoadBreakSwitch c:Recloser c:Breaker}}. '
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+         "?s c:Equipment.EquipmentContainer ?fdr. "
+         "?s r:type ?cimraw. "
+         "?s c:IdentifiedObject.name ?switch_name. "
+         "?s c:IdentifiedObject.mRID ?switch_mrid. "
+         "OPTIONAL {{ "
+           "?swp c:SwitchPhase.Switch ?s. "
+           "?swp c:SwitchPhase.phaseSide1 ?phsraw. "
+           'bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs). ' 
+           "}}"
+         "}} "
+         "GROUP BY ?switch_name ?switch_mrid ?phase "
+         "ORDER BY ?switch_mrid "
          )
 
 
