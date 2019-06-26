@@ -1,5 +1,5 @@
 import unittest
-from pyvvo.equipment import capacitor
+from pyvvo.equipment import capacitor, equipment
 import os
 import pandas as pd
 import numpy as np
@@ -20,6 +20,9 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
                                            state=1, mode='ACTIVEpower',
                                            controllable=True)
 
+    def test_equipment(self):
+        self.assertIsInstance(self.cap, equipment.EquipmentSinglePhase)
+    
     def test_name(self):
         self.assertEqual(self.cap.name, 'cap1')
 

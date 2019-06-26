@@ -1,5 +1,5 @@
 import unittest
-from pyvvo.equipment import regulator
+from pyvvo.equipment import regulator, equipment
 from copy import deepcopy
 import os
 import pandas as pd
@@ -90,6 +90,9 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
              'controllable': True}
 
         cls.reg = regulator.RegulatorSinglePhase(**cls.inputs)
+
+    def test_equipment(self):
+        self.assertIsInstance(self.reg, equipment.EquipmentSinglePhase)
 
     def test_attributes(self):
         """The inputs should match the attributes."""
