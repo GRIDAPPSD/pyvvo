@@ -117,7 +117,7 @@ class SimOutRouter:
             where 'functions' can either be a callable or list of
             callables that will accept a list of measurements, and
             'mrids' is a list of mrids to extract from the simulation
-            output.
+            output, which will correspond to measurements.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -126,10 +126,6 @@ class SimOutRouter:
         self.platform = platform_manager
 
         # Assign topic to subscribe to.
-        # TODO: Update this when new app-container-base container is
-        #   built. We should use topics.py from gridappsd.
-        # self.output_topic = "{}.{}.{}".format(topics.BASE_SIMULATION_TOPIC,
-        #                                       'sensors', sim_id)
         self.output_topic = \
             topics.simulation_output_topic(simulation_id=sim_id)
 
