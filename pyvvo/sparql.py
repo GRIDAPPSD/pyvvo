@@ -43,7 +43,7 @@ class SPARQLManager:
         :param timeout: timeout for querying the blazegraph database.
         """
         # Configure log.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Connect to the platform.
         self.gad = get_gad_object()

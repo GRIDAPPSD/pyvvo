@@ -123,7 +123,7 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
             open, 1 indicates closed.
         """
         # Get log.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Call super.
         super().__init__(mrid=mrid, name=name, phase=phase,

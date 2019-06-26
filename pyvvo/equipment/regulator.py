@@ -135,7 +135,7 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
             or less than highStep."
         """
         # Setup logging.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         ################################################################
         # CIM Properties

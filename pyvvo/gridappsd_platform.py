@@ -120,7 +120,7 @@ class SimOutRouter:
             output.
         """
         # Setup logging.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Assign platform_manager.
         self.platform = platform_manager
@@ -272,7 +272,7 @@ class PlatformManager:
         :param timeout: Timeout for GridAPPS-D API requests.
         """
         # Setup logging.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Assign timeout.
         self.timeout = timeout

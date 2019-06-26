@@ -398,7 +398,7 @@ class GLMManager:
         :type model_is_path: Boolean
         """
         # Setup logging.
-        self.log = logging.getLogger(__name__)
+        self.log = logging.getLogger(self.__class__.__name__)
 
         # Parse the model.
         self.model_dict = parse(model, model_is_path)
