@@ -89,6 +89,6 @@ cd ${build_dir_pyvvo}
 
 # Build PyVVO
 printf "Building pyvvo container...\n"
-docker build -t pyvvo:${tag} \
+docker build -t gridappsd/pyvvo:${tag} \
     --build-arg TAG=${tag} \
     --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} .
