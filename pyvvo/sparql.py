@@ -15,6 +15,8 @@ REG_MEAS_MEAS_MRID_COL = 'pos_meas_mrid'
 REG_MEAS_REG_MRID_COL = 'tap_changer_mrid'
 CAP_MEAS_MEAS_MRID_COL = 'state_meas_mrid'
 CAP_MEAS_CAP_MRID_COL = 'cap_mrid'
+SWITCH_MEAS_MEAS_MRID_COL = 'state_meas_mrid'
+SWITCH_MEAS_SWITCH_MRID_COL = 'switch_mrid'
 
 
 class SPARQLManager:
@@ -164,6 +166,18 @@ class SPARQLManager:
         result = self._query(self.SWITCHES_QUERY.format(
             feeder_mrid=self.feeder_mrid), to_numeric=True)
         self.log.info('Switch information obtained.')
+        return result
+
+    def query_switch_measurements(self):
+        """Query status measurements attached to switches."""
+        result = self._query(
+            self.SWITCH_STATUS_QUERY.format(
+                feeder_mrid=self.feeder_mrid,
+                switch_mrid=SWITCH_MEAS_SWITCH_MRID_COL,
+                meas_mrid=SWITCH_MEAS_MEAS_MRID_COL
+            ), to_numeric=False
+        )
+        self.log.info('Switch status measurement information obtained.')
         return result
 
     ####################################################################
@@ -665,6 +679,26 @@ class SPARQLManager:
          "}} "
          "GROUP BY ?name ?mrid ?phase "
          "ORDER BY ?mrid "
+         )
+
+    SWITCH_STATUS_QUERY = \
+        (PREFIX +
+         "SELECT ?{switch_mrid} ?{meas_mrid} ?phase "
+         "WHERE {{ "
+         'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+         "?eq c:Equipment.EquipmentContainer ?fdr."
+         "?fdr c:IdentifiedObject.mRID ?feeder_mrid."
+         "{{ ?s r:type c:Discrete. }} "
+         "?s r:type ?type . "
+         "?s c:IdentifiedObject.mRID ?{meas_mrid} . "
+         "?s c:Measurement.PowerSystemResource ?eq . "
+         "?s c:Measurement.Terminal ?trm . "
+         "?s c:Measurement.phases ?phsraw . "
+         '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)}} . '
+         "?eq c:IdentifiedObject.mRID ?{switch_mrid} . "
+         "?eq r:type c:LoadBreakSwitch . "
+         "}} "
+         "ORDER BY ?{switch_mrid}"
          )
 
 

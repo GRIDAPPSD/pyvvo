@@ -32,6 +32,7 @@ CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas.csv')
 LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
 SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
 SWITCHES = os.path.join(THIS_DIR, 'query_switches.csv')
+SWITCH_MEAS = os.path.join(THIS_DIR, 'query_switch_meas.csv')
 
 
 def gen_expected_results():
@@ -50,7 +51,8 @@ def gen_expected_results():
         (s.query_capacitor_measurements, CAP_MEAS),
         (s.query_load_measurements, LOAD_MEAS, 4),
         (s.query_substation_source, SUBSTATION),
-        (s.query_switches, SWITCHES)
+        (s.query_switches, SWITCHES),
+        (s.query_switch_measurements, SWITCH_MEAS)
     ]
 
     for b in a:
@@ -347,6 +349,17 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.mock_query(
             function_string='query_switches',
             query='SWITCHES_QUERY', to_numeric=True)
+
+    def test_query_switch_meas_expected_return(self):
+        actual = self.sparql.query_switch_measurements()
+        expected = pd.read_csv(SWITCH_MEAS)
+        ensure_frame_equal_except_mrid(actual, expected)
+
+    def test_query_switch_meas_calls_query(self):
+        """Ensure query_switch_measurements calls _query"""
+        self.mock_query(function_string='query_switch_measurements',
+                        query='SWITCH_STATUS_QUERY',
+                        to_numeric=False)
 
     def test_sparql_manager_query_regulators_expected_return(self):
         """Ensure we get the expected return."""
