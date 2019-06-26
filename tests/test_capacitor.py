@@ -22,7 +22,7 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 
     def test_equipment(self):
         self.assertIsInstance(self.cap, equipment.EquipmentSinglePhase)
-    
+
     def test_name(self):
         self.assertEqual(self.cap.name, 'cap1')
 
@@ -51,7 +51,9 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
         self.assertIsNone(cap.state)
 
     def test_repr(self):
-        self.assertEqual(str(self.cap), self.cap.name)
+        self.assertIn(self.cap.name, str(self.cap))
+        self.assertIn(self.cap.phase, str(self.cap))
+        self.assertIn('CapacitorSinglePhase', str(self.cap))
 
     def test_state_update(self):
         cap = \

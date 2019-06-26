@@ -210,10 +210,6 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
         self._raise_taps = high_step - neutral_step
         self._lower_taps = neutral_step - low_step
 
-    def __repr__(self):
-        return '<RegulatorSinglePhase. name: {}, phase: {}>'.format(self.name,
-                                                                    self.phase)
-
     def _check_state(self, value):
         """Ensure 'step' is valid before setting it."""
         if not isinstance(value, (int, np.integer)):

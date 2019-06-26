@@ -45,6 +45,10 @@ class EquipmentSinglePhase(ABC):
 
         self._controllable = controllable
 
+    def __repr__(self):
+        return "{}, {}, Phase {}".format(self.__class__.__name__ ,
+                                         self.name, self.phase)
+
     ####################################################################
     # PROPERTIES
     ####################################################################

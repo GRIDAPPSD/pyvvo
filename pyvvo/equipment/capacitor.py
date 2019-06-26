@@ -162,9 +162,6 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
         self.log.debug('CapacitorSinglePhase {} '.format(self.name)
                        + 'initialized.')
 
-    def __repr__(self):
-        return self.name
-
     def _check_state(self, value):
         """Method required by base class, called before setting state."""
         if isinstance(value, int):
