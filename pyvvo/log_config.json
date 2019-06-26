@@ -37,6 +37,20 @@
           "file_handler"
         ],
         "level": "WARN"
+      },
+      "gridappsd": {
+        "handlers": [
+          "console_handler",
+          "file_handler"
+        ],
+        "level": "WARN"
+      },
+      "goss": {
+        "handlers": [
+          "console_handler",
+          "file_handler"
+        ],
+        "level": "WARN"
       }
   }
 }
