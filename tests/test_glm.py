@@ -755,17 +755,17 @@ class AddRunComponentsTestCase(unittest.TestCase):
         self.assertIn('clock', clock)
 
     def test_add_run_components_minimum_timestep(self):
-        minimum_timestep = self.glm.model_dict[-5]
+        minimum_timestep = self.glm.model_dict[-6]
 
         self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
 
     def test_add_run_components_profiler(self):
-        profiler = self.glm.model_dict[-4]
+        profiler = self.glm.model_dict[-5]
 
         self.assertDictEqual(profiler, {'#set': 'profiler=0'})
 
     def test_add_run_components_relax_naming_rules(self):
-        rnr = self.glm.model_dict[-3]
+        rnr = self.glm.model_dict[-4]
 
         self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
 
@@ -797,17 +797,17 @@ class AddRunComponentsIEEE13NodeTestCase(AddRunComponentsTestCase):
         self.assertTrue(self.glm.module_present('generators'))
 
     def test_add_run_components_minimum_timestep(self):
-        minimum_timestep = self.glm.model_dict[-6]
+        minimum_timestep = self.glm.model_dict[-7]
 
         self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
 
     def test_add_run_components_profiler(self):
-        profiler = self.glm.model_dict[-5]
+        profiler = self.glm.model_dict[-6]
 
         self.assertDictEqual(profiler, {'#set': 'profiler=0'})
 
     def test_add_run_components_relax_naming_rules(self):
-        rnr = self.glm.model_dict[-4]
+        rnr = self.glm.model_dict[-5]
 
         self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
 

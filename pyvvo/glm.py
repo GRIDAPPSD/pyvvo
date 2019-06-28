@@ -1163,6 +1163,9 @@ class GLMManager:
                 self.add_item({'module': 'generators'})
                 break
 
+        # Suppress repeating messages.
+        self.add_item({'#set': 'suppress_repeat_messages=1'})
+
         # Relax naming rules.
         self.add_item({'#set': 'relax_naming_rules=1'})
 
