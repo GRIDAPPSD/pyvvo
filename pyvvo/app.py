@@ -2,7 +2,7 @@
 from pyvvo import sparql
 from pyvvo.glm import GLMManager
 from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter
-from pyvvo.equipment import capacitor, regulator, equipment, switch
+from pyvvo import equipment
 from gridappsd import topics
 from datetime import datetime
 import json
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     # TODO: Dispatch these jobs to threads.
     # Get regulator information.
     reg_df = sparql_mgr.query_regulators()
-    reg_objects = regulator.initialize_regulators(reg_df)
+    reg_objects = equipment.initialize_regulators(reg_df)
     reg_meas = sparql_mgr.query_rtc_measurements()
     reg_meas_mrid = list(reg_meas[sparql.REG_MEAS_MEAS_MRID_COL])
     reg_mgr = equipment.EquipmentManager(
@@ -91,7 +91,7 @@ if __name__ == '__main__':
 
     # Get capacitor information.
     cap_df = sparql_mgr.query_capacitors()
-    cap_objects = capacitor.initialize_capacitors(cap_df)
+    cap_objects = equipment.initialize_capacitors(cap_df)
     cap_meas = sparql_mgr.query_capacitor_measurements()
     cap_meas_mrid = list(cap_meas[sparql.CAP_MEAS_MEAS_MRID_COL])
     cap_mgr = equipment.EquipmentManager(
@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     # Get switch information.
     switch_df = sparql_mgr.query_switches()
-    switch_objects = switch.initialize_switches(switch_df)
+    switch_objects = equipment.initialize_switches(switch_df)
     # TODO: Uncomment below when the following is resolved:
     # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/969
 

@@ -9,16 +9,16 @@ from uuid import uuid4
 from deap import base, creator, tools
 
 # pyvvo:
-from pyvvo.equipment import regulator, capacitor
+from pyvvo import equipment
 
 
 def map_chromosome(regulators, capacitors):
     """Given regulators and capacitors, map states onto a chromosome.
 
     :param regulators: dictionary as returned by
-        equipment.regulator.initialize_regulators
+        equipment.initialize_regulators
     :param capacitors: dictionary as returned by
-        equipment.capacitor.initialize_capacitors
+        equipment.initialize_capacitors
 
     The map will be keyed by name rather than MRID - this is because
     we'll be looking up objects in GridLAB-D models by name many times,
@@ -70,7 +70,7 @@ def map_chromosome(regulators, capacitors):
     # Loop over the regulators.
     for reg_mrid, reg_or_dict in regulators.items():
 
-        if isinstance(reg_or_dict, regulator.RegulatorSinglePhase):
+        if isinstance(reg_or_dict, equipment.RegulatorSinglePhase):
             # Map it!
             out, idx = map_reg(reg_or_dict, out, idx)
 
@@ -81,7 +81,7 @@ def map_chromosome(regulators, capacitors):
 
     # Loop over the capacitors.
     for cap_mrid, cap_or_dict in capacitors.items():
-        if isinstance(cap_or_dict, capacitor.CapacitorSinglePhase):
+        if isinstance(cap_or_dict, equipment.CapacitorSinglePhase):
             out, idx = map_cap(cap_or_dict, out, idx)
         elif isinstance(cap_or_dict, dict):
             # Loop over phases.

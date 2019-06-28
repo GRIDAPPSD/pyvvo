@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch
 
 from pyvvo import ga
-from pyvvo.equipment import capacitor, regulator
+from pyvvo import equipment
 from tests.test_sparql import CAPACITORS, REGULATORS
 
 import pandas as pd
@@ -16,8 +16,8 @@ class MapChromosomeTestCase(unittest.TestCase):
         reg_df = pd.read_csv(REGULATORS)
         cap_df = pd.read_csv(CAPACITORS)
 
-        cls.regs = regulator.initialize_regulators(reg_df)
-        cls.caps = capacitor.initialize_capacitors(cap_df)
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
 
         cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
 
@@ -70,7 +70,7 @@ class IntBinLengthTestCase(unittest.TestCase):
         self.assertEqual(8, ga.int_bin_length(255))
 
 
-@patch('pyvvo.equipment.regulator.RegulatorSinglePhase', autospec=True)
+@patch('pyvvo.equipment.RegulatorSinglePhase', autospec=True)
 class RegBinLengthTestCase(unittest.TestCase):
     """Test reg_bin_length."""
     def test_16_16(self, reg_mock):
