@@ -139,13 +139,16 @@ class RunGLDTestCase(unittest.TestCase):
 
     def test_run_gld_simple(self):
         """Ensure the model runs."""
-        self.assertTrue(utils.run_gld(TEST_GLM2))
+        result = utils.run_gld(TEST_GLM2)
+        self.assertEqual(0, result.returncode)
 
     def test_run_gld_bad_model(self):
-        self.assertFalse(utils.run_gld('/some/model.glm'))
+        result = utils.run_gld('/some/model.glm')
+        self.assertNotEqual(0, result.returncode)
 
     def test_run_gld_bad_env(self):
-        self.assertFalse(utils.run_gld(TEST_GLM2, env={'PATH': '/usr/bin'}))
+        result = utils.run_gld(TEST_GLM2, env={'PATH': '/usr/bin'})
+        self.assertNotEqual(0, result.returncode)
 
 
 class DTToUSFromEpochTestCase(unittest.TestCase):

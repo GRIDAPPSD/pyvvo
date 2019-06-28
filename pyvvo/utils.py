@@ -172,15 +172,13 @@ def run_gld(model_path, env=None):
                             env=env)
 
     if result.returncode == 0:
-        # TODO: Do we want to log GridLAB-D output? It would really clog
-        #   up the main log, so we might want a different handler.
         LOG.debug('GridLAB-D model {} ran successfully.'.format(model_path))
-        return True
     else:
         m = ('GridLAB-D model {} failed to run.\n\tstdout:{}\n\t'
              + 'stderr:{}').format(model_path, result.stdout, result.stderr)
         LOG.error(m)
-        return False
+
+    return result
 
 
 def dt_to_us_from_epoch(dt):

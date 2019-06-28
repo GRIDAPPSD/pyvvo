@@ -746,7 +746,7 @@ class AddRunComponentsTestCase(unittest.TestCase):
     def test_add_run_components_model_runs(self):
         result = run_gld(model_path=self.out_file)
 
-        self.assertTrue(result)
+        self.assertEqual(0, result.returncode)
 
     def test_add_run_components_clock(self):
         """Ensure the clock is there."""
