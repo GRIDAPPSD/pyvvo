@@ -5,7 +5,8 @@ import os
 import pandas as pd
 import json
 
-from pyvvo.equipment import capacitor, equipment, regulator
+from pyvvo import equipment
+
 from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
     CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL
 
@@ -17,6 +18,7 @@ REG_MEAS_MSG = os.path.join(THIS_DIR, 'reg_meas_message.json')
 CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
 CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas.csv')
 CAP_MEAS_MSG = os.path.join(THIS_DIR, 'cap_meas_message.json')
+SWITCHES = os.path.join(THIS_DIR, 'query_switches.csv')
 
 
 class EquipmentManagerRegulatorTestCase(unittest.TestCase):
@@ -34,7 +36,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # Gotta be careful with these mutable types... Get fresh
         # instances each time. It won't be that slow, I promise.
         self.reg_dict = \
-            regulator.initialize_regulators(
+            equipment.initialize_regulators(
                 pd.read_csv(REGULATORS))
         self.reg_mgr = \
             equipment.EquipmentManager(
@@ -197,7 +199,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         reg_dict_forward = deepcopy(self.reg_dict)
         # For some reason the new eq_dict won't pickle?
         # reg_dict_forward = \
-        #     regulator.initialize_regulators(
+        #     equipment.initialize_regulators(
         #         pd.read_csv(REGULATORS))
 
         # Randomly update steps.
@@ -260,7 +262,7 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # Gotta be careful with these mutable types... Get fresh
         # instances each time. It won't be that slow, I promise.
         self.cap_dict = \
-            capacitor.initialize_capacitors(
+            equipment.initialize_capacitors(
                 pd.read_csv(CAPACITORS))
         self.cap_mgr = \
             equipment.EquipmentManager(
@@ -407,12 +409,12 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         cap_dict_forward = deepcopy(self.cap_dict)
         # For some reason the new eq_dict won't pickle?
         # cap_dict_forward = \
-        #     regulator.initialize_regulators(
+        #     equipment.initialize_regulators(
         #         pd.read_csv(REGULATORS))
 
         def update_state(cap, forward):
             """Nested helper function."""
-            new_state = choice(capacitor.CapacitorSinglePhase.STATES)
+            new_state = choice(equipment.CapacitorSinglePhase.STATES)
             cap.state = new_state
             forward.append(new_state)
 
@@ -469,130 +471,495 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'not matching up with'):
             self.cap_mgr.build_equipment_commands(reg_dict_forward)
 
-# # Ensure abstract methods are set.
-# # https://stackoverflow.com/a/28738073/11052174
-# @patch.multiple(equipment.EquipmentSinglePhase, __abstractmethods__=set())
-# class EquipmentMultiPhaseTestCase(unittest.TestCase):
-#
-#     @classmethod
-#     def setUpClass(cls):
-#         # Set up some default inputs to RegulatorSinglePhase.
-#         cls.inputs = \
-#             {'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
-#              'name': 'FEEDER_REG', 'phase': 'a'}
-#
-#     def test_bad_input_type(self):
-#         self.assertRaises(TypeError, equipment.EquipmentMultiPhase,
-#                           'hello')
-#
-#     def test_bad_input_list_length_1(self):
-#         with self.assertRaisesRegex(ValueError,
-#                                     r'1 <= len\(equipment_list\) <= 3'):
-#             equipment.EquipmentMultiPhase([])
-#
-#     def test_bad_input_list_length_2(self):
-#         with self.assertRaisesRegex(ValueError,
-#                                     r'1 <= len\(equipment_list\) <= 3'):
-#             equipment.EquipmentMultiPhase([1, 2, 3, 4])
-#
-#     def test_bad_input_list_type(self):
-#         self.assertRaises(TypeError, equipment.EquipmentMultiPhase,
-#                           (1, 2, 3))
-#
-#     def test_successful_init_1(self):
-#         """Pass three single phase regs."""
-#         input1 = self.inputs
-#         input2 = copy(self.inputs)
-#         input3 = copy(self.inputs)
-#         input2['phase'] = 'b'
-#         input3['phase'] = 'C'
-#
-#         reg1 = equipment.EquipmentSinglePhase(**input1)
-#         reg2 = equipment.EquipmentSinglePhase(**input2)
-#         reg3 = equipment.EquipmentSinglePhase(**input3)
-#
-#         reg_multi_phase = equipment.EquipmentMultiPhase((reg1, reg2, reg3))
-#
-#         self.assertEqual(reg_multi_phase.name, self.inputs['name'])
-#         self.assertEqual(reg_multi_phase.mrid, self.inputs['mrid'])
-#         self.assertIs(reg_multi_phase.a, reg1)
-#         self.assertIs(reg_multi_phase.b, reg2)
-#         self.assertIs(reg_multi_phase.c, reg3)
-#
-#     def test_successful_init_2(self):
-#         """Pass two single phase regs."""
-#         input1 = self.inputs
-#         input3 = copy(self.inputs)
-#         input3['phase'] = 'C'
-#
-#         reg1 = equipment.EquipmentSinglePhase(**input1)
-#         reg3 = equipment.EquipmentSinglePhase(**input3)
-#
-#         reg_multi_phase = equipment.EquipmentMultiPhase((reg1, reg3))
-#
-#         # noinspection SpellCheckingInspection
-#         self.assertEqual(reg_multi_phase.name, self.inputs['name'])
-#         self.assertEqual(reg_multi_phase.mrid, self.inputs['mrid'])
-#         self.assertIs(reg_multi_phase.a, reg1)
-#         self.assertIs(reg_multi_phase.c, reg3)
-#
-#     def test_successful_init_3(self):
-#         """Pass a single mocked single phase regs."""
-#         reg1 = equipment.EquipmentSinglePhase(**self.inputs)
-#
-#         reg_multi_phase = equipment.EquipmentMultiPhase((reg1, ))
-#
-#         # noinspection SpellCheckingInspection
-#         self.assertEqual(reg_multi_phase.name, self.inputs['name'])
-#         self.assertEqual(reg_multi_phase.mrid, self.inputs['mrid'])
-#         self.assertIs(reg_multi_phase.a, reg1)
-#
-#     def test_mismatched_names(self):
-#         """All single phase regs should have the same name."""
-#         input1 = self.inputs
-#         input2 = copy(self.inputs)
-#         input3 = copy(self.inputs)
-#         input2['phase'] = 'b'
-#         input2['name'] = 'just kidding'
-#         input3['phase'] = 'C'
-#         reg1 = equipment.EquipmentSinglePhase(**input1)
-#         reg2 = equipment.EquipmentSinglePhase(**input2)
-#         reg3 = equipment.EquipmentSinglePhase(**input3)
-#
-#         with self.assertRaisesRegex(ValueError, 'matching "name" attributes'):
-#             equipment.EquipmentMultiPhase((reg1, reg2, reg3))
-#
-#     def test_mismatched_mrids(self):
-#         """All single phase regs should have the same name."""
-#         input1 = self.inputs
-#         input2 = copy(self.inputs)
-#         input3 = copy(self.inputs)
-#         input2['phase'] = 'b'
-#         input2['mrid'] = 'whoops'
-#         input3['phase'] = 'C'
-#         reg1 = equipment.EquipmentSinglePhase(**input1)
-#         reg2 = equipment.EquipmentSinglePhase(**input2)
-#         reg3 = equipment.EquipmentSinglePhase(**input3)
-#
-#         with self.assertRaisesRegex(ValueError, 'matching "mrid" attributes'):
-#             equipment.EquipmentMultiPhase((reg1, reg2, reg3))
-#
-#     def test_multiple_same_phases(self):
-#         """Passing multiple RegulatorSinglePhase objects on the same phase
-#         is not allowed.
-#         """
-#         input1 = self.inputs
-#         input2 = copy(self.inputs)
-#         input3 = copy(self.inputs)
-#         input3['phase'] = 'C'
-#         reg1 = equipment.EquipmentSinglePhase(**input1)
-#         reg2 = equipment.EquipmentSinglePhase(**input2)
-#         reg3 = equipment.EquipmentSinglePhase(**input3)
-#
-#         with self.assertRaisesRegex(ValueError,
-#                                     'Multiple equipments for phase'):
-#             equipment.EquipmentMultiPhase((reg1, reg2, reg3))
-#
-#
+
+class InitializeRegulatorsTestCase(unittest.TestCase):
+    """Test initialize_regulators"""
+
+    # noinspection PyPep8Naming
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(REGULATORS)
+        cls.regs = equipment.initialize_regulators(cls.df)
+
+    def test_twelve_tap_changers(self):
+        """There should be 12 single phase regulators (4 x 3 phase)"""
+        self.assertEqual(len(self.regs), 12)
+
+    def test_all_regs(self):
+        """Every item should be a RegulatorSinglePhase"""
+        for key, reg in self.regs.items():
+            with self.subTest('reg = {}'.format(reg)):
+                self.assertIsInstance(reg, equipment.RegulatorSinglePhase)
+
+
+# noinspection PyProtectedMember
+class TapCIMToGLDTestCase(unittest.TestCase):
+
+    def test_tap_cim_to_gld_1(self):
+        actual = equipment._tap_cim_to_gld(step=16, neutral_step=16)
+        self.assertEqual(0, actual)
+
+    def test_tap_cim_to_gld_2(self):
+        actual = equipment._tap_cim_to_gld(step=1, neutral_step=8)
+        self.assertEqual(-7, actual)
+
+    def test_tap_cim_to_gld_3(self):
+        actual = equipment._tap_cim_to_gld(step=24, neutral_step=16)
+        self.assertEqual(8, actual)
+
+    def test_tap_cim_to_gld_4(self):
+        actual = equipment._tap_cim_to_gld(step=0, neutral_step=16)
+        self.assertEqual(-16, actual)
+
+    def test_tap_cim_to_gld_5(self):
+        actual = equipment._tap_cim_to_gld(step=-2, neutral_step=-1)
+        self.assertEqual(-1, actual)
+
+
+# noinspection PyProtectedMember
+class TapGLDToCIMTestCase(unittest.TestCase):
+
+    def test_tap_gld_to_cim_1(self):
+        actual = equipment._tap_gld_to_cim(tap_pos=2, neutral_step=8)
+        self.assertEqual(10, actual)
+
+    def test_tap_gld_to_cim_2(self):
+        actual = equipment._tap_gld_to_cim(tap_pos=-10, neutral_step=16)
+
+        self.assertEqual(6, actual)
+
+    def test_tap_gld_to_cim_3(self):
+        actual = equipment._tap_gld_to_cim(tap_pos=0, neutral_step=10)
+        self.assertEqual(10, actual)
+
+    def test_tap_gld_to_cim_4(self):
+        actual = equipment._tap_gld_to_cim(tap_pos=5, neutral_step=-5)
+        self.assertEqual(0, actual)
+
+
+class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
+    # noinspection PyPep8Naming
+    @classmethod
+    def setUpClass(cls):
+        cls.inputs = \
+            {'control_mode': 'voltage',
+             'enabled': True, 'high_step': 32, 'low_step': 0,
+             'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
+             'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
+             'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
+             'step': 18, 'step_voltage_increment': 0.625,
+             'controllable': True}
+
+        cls.reg = equipment.RegulatorSinglePhase(**cls.inputs)
+
+    def test_equipment(self):
+        self.assertIsInstance(self.reg, equipment.EquipmentSinglePhase)
+
+    def test_attributes(self):
+        """The inputs should match the attributes."""
+        for key, value in self.inputs.items():
+            with self.subTest('attribute: {}'.format(key)):
+                self.assertEqual(getattr(self.reg, key), value)
+
+    def test_raise_taps(self):
+        self.assertEqual(self.reg.raise_taps, 16)
+
+    def test_lower_taps(self):
+        self.assertEqual(self.reg.lower_taps, 16)
+
+    def test_tap_pos(self):
+        self.assertEqual(self.reg.tap_pos, 2)
+
+    def test_tap_pos_old(self):
+        self.assertIsNone(self.reg.tap_pos_old)
+
+    def test_step_old(self):
+        self.assertIsNone(self.reg.step_old)
+
+    def test_update_step(self):
+        reg = equipment.RegulatorSinglePhase(**self.inputs)
+
+        self.assertIsNone(reg.step_old)
+        self.assertIsNone(reg.tap_pos_old)
+        self.assertEqual(reg.step, 18)
+        self.assertEqual(reg.tap_pos, 2)
+
+        reg.step = 15
+        self.assertEqual(reg.step, 15)
+        self.assertEqual(reg.tap_pos, -1)
+        self.assertEqual(reg.step_old, 18)
+        self.assertEqual(reg.tap_pos_old, 2)
+
+    def test_update_tap_pos(self):
+        reg = equipment.RegulatorSinglePhase(**self.inputs)
+
+        self.assertIsNone(reg.step_old)
+        self.assertIsNone(reg.tap_pos_old)
+        self.assertEqual(reg.step, 18)
+        self.assertEqual(reg.tap_pos, 2)
+
+        reg.tap_pos = -15
+        self.assertEqual(reg.step, 1)
+        self.assertEqual(reg.tap_pos, -15)
+        self.assertEqual(reg.step_old, 18)
+        self.assertEqual(reg.tap_pos_old, 2)
+
+    def test_update_step_bad_type(self):
+        reg = equipment.RegulatorSinglePhase(**self.inputs)
+        with self.assertRaisesRegex(TypeError, 'step must be an integer'):
+            reg.step = 1.0
+
+    def test_update_tap_pos_bad_type(self):
+        reg = equipment.RegulatorSinglePhase(**self.inputs)
+        with self.assertRaisesRegex(TypeError, 'tap_pos must be an integer'):
+            reg.tap_pos = -1.0
+
+    def test_update_step_out_of_range(self):
+        with self.assertRaisesRegex(ValueError, 'step must be between'):
+            self.reg.step = 100
+
+    def test_update_tap_pos_out_of_range(self):
+        with self.assertRaisesRegex(ValueError, 'tap_pos must be between'):
+            self.reg.tap_pos = 17
+
+    def test_controllable(self):
+        self.assertEqual(self.inputs['controllable'], self.reg.controllable)
+
+
+class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
+
+    def setUp(self):
+        """We want fresh inputs each time as we'll be modifying fields.
+        """
+        self.i = \
+            {'control_mode': 'voltage',
+             'enabled': True, 'high_step': 32, 'low_step': 0,
+             'mrid': '_3E73AD1D-08AF-A34B-33D2-1FCE3533380A',
+             'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
+             'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
+             'step': 1.0125, 'step_voltage_increment': 0.625,
+             'controllable': True}
+
+    def test_bad_mrid_type(self):
+        self.i['mrid'] = 10
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_name_type(self):
+        self.i['name'] = {'name': 'reg'}
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_phase_type(self):
+        self.i['name'] = ['name', 'yo']
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_phase_value(self):
+        self.i['phase'] = 'N'
+        self.assertRaises(ValueError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_tap_changer_mrid_type(self):
+        self.i['tap_changer_mrid'] = 111
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_step_voltage_increment_type(self):
+        self.i['step_voltage_increment'] = 1
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_control_mode_type(self):
+        self.i['control_mode'] = (0, 0, 1)
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_control_mode_value(self):
+        self.i['control_mode'] = 'my mode'
+        self.assertRaises(ValueError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_enabled_type(self):
+        self.i['enabled'] = 'true'
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_high_step_type(self):
+        self.i['high_step'] = 10.1
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_low_step_type(self):
+        self.i['low_step'] = 10 + 1j
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_neutral_step_type(self):
+        self.i['neutral_step'] = '16'
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_bad_step_values_1(self):
+        self.i['low_step'] = 17
+        self.i['neutral_step'] = 16
+        self.i['high_step'] = 20
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            equipment.RegulatorSinglePhase(**self.i)
+
+    def test_bad_step_values_2(self):
+        self.i['low_step'] = 0
+        self.i['neutral_step'] = 21
+        self.i['high_step'] = 20
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            equipment.RegulatorSinglePhase(**self.i)
+
+    def test_bad_step_values_3(self):
+        self.i['low_step'] = 0
+        self.i['neutral_step'] = 0
+        self.i['high_step'] = -1
+        with self.assertRaisesRegex(ValueError, 'The following is not True'):
+            equipment.RegulatorSinglePhase(**self.i)
+
+    def test_bad_step_type(self):
+        self.i['step'] = 2.0
+        self.assertRaises(TypeError, equipment.RegulatorSinglePhase, **self.i)
+
+    def test_step_out_of_range_1(self):
+        self.i['step'] = 33
+        with self.assertRaisesRegex(ValueError, 'between low_step '):
+            equipment.RegulatorSinglePhase(**self.i)
+
+    def test_step_out_of_range_2(self):
+        self.i['step'] = -1
+        with self.assertRaisesRegex(ValueError, 'between low_step '):
+            equipment.RegulatorSinglePhase(**self.i)
+
+    def test_controllable_bad_type(self):
+        self.i['controllable'] = 0
+        with self.assertRaisesRegex(TypeError, 'controllable'):
+            equipment.RegulatorSinglePhase(**self.i)
+
+
+class CapacitorSinglePhaseTestCase(unittest.TestCase):
+    """Basic property tests for CapacitorSinglePhase."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create CapacitorSinglePhase object."""
+        cls.cap = \
+            equipment.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
+                                           state=1, mode='ACTIVEpower',
+                                           controllable=True)
+
+    def test_equipment(self):
+        self.assertIsInstance(self.cap, equipment.EquipmentSinglePhase)
+
+    def test_name(self):
+        self.assertEqual(self.cap.name, 'cap1')
+
+    def test_mrid(self):
+        self.assertEqual('1', self.cap.mrid)
+
+    def test_mode(self):
+        """Mode is case insensitive, and is cast to lower case."""
+        self.assertEqual('activepower', self.cap.mode)
+
+    def test_phase(self):
+        self.assertEqual('C', self.cap.phase)
+
+    def test_controllable(self):
+        self.assertTrue(self.cap.controllable)
+
+    def test_state(self):
+        self.assertEqual(1, self.cap.state)
+
+    def test_state_none(self):
+        """None is a valid state to initialize a capacitor."""
+        cap = \
+            equipment.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
+                                           state=None, mode='voltage',
+                                           controllable=True)
+        self.assertIsNone(cap.state)
+
+    def test_repr(self):
+        self.assertIn(self.cap.name, str(self.cap))
+        self.assertIn(self.cap.phase, str(self.cap))
+        self.assertIn('CapacitorSinglePhase', str(self.cap))
+
+    def test_state_update(self):
+        cap = \
+            equipment.CapacitorSinglePhase(name='cap1', mrid='1', phase='c',
+                                           state=None, mode='voltage',
+                                           controllable=True)
+
+        self.assertIsNone(cap.state)
+
+        cap.state = 0
+
+        self.assertEqual(cap.state, 0)
+        self.assertEqual(cap.state_old, None)
+
+        cap.state = 1
+
+        self.assertEqual(cap.state, 1)
+        self.assertEqual(cap.state_old, 0)
+
+
+class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
+    """Test bad inputs to CapacitorSinglePhase"""
+
+    def test_name_bad_type(self):
+        self.assertRaises(TypeError, equipment.CapacitorSinglePhase,
+                          name=[1, 2, 3], mrid='1', phase='A', state='OPEN',
+                          mode='admittance', controllable=True)
+
+    def test_mrid_bad_type(self):
+        self.assertRaises(TypeError, equipment.CapacitorSinglePhase,
+                          name='1', mrid={'a': 1}, phase='A', state='OPEN',
+                          mode='admittance', controllable=True)
+
+    def test_phase_bad_type(self):
+        self.assertRaises(TypeError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase=7, state='OPEN',
+                          mode='admittance', controllable=True)
+
+    def test_phase_bad_value(self):
+        self.assertRaises(ValueError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='N', state='OPEN',
+                          mode='admittance', controllable=True)
+
+    def test_state_bad_type(self):
+        self.assertRaises(TypeError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='c', state=1.0,
+                          mode='admittance', controllable=True)
+
+    def test_state_bad_value(self):
+        self.assertRaises(ValueError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='b', state=3,
+                          mode='admittance', controllable=True)
+
+    def test_mode_bad_type(self):
+        self.assertRaises(TypeError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='b', state=0,
+                          mode=0, controllable=True)
+
+    def test_mode_bad_value(self):
+        self.assertRaises(ValueError, equipment.CapacitorSinglePhase,
+                          name='1', mrid='1', phase='b', state=0,
+                          mode='vvo', controllable=True)
+
+    def test_controllable_bad_type(self):
+        with self.assertRaisesRegex(TypeError, 'controllable must be a bool'):
+            equipment.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state=0,
+                mode='temperature', controllable='True')
+
+    def test_mode_controllable_mismatch_1(self):
+        with self.assertRaisesRegex(ValueError, 'seem to conflict'):
+            equipment.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state=None,
+                mode=None, controllable=True)
+
+    def test_mode_controllable_mismatch_2(self):
+        with self.assertRaisesRegex(ValueError, 'seem to conflict'):
+            equipment.CapacitorSinglePhase(
+                name='1', mrid='1', phase='b', state=None,
+                mode='voltage', controllable=False)
+
+
+class InitializeCapacitors(unittest.TestCase):
+    """Test initialize_capacitors"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(CAPACITORS)
+        cls.caps = equipment.initialize_capacitors(cls.df)
+
+    def test_length(self):
+        """The return should have 10 items, as there are 3 controllable
+        3 phase caps, and 1 non-controllable 3 phase cap.
+        """
+        self.assertEqual(len(self.caps), 10)
+
+    def test_is_capacitor_or_dict(self):
+        """Ensure each result is CapacitorSinglePhase or dict of them."""
+        cap_count = 0
+        dict_count = 0
+        dict_cap_count = 0
+        for _, cap in self.caps.items():
+            self.assertIsInstance(cap, (equipment.CapacitorSinglePhase, dict))
+            # If we have a dict, ensure all values are
+            # CapacitorSinglePhase.
+            if isinstance(cap, dict):
+                dict_count += 1
+                for c in cap.values():
+                    dict_cap_count += 1
+                    self.assertIsInstance(c, equipment.CapacitorSinglePhase)
+            else:
+                cap_count += 1
+
+        self.assertEqual(cap_count, 9)
+        self.assertEqual(dict_count, 1)
+        self.assertEqual(dict_cap_count, 3)
+
+
+class SwitchSinglePhaseTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.switch = equipment.SwitchSinglePhase(name='my_switch', mrid='xyz',
+                                                 phase='C', controllable=False)
+
+    def test_equipment(self):
+        self.assertIsInstance(self.switch, equipment.EquipmentSinglePhase)
+
+    def test_name(self):
+        self.assertEqual('my_switch', self.switch.name)
+
+    def test_mrid(self):
+        self.assertEqual('xyz', self.switch.mrid)
+
+    def test_phase(self):
+        self.assertEqual('C', self.switch.phase)
+
+    def test_controllable(self):
+        self.assertEqual(False, self.switch.controllable)
+
+    def test_state(self):
+        self.assertIsNone(self.switch.state)
+
+        self.switch.state = 0
+
+        self.assertEqual(0, self.switch.state)
+        self.assertEqual(None, self.switch.state_old)
+
+        self.switch.state = 1
+        self.assertEqual(1, self.switch.state)
+        self.assertEqual(0, self.switch.state_old)
+
+
+class InitializeSwitchesTestCase(unittest.TestCase):
+    """Test initialize_switches"""
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(SWITCHES)
+        cls.switches = equipment.initialize_switches(cls.df)
+
+    def test_length(self):
+        """Hard-code number of expected switches."""
+        self.assertEqual(len(self.switches), 38)
+
+    def test_switch_or_dict_of_switches(self):
+        """Ensure all objects are the correct type."""
+        for item in self.switches.values():
+            try:
+                self.assertIsInstance(item, equipment.SwitchSinglePhase)
+            except AssertionError:
+                self.assertIsInstance(item, dict)
+
+                for key, value in item.items():
+                    self.assertIn(key, equipment.SwitchSinglePhase.PHASES)
+                    self.assertIsInstance(value, equipment.SwitchSinglePhase)
+
+    def test_controllable(self):
+        """For now, all switches are hard-coded to be not controllable.
+        """
+        for item in self.switches.values():
+            try:
+                self.assertFalse(item.controllable)
+            except AttributeError:
+                for key, value in item.items():
+                    self.assertFalse(value.controllable)
+
+
 if __name__ == '__main__':
     unittest.main()
