@@ -26,6 +26,7 @@ NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
+IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
 MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
@@ -279,6 +280,26 @@ class PlatformManagerTestCase(unittest.TestCase):
             expected = f.read()
 
         self.assertEqual(glm, expected)
+
+    # @unittest.skip("This takes too long, and also the model converter "
+    #                "is poorly written and has randomness in it.")
+    # def test_platform_manager_get_glm_8500_node(self):
+    #     """Check return for get_glm, actually calling the platform."""
+    #     # IEEE 8500 node model.
+    #     # TODO: May want to update this with the new modified 8500
+    #     #   model once it has stabilized.
+    #     model_id = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
+    #     glm = self.platform.get_glm(model_id=model_id)
+    #
+    #     # Uncomment to recreate the expected return.
+    #     # with open(IEEE_8500, 'w') as f:
+    #     #     f.write(glm)
+    #
+    #     # Get expected.
+    #     with open(IEEE_8500, 'r') as f:
+    #         expected = f.read()
+    #
+    #     self.assertEqual(glm, expected)
 
     def test_platform_manager_get_weather_bad_start_time(self):
         self.assertRaises(TypeError, self.platform.get_weather,
