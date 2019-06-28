@@ -1,7 +1,12 @@
 """
-This module contains function to parse a GLM into a dictionary that can then be
-modified and then exported to a modified glm
+This module is used to ingest a GridLAB-D model (extension .glm) into a
+Python dictionary where the model can easily be modified. Then, the
+modified model can be easily written to file.
 
+A user of this module will likely only ever want to use the GLMManager
+class (author: Brandon Thayer).
+
+Original functions (modified) from Jacob and Ebony:
     parse(inputStr, filePath=True):
         Main function to parse in glm
     _tokenize_glm(inputStr, filePath=True):
@@ -16,11 +21,12 @@ modified and then exported to a modified glm
         Helper function to write out glm
 
 
-Adopted August 30, 2018 by Brandon Thayer (brandon.thayer@pnnl.gov)
+Adopted and modified August 30, 2018 by Brandon Thayer
+    (brandon.thayer@pnnl.gov)
 Modified March 28, 2017 by Jacob Hansen (jacob.hansen@pnnl.gov)
 Created October 27, 2014 by Ebony Mayhorn (ebony.mayhorn@pnnl.gov)
 
-Copyright (c) 2018 Battelle Memorial Institute.  The Government retains
+Copyright (c) 2019 Battelle Memorial Institute.  The Government retains
 a paid-up nonexclusive, irrevocable worldwide license to reproduce,
 prepare derivative works, perform publicly and display publicly by or
 for the Government, including the right to distribute to other
@@ -370,14 +376,47 @@ def _gather_key_values(in_dict, key_to_avoid):
 class GLMManager:
     """Class to manage a GridLAB-D model (.glm).
 
-    Primary capabilities:
-        - Add item to model
-        - Modify item in model
-        - Remove item from model
-        - Remove properties from items
-        - TODO: Get list of objects by type
+    Public methods:
+        - write_model: Write model to file.
+        - add_item: Given an item dict, add it to the model.
+        - find_object: Lookup an object by type and name.
+        - get_items_of_type: Lookup all items of a given type.
+        - modify_item: Update an item's properties (no renaming, though)
+        - remove_properties_from_item: Delete certain properties from
+            an item.
+        - remove_item: Remove an item from the model
+        - module_present: Test if a particular module is in the model.
+        - get_objects_by_type: Return all objects of a given type.
+        - add_or_modify_clock: Add clock if not present, or update
+            existing clock.
+        - object_type_present: Check if a given object type exists in
+            the model.
+        - add_run_components: Helper for adding necessary pieces to get
+            a model running when we're just given the "base" model from
+            the GridAPPS-D platform. This "base" model is missing
+            modules, a clock, etc.
 
-    TODO: list all the "public" class methods here.
+
+    A note on "items" vs. "objects":
+        Any encapsulated element in a GridLAB-D model is considered an
+        "item." E.g. a one-line module declaration or a mult-line
+        object definition. "objects" are specifically GridLAB-D objects.
+        E.g., their definition is like "object <object type> { ..."
+
+    A note on "item_dict" inputs:
+        item_dicts are Python dictionaries which represent GridLAB-D
+        "items". This simplest case is a GridLAB-D object. The
+        item_dict must have an "object" field, and the "object" field's
+        value would be the object type. E.g. "recorder". All the
+        remaining key-value pairs define the object's properties. Some
+        examples follow:
+
+        {'object': 'capacitor', 'name': '"my_cap"'}
+        {'module': 'powerflow'}
+        {'clock': 'clock', 'starttime': '\'2012-01-01 00:00:00\'',
+         'stoptime': '\'2017-06-10 08:35:12\'', 'timezone': 'Pacific'}
+        {'#define': 'VSOURCE=66395.28'}
+
 
     """
     # Date format for GridLAB-D models. See:
