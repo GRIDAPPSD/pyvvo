@@ -1,12 +1,1 @@
-coverage
-deap
-# Uncomment mystic if trying to setup the fmin_powell stuff in zip.py
-# mystic
-numpy
-pandas
-scipy
-simplejson
-sklearn
-# stomp isn't directly used by PyVVO, but rather the GridAPPS-D base
-# container. However, we have to import exceptions for testing.
-stomp.py>=4.1.20
+.

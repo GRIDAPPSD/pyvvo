@@ -9,8 +9,7 @@
 ARG TAG
 FROM pyvvo-base:${TAG:-latest} as base
 
-# TODO: update to use latest or develop.
-FROM gridappsd/app-container-base:blthayer
+FROM gridappsd/app-container-base:develop
 
 # Work from pyvvo.
 ENV PYVVO=/pyvvo
@@ -29,8 +28,8 @@ COPY --from=base ${PYVVO} ${PYVVO}
 ARG TAG
 COPY --from=base /usr/local/mysql /usr/local/mysql-connector-c /usr/local/
 
-# Copy requirements.
-COPY requirements.txt ${PYVVO}/requirements.txt
+# Copy requirements and setup.
+COPY requirements.txt setup.py ${PYVVO}/
 
 # Install requirements.
 RUN pip install --no-cache-dir -r requirements.txt

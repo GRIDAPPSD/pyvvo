@@ -54,7 +54,7 @@ if [ ! -f "${gld_archive}" ]; then
     cd ${build_dir_base}
     tar -zcf "${gld_tar_gz}" "${gld}"
     rm -rf ${gld}
-    cd ../
+    cd ${pwd}
 fi
 
 # Move the Dockerfile.
@@ -74,15 +74,16 @@ docker build -t pyvvo-base:${tag} \
 # Move back up.
 cd ${pwd}
 
-# Package up the PyVVO application. NOTE: This will need updated if new
-# necessary folders get added.
-stuff="pyvvo tests README.md"
+# Package up the PyVVO application. NOTE: update packaging.txt to add
+# files/directories.
+stuff=$(cat packaging.txt | egrep -v "^\s*(#|$)")
 PYVVO_ARCHIVE=pyvvo.tar.gz
 tar --exclude='*__pycache__' --exclude="*.log" --exclude='*.pyc' --exclude='.git*' -zcf ${build_dir_pyvvo}/${PYVVO_ARCHIVE} ${stuff}
 
-# Move Dockerfile and requirements.txt into pyvvo build dir.
+# Move files into pyvvo build dir.
 cp Dockerfile ${build_dir_pyvvo}/Dockerfile
 cp requirements.txt ${build_dir_pyvvo}/requirements.txt
+cp setup.py ${build_dir_pyvvo}/setup.py
 
 # Now move into the PyVVO build directory.
 cd ${build_dir_pyvvo}

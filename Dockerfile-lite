@@ -11,7 +11,17 @@ FROM gridappsd/app-container-base:latest
 WORKDIR /usr/src/pyvvo
 
 # Copy in requirements and install them.
-COPY requirements.txt ./
+COPY requirements.txt setup.py ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy in the application and install it.
+# Add pyvvo application files.
+ARG PYVVO_ARCHIVE
+ADD ${PYVVO_ARCHIVE} /usr/src/pyvvo
+
+# Pip install pyvvo and remove the source files.
+RUN pip install . \
+    && cd / \
+    && rm -rf /usr/src/pyvvo
+
+# Work from root I suppose
+WORKDIR /

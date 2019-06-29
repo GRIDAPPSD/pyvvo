@@ -1,0 +1,3 @@
+# This file indicates what files and directories will be packaged up when PyVVO is built.
+# Note that requirements.txt is handled seperately.
+pyvvo tests README.md
