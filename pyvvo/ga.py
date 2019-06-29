@@ -11,6 +11,9 @@ from deap import base, creator, tools
 # pyvvo:
 from pyvvo import equipment
 
+# Constants.
+TRIPLEX_GROUP = 'tl'
+
 
 def map_chromosome(regulators, capacitors):
     """Given regulators and capacitors, map states onto a chromosome.
@@ -119,6 +122,90 @@ def int_bin_length(x):
     return len(bin(x)[2:])
 
 
+def prep_glm_mgr(glm_mgr, starttime, stoptime):#, db_inputs):
+    """Helper to get a glm.GLMManager object ready to run.
+
+    :param glm_mgr: glm.GLMManager object, which has been instantiated
+        by passing the result from a
+        gridappsd_platform.PlatformManager's get_glm method.
+    :param starttime: Python datetime.datetime object for simulation
+        start. Do everyone a favor: convert to UTC.
+    :param stoptime: See starttime, but for simulation stop.
+    :param db_inputs: Dictionary of parameters for creating a
+        'database' object. Valid parameters are documented here:
+        http://gridlab-d.shoutwiki.com/wiki/Database. However, we'll
+        likely only ever need the following:
+            - hostname
+            - username
+            - password
+            - schema
+            - port
+            -tz_offset
+
+    This method will update the glm_mgr as follows:
+    1) Call add_glm_mrg.run_components, passing in starttime and
+        stoptime.
+        NOTE: This method has more inputs, which we could update later.
+    2) Ensure all regulators are set to MANUAL control.
+    3) Ensure all capacitors are set to MANUAL control.
+    4) Add all triplex_load objects to a group.
+    5) Add the MySQL module to the model.
+    6) Add database object.
+    """
+    ####################################################################
+    # 1)
+    # Make the model runnable.
+    glm_mgr.add_run_components(starttime=starttime, stoptime=stoptime)
+    ####################################################################
+
+    ####################################################################
+    # 2)
+    # Lookup regulator_configuration objects.
+    reg_conf_objs = glm_mgr.get_objects_by_type('regulator_configuration')
+    # Switch control to MANUAL.
+    for reg_conf in reg_conf_objs:
+        # Note that Regulators have a capital 'C' in control, while caps
+        # don't. Yay for consistency.
+        glm_mgr.modify_item({'object': 'regulator_configuration',
+                             'name': reg_conf['name'],
+                             'Control': 'MANUAL'})
+    ####################################################################
+
+    ####################################################################
+    # 3)
+    # Lookup capacitor configuration objects.
+    cap_objs = glm_mgr.get_objects_by_type('capacitor')
+    # Switch control to MANUAL.
+    for cap in cap_objs:
+        glm_mgr.modify_item({'object': 'capacitor',
+                             'name': cap['name'],
+                             'control': 'MANUAL'})
+    ####################################################################
+
+    ####################################################################
+    # 4)
+    # Lookup triplex_load objects.
+    tl_objs = glm_mgr.get_objects_by_type('triplex_load')
+    # Add the 'groupid' property to each load.
+    for tl in tl_objs:
+        glm_mgr.modify_item({'object': 'triplex_load',
+                             'name': tl['name'],
+                             'groupid': TRIPLEX_GROUP})
+    ####################################################################
+
+    ####################################################################
+    # 5)
+    # Add 'mysql' module.
+    glm_mgr.add_item({'module': 'mysql'})
+    ####################################################################
+
+    ####################################################################
+    # 6)
+    # Add a 'database' object.
+    # glm_mgr.add_item({'object': 'database', **db_inputs})
+    pass
+
+
 def evaluate(individual):
     """Evaluate the fitness of an individual.
 
@@ -132,11 +219,12 @@ def evaluate(individual):
     pass
 
 
-def main(weight_dict, ):
+def main(weight_dict, glm_mgr):
     """Function to run the GA in its entirety.
 
     :param weight_dict: Dictionary of weights for determining an
         individual's overall fitness.
+    :param glm_mgr: glm.GLMManager object. Should have a run-able model.
     """
 
     # We're minimizing penalties. Get a deap creator for fitness

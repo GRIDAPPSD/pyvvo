@@ -78,7 +78,7 @@ cd ${pwd}
 # necessary folders get added.
 stuff="pyvvo tests README.md"
 PYVVO_ARCHIVE=pyvvo.tar.gz
-tar --exclude='*__pycache__' --exclude='*.pyc' --exclude='.git*' -zcf ${build_dir_pyvvo}/${PYVVO_ARCHIVE} ${stuff}
+tar --exclude='*__pycache__' --exclude="*.log" --exclude='*.pyc' --exclude='.git*' -zcf ${build_dir_pyvvo}/${PYVVO_ARCHIVE} ${stuff}
 
 # Move Dockerfile and requirements.txt into pyvvo build dir.
 cp Dockerfile ${build_dir_pyvvo}/Dockerfile

@@ -33,7 +33,7 @@ COPY --from=base /usr/local/mysql /usr/local/mysql-connector-c /usr/local/
 COPY requirements.txt ${PYVVO}/requirements.txt
 
 # Install requirements.
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Add the pyvvo application files.
 ARG PYVVO_ARCHIVE

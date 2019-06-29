@@ -1,12 +1,18 @@
 import unittest
 from unittest.mock import patch
+import os
+from datetime import datetime
 
 from pyvvo import ga
 from pyvvo import equipment
 from tests.test_sparql import CAPACITORS, REGULATORS
+from pyvvo.glm import GLMManager
 
 import pandas as pd
 import numpy as np
+
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
 
 
 class MapChromosomeTestCase(unittest.TestCase):
@@ -88,6 +94,17 @@ class RegBinLengthTestCase(unittest.TestCase):
         reg_mock.lower_taps = 0
         self.assertEqual(6, ga.reg_bin_length(reg_mock))
 
+
+class PrepGLMMGRTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 5)
+
+    def test_one(self):
+        ga.prep_glm_mgr(self.glm_mgr, self.starttime, self.stoptime)
+        self.assertTrue(False)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,0 +1,17 @@
+# Dockerfile for building a light version of the application.
+# - GridLAB-D and all associated tools will not be included (e.g.
+#   Xerces, MySQLConnector/C, etc.)
+# - pyvvo will be pip installed, rather than just being copied in.
+
+# Use the GridAPPS-D base container.
+FROM gridappsd/app-container-base:latest
+
+# Borrow a page from here:
+# https://github.com/GRIDAPPSD/gridappsd-python/blob/develop/Dockerfile
+WORKDIR /usr/src/pyvvo
+
+# Copy in requirements and install them.
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy in the application and install it.

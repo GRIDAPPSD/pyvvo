@@ -480,7 +480,7 @@ class PlatformManager:
                 "application_config": {"applications": []},
                 "simulation_config":
                     {"start_time": "1560369428",
-                     "duration": "5",
+                     "duration": "15",
                      "simulator": "GridLAB-D",
                      "timestep_frequency": "1000",
                      "timestep_increment": "1000",
