@@ -22,17 +22,31 @@ ENV LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:${PYVVO}/lib:/usr/local/mysql/lib \
     PATH=${PATH}:/${PYVVO}/bin \
     GLPATH=${PYVVO}/lib/gridlabd:${PYVVO}/share/gridlabd
 
-# Copy in stuff from our base container..
+# Copy in stuff from our base container.
 ARG TAG
 COPY --from=base ${PYVVO} ${PYVVO}
-ARG TAG
-COPY --from=base /usr/local/mysql /usr/local/mysql-connector-c /usr/local/
 
-# Copy requirements and setup.
-COPY requirements.txt setup.py ${PYVVO}/
+# Arguments for mysql-apt-config.
+ARG mysql_apt
+ENV mysql_apt=${mysql_apt}
+ARG mysql_apt_deps
+ENV mysql_apt_deps=${mysql_apt_deps}
 
-# Install requirements.
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy files in.
+COPY requirements.txt setup.py install_libmysqlclient-dev.sh ${mysql_apt} ${PYVVO}/
+
+# Install libmysqlclient-dev and Python requirements.
+RUN BUILD_DEPS="build-essential libssl-dev python3-dev" \
+    && apt-get update \
+    && ./install_libmysqlclient-dev.sh ${mysql_apt} "${mysql_apt_deps}" \
+    && rm ${mysql_apt} \
+    && rm install_libmysqlclient-dev.sh \
+    && apt-get -y --no-install-recommends install ${BUILD_DEPS} \
+    && pip install --no-cache-dir -r requirements.txt \
+    # Apt cleaning.
+    && rm -rf /var/lib/opt/lists/* \
+    && apt-get purge -y --auto-remove ${BUILD_DEPS} \
+    && apt-get -y clean
 
 # Add the pyvvo application files.
 ARG PYVVO_ARCHIVE

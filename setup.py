@@ -6,8 +6,8 @@ packages = find_packages()
 
 # I replaced the requirements in requirements.txt with a simple '.'
 # https://stackoverflow.com/questions/14399534/reference-requirements-txt-for-the-install-requires-kwarg-in-setuptools-setup-py
-install_requires = ['coverage', 'deap', 'numpy', 'pandas', 'scipy',
-                    'simplejson', 'sklearn', 'stomp.py']
+install_requires = ['coverage', 'deap', 'mysqlclient', 'numpy', 'pandas',
+                    'scipy', 'simplejson', 'sklearn', 'stomp.py']
 
 setup(
     name='pyvvo',

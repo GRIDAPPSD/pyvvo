@@ -28,11 +28,12 @@ build_dir_base="build/base"
 build_dir_pyvvo="build/pyvvo"
 mkdir -p ${build_dir_base}
 mkdir -p ${build_dir_pyvvo}
-# NOTE: mscc: MySQL Connector/C
-mscc_version="6.1.11"
-mscc_dir="mysql-connector-c-${mscc_version}-linux-glibc2.12-x86_64"
-mscc_archive="${mscc_dir}.tar.gz"
-mscc_path="${build_dir_base}/${mscc_archive}"
+# We'll be setting up the MySQL apt repository.
+mysql_apt="mysql-apt-config_0.8.13-1_all.deb"
+mysql_apt_path="${build_dir_base}/${mysql_apt}"
+# To run dpkg -i on the $mysql_apt file, we need to install the
+# following dependencies:
+mysql_apt_deps="lsb-release wget gnupg"
 
 # NOTE: gld --> GridLAB-D
 gld=gridlab-d
@@ -40,10 +41,10 @@ gld_dir="${build_dir_base}/${gld}"
 gld_tar_gz="${gld}.tar.gz"
 gld_archive="${build_dir_base}/${gld_tar_gz}"
 
-# Download mscc if it isn't already present
-if [ ! -f "${mscc_path}" ]; then
-    printf "Downloading MySQL Connector/C.\n\n"
-    wget -P "${build_dir_base}" --no-clobber "https://dev.mysql.com/get/Downloads/Connector-C/${mscc_archive}"
+# Download mysql apt configuration if it isn't already present
+if [ ! -f "${mysql_apt_path}" ]; then
+    printf "Downloading mysql-apt-config.\n\n"
+    wget -P "${build_dir_base}" --no-clobber "https://dev.mysql.com/get//${mysql_apt}"
 fi
 
 # If our GridLAB-D archive isn't present, clone and archive.
@@ -59,6 +60,8 @@ fi
 
 # Move the Dockerfile.
 cp Dockerfile-base ${build_dir_base}/Dockerfile
+# Move the helper script.
+cp install_libmysqlclient-dev.sh ${build_dir_base}/install_libmysqlclient-dev.sh
 
 # Move into the build directory (this helps keep the Docker context
 # minimal.
@@ -67,9 +70,9 @@ cd ${build_dir_base}
 # Build the base container (which contains GridLAB-D, etc.)
 printf "Building pyvvo-base container...\n"
 docker build -t pyvvo-base:${tag} \
-    --build-arg MSCC=${mscc_archive} \
-    --build-arg GLD=${gld_tar_gz} \
-    --build-arg MSCC_DIR_NAME=${mscc_dir} .
+    --build-arg mysql_apt=${mysql_apt} \
+    --build-arg mysql_apt_deps="${mysql_apt_deps}" \
+    --build-arg GLD=${gld_tar_gz} .
 
 # Move back up.
 cd ${pwd}
@@ -82,6 +85,8 @@ tar --exclude='*__pycache__' --exclude="*.log" --exclude='*.pyc' --exclude='.git
 
 # Move files into pyvvo build dir.
 cp Dockerfile ${build_dir_pyvvo}/Dockerfile
+cp ${mysql_apt_path} ${build_dir_pyvvo}/${mysql_apt}
+cp install_libmysqlclient-dev.sh ${build_dir_pyvvo}/install_libmysqlclient-dev.sh
 cp requirements.txt ${build_dir_pyvvo}/requirements.txt
 cp setup.py ${build_dir_pyvvo}/setup.py
 
@@ -92,4 +97,6 @@ cd ${build_dir_pyvvo}
 printf "Building pyvvo container...\n"
 docker build -t gridappsd/pyvvo:${tag} \
     --build-arg TAG=${tag} \
-    --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} .
+    --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} \
+       --build-arg mysql_apt=${mysql_apt} \
+    --build-arg mysql_apt_deps="${mysql_apt_deps}" .

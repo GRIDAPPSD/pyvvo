@@ -8,15 +8,18 @@ ENV PYVVO=/pyvvo \
 
 WORKDIR ${TEMP_DIR}
 
-# Arguments for MySQL Connector/C (MSCC) and GridLAB-D (GLD) locations.
-ARG MSCC
+# Arguments for mysql-apt-config and GridLAB-D (GLD) locations.
+ARG mysql_apt
+ENV mysql_apt=${mysql_apt}
+ARG mysql_apt_deps
+ENV mysql_apt_deps=${mysql_apt_deps}
 ARG GLD
 
 # Add GridLAB-D and MSCC archives. Hard-code build directory.
-ADD $GLD $MSCC ${TEMP_DIR}/
+ADD $GLD $mysql_apt install_libmysqlclient-dev.sh ${TEMP_DIR}/
 
 ENV CXXFLAGS=-I${PYVVO}/share/gridlabd \
-    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PYVVO}/lib:/usr/local/mysql/lib \
+    LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PYVVO}/lib:/usr/lib/x86_64-linux-gnu \
     PATH=${PATH}:/${PYVVO}/bin \
     BUILD_PACKAGES="autoconf automake g++ libtool make gcc"
 
@@ -25,23 +28,14 @@ ENV CXXFLAGS=-I${PYVVO}/share/gridlabd \
 # pyvvo container. However, the level of effort to get that going simply
 # isn't worth it right now.
 
-# Move MSCC to /usr/local/mysql.
-ARG MSCC_DIR_NAME
 # Install necessary packages.
-RUN perl -E "print '*' x 80" \
-    && printf '\nInstalling packages for software builds/installation...\n' \
-    && apt-get update && apt-get -y install --no-install-recommends ${BUILD_PACKAGES} \
-    && rm -rf /var/lib/opt/lists/* \
-    # Move the MSCC to the proper directory.
-    && mv ${TEMP_DIR}/${MSCC_DIR_NAME}/ /usr/local/mysql \
-    # Symlinks for MSCC. /usr/local/mysql is standard, GridLAB-D might need
-    # the mysql-connector-c as well?
+RUN mkdir ${PYVVO} \
     && perl -E "print '*' x 80" \
-    && printf '\nCreating symlink for MySQL Connector/C...' \
-    && ln -s /usr/local/mysql /usr/local/mysql-connector-c \
-    && printf 'done.\n' \
-    # Make PyVVO directory.
-    && mkdir ${PYVVO} \
+    && printf '\nInstalling packages for software builds/installation...\n' \
+    && apt-get update && apt-get -y --no-install-recommends install ${BUILD_PACKAGES} \
+    && ./install_libmysqlclient-dev.sh ${mysql_apt} "${mysql_apt_deps}" \
+    # Clean out our apt list.
+    && rm -rf /var/lib/opt/lists/* \
     # Install Xerces
     && perl -E "print '*' x 80" \
     && printf '\nInstalling Xerces...\n' \
@@ -57,7 +51,12 @@ RUN perl -E "print '*' x 80" \
     && printf '\nInstalling GridLAB-D...\n' \
     && cd ${TEMP_DIR}/gridlab-d \
     && autoreconf -isf \
-    && ./configure --prefix=${PYVVO} --with-mysql=/usr/local/mysql --with-xerces=${PYVVO} --enable-silent-rules 'CFLAGS=-g -O2 -w' 'CXXFLAGS=-g -O2 -w -std=c++11' 'LDFLAGS=-g -O2 -w' \
+    && ./configure --prefix=${PYVVO} --with-mysql=/usr --with-xerces=${PYVVO} --enable-silent-rules 'CFLAGS=-g -O2 -w' 'CXXFLAGS=-g -O2 -w -std=c++11' 'LDFLAGS=-g -O2 -w' \
+    # Do some nasty hard-coded replacement in the Makefile so that it
+    # can properly find mysql.h and libmysqlclient.so.
+    && sed "s@MYSQL_LDFLAGS = '-L/usr/lib'@MYSQL_LDFLAGS = '-L/usr/lib/x86_64-linux-gnu'@" Makefile > tmp.txt \
+    && rm Makefile \
+    && sed "s@MYSQL_CPPFLAGS = '-I/usr/include'@MYSQL_CPPFLAGS = '-I/usr/include/mysql'@" tmp.txt > Makefile \
     && make -j $(($(nproc) + 1)) \
     && make -j $(($(nproc) + 1)) install \
     # Clean up source installs
