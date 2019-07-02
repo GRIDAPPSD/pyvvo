@@ -1050,7 +1050,7 @@ class TestGLDZIP(unittest.TestCase):
         """Remove the files that were created."""
         for f in cls.out_files:
             # BAD PRACTICE: Skip the file that's used in test_utils.
-            if f != TEST_ZIP1:
+            if os.path.basename(TEST_ZIP1) not in f:
                 os.remove(f)
 
     def compare_results(self, f):
