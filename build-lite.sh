@@ -18,7 +18,8 @@ mkdir -p ${build_dir}
 # Move files into pyvvo build dir.
 cp Dockerfile-lite ${build_dir}/Dockerfile
 cp requirements.txt ${build_dir}/requirements.txt
-cp setup.py ${build_dir}/setup.py
+# We're going to remove the 'mysqlclient' dependency here.
+sed "s@'mysqlclient',@@" setup.py > ${build_dir}/setup.py
 
 # Package up the PyVVO application.
 # https://kvz.io/blog/2007/07/11/cat-a-file-without-the-comments/

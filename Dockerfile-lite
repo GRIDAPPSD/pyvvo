@@ -4,7 +4,7 @@
 # - pyvvo will be pip installed, rather than just being copied in.
 
 # Use the GridAPPS-D base container.
-FROM gridappsd/app-container-base:latest
+FROM gridappsd/app-container-base:develop
 
 # Borrow a page from here:
 # https://github.com/GRIDAPPSD/gridappsd-python/blob/develop/Dockerfile
