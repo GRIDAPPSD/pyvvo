@@ -6,7 +6,7 @@ import os
 import logging
 
 # Import module to test
-from pyvvo import glm
+from pyvvo import glm, db
 from pyvvo.utils import gld_installed, run_gld
 
 # Setup log.
@@ -22,16 +22,7 @@ EXPECTED4 = os.path.join(THIS_DIR, 'test4_expected.glm')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 
 # See if we have database inputs defined.
-try:
-    _ = os.environ['DB_HOST']
-    _ = os.environ['DB_USER']
-    _ = os.environ['DB_PASS']
-    _ = os.environ['DB_DB']
-    _ = os.environ['DB_PORT']
-except KeyError:
-    DB_ENVIRON_PRESENT = False
-else:
-    DB_ENVIRON_PRESENT = True
+DB_ENVIRON_PRESENT = db.db_env_defined()
 
 
 class TestParseFile(unittest.TestCase):
@@ -899,25 +890,7 @@ class RunModelWithDatabaseTestCase(unittest.TestCase):
 
         # It can take a while to get the database up and running with
         # PyCharm using docker-compose. Let's do a 30 second wait loop.
-        max_time = 30
-        count = 0
-        while count < max_time:
-            try:
-                _ = MySQLdb.connect(db=os.environ['DB_DB'],
-                                    password=os.environ['DB_PASS'],
-                                    host=os.environ['DB_HOST'],
-                                    user=os.environ['DB_USER'],
-                                    port=int(os.environ['DB_PORT']))
-            except Exception as e:
-                if count == max_time - 1:
-                    raise e from None
-
-                count += 1
-                time.sleep(1)
-            else:
-                break
-
-        pass
+        _ = db.connect_loop(timeout=30, retry_interval=0.1)
 
     @classmethod
     def tearDownClass(cls):
