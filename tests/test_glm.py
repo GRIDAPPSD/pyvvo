@@ -21,9 +21,17 @@ TEST_FILE4 = os.path.join(THIS_DIR, 'test4.glm')
 EXPECTED4 = os.path.join(THIS_DIR, 'test4_expected.glm')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 
-# TODO: probably should test "sorted_write" and ensure GridLAB-D runs.
-# This can't be done until we have a Docker container with GridLAB-D
-# installed and configured.
+# See if we have database inputs defined.
+try:
+    _ = os.environ['DB_HOST']
+    _ = os.environ['DB_USER']
+    _ = os.environ['DB_PASS']
+    _ = os.environ['DB_DB']
+    _ = os.environ['DB_PORT']
+except KeyError:
+    DB_ENVIRON_PRESENT = False
+else:
+    DB_ENVIRON_PRESENT = True
 
 
 class TestParseFile(unittest.TestCase):
@@ -740,6 +748,7 @@ class AddRunComponentsTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        # noinspection PyUnresolvedReferences
         os.remove(cls.out_file)
 
     @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
@@ -853,6 +862,74 @@ class NestedObjectsDoubleNestTestCase(unittest.TestCase):
             expected = f.read()
 
         self.assertEqual(actual, expected)
+
+
+@unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+@unittest.skipIf(not DB_ENVIRON_PRESENT,
+                 reason='Database environment variables are not present.')
+class RunModelWithDatabaseTestCase(unittest.TestCase):
+    """This is more of an integration test than anything. Add database
+    components to a model and ensure it runs.
+    """
+
+    # noinspection PyPackageRequirements
+    @classmethod
+    def setUpClass(cls):
+        import MySQLdb
+        import time
+
+        # Use the simplest model.
+        cls.glm_mgr = glm.GLMManager(TEST_FILE2, model_is_path=True)
+
+        # Add the MySQL module.
+        cls.glm_mgr.add_item({'module': 'mysql'})
+
+        # Add a database object.
+        # At the time of writing (2019-07-02), the following environment
+        #   variables are only defined in the docker-compose file.
+        cls.glm_mgr.add_item({'object': 'database',
+                              'hostname': os.environ['DB_HOST'],
+                              'username': os.environ['DB_USER'],
+                              'password': os.environ['DB_PASS'],
+                              'port': os.environ['DB_PORT'],
+                              'schema': os.environ['DB_DB']})
+
+        cls.out_file = 'tmp_db.glm'
+        cls.glm_mgr.write_model(cls.out_file)
+
+        # It can take a while to get the database up and running with
+        # PyCharm using docker-compose. Let's do a 30 second wait loop.
+        max_time = 30
+        count = 0
+        while count < max_time:
+            try:
+                _ = MySQLdb.connect(db=os.environ['DB_DB'],
+                                    password=os.environ['DB_PASS'],
+                                    host=os.environ['DB_HOST'],
+                                    user=os.environ['DB_USER'],
+                                    port=int(os.environ['DB_PORT']))
+            except Exception as e:
+                if count == max_time - 1:
+                    raise e from None
+
+                count += 1
+                time.sleep(1)
+            else:
+                break
+
+        pass
+
+    @classmethod
+    def tearDownClass(cls):
+        os.remove(cls.out_file)
+        try:
+            os.remove('gridlabd.xml')
+        except FileNotFoundError:
+            pass
+
+    def test_model_runs(self):
+        result = run_gld(self.out_file)
+        self.assertEqual(0, result.returncode)
 
 
 if __name__ == '__main__':
