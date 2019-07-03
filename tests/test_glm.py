@@ -607,6 +607,48 @@ class TestGLMManagerMisc(unittest.TestCase):
                 self.assertIn('from', d)
                 self.assertIn('to', d)
 
+    def test_get_items_by_type_clock(self):
+        c = self._GLMManager.get_items_by_type(item_type='clock')
+        self.assertIsInstance(c, dict)
+        self.assertIn('clock', c)
+        self.assertIn('starttime', c)
+
+    def test_get_items_by_type_module(self):
+        m = self._GLMManager.get_items_by_type(item_type='module')
+        self.assertIsInstance(m, dict)
+        self.assertIn('mysql', m)
+        self.assertIn('powerflow', m)
+        for d in m.values():
+            self.assertIsInstance(d, dict)
+
+    def test_get_items_by_type_object_no_type(self):
+        with self.assertRaisesRegex(ValueError, "If item_type is 'object'"):
+            self._GLMManager.get_items_by_type(item_type='object')
+
+    def test_get_items_by_type_object_meter(self):
+        o = self._GLMManager.get_items_by_type(item_type='object',
+                                               object_type='meter')
+        self.assertIsInstance(o, dict)
+        self.assertEqual(4, len(o))
+        for name, obj in o.items():
+            self.assertIsInstance(obj, dict)
+            self.assertEqual(name, obj['name'])
+            self.assertEqual(obj['object'], 'meter')
+
+    def test_get_items_by_type_object_unnamed(self):
+        u = self._GLMManager.get_items_by_type(item_type='object_unnamed')
+        self.assertIsInstance(u, list)
+        for i in u:
+            self.assertIsInstance(i, dict)
+
+        # This model has 3 recorders and a database object which are
+        # unnamed.
+        self.assertEqual(4, len(u))
+
+    def test_get_items_by_type_bad_type(self):
+        self.assertIsNone(
+            self._GLMManager.get_items_by_type(item_type='bogus'))
+
 
 class AddOrModifyClockTestCase(unittest.TestCase):
     """Test GLMManager.add_or_modify_clock."""
@@ -866,9 +908,6 @@ class RunModelWithDatabaseTestCase(unittest.TestCase):
     # noinspection PyPackageRequirements
     @classmethod
     def setUpClass(cls):
-        import MySQLdb
-        import time
-
         # Use the simplest model.
         cls.glm_mgr = glm.GLMManager(TEST_FILE2, model_is_path=True)
 

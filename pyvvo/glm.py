@@ -380,7 +380,7 @@ class GLMManager:
         - write_model: Write model to file.
         - add_item: Given an item dict, add it to the model.
         - find_object: Lookup an object by type and name.
-        - get_items_of_type: Lookup all items of a given type.
+        - get_items_by_type: Lookup all items of a given type.
         - modify_item: Update an item's properties (no renaming, though)
         - remove_properties_from_item: Delete certain properties from
             an item.
@@ -395,7 +395,19 @@ class GLMManager:
             a model running when we're just given the "base" model from
             the GridAPPS-D platform. This "base" model is missing
             modules, a clock, etc.
-
+            
+    IMPORTANT NOTE ON MUTABILITY:
+        As Python programmers should know, dictionaries are mutable, and
+        thus pointers are effectively used. When using methods which 
+        return a dictionary or collection of dictionaries representing
+        model components (e.g. objects of type meter or the model's
+        clock), this dictionary points directly to the same dictionary
+        the GLMManager uses. Thus, these dictionaries SHOULD NOT BE 
+        MODIFIED. While this hazard could be circumnavigated by 
+        returning copies, that's simply not efficient and in my opinion,
+        overkill. So, if you need to make modifications, make a copy. If
+        you are intentionally modifying an object, use one of the public
+        methods to do so. 
 
     A note on "items" vs. "objects":
         Any encapsulated element in a GridLAB-D model is considered an
@@ -725,19 +737,31 @@ class GLMManager:
 
         return obj
 
-    def get_items_of_type(self, item_type, object_type=None):
-        """Get data for all objects of the given type.
+    def get_items_by_type(self, item_type, object_type=None):
+        """Get data for all objects of the given type. At times, you
+        may want to use this instead of get_objects_by_type since the
+        return value is formatted differently.
 
-        :param item_type: string, item type. e.g. 'clock' or 'object'
+        :param item_type: string, item type. At present (2019-07-03), 
+            valid item types appear to be 'object', 'clock', 'module',
+            or 'object_unnamed' by inspecting __init__ and
+            _map_model_dict. 
         :param object_type: string, object type. Only used if item_type
                is 'object.' E.g. 'triplex_load'
-        :return: dictionary, keyed by object name. Each sub-dict
-                 contains all the object properties. If the object type
-                 doesn't exist in the model, None is returned.
+        :return: Returns differ slightly by item_type. If the item_type 
+            is not present in the model, None will be returned. The 
+            other types are listed below:
+                clock: Simply returns the clock dictionary.
+                module: Returns a dictionary of dictionaries keyed by
+                    module name.
+                object: Dictionary of dictionaries keyed by object name.
+                    NOTE: This is in contrast to get_objects_by_type 
+                    which returns a list of dictionaries.
+                object_unnamed: 
         """
         # Check to see if the item_type is in the map.
         try:
-            self.model_map[item_type]
+            dict_or_list = self.model_map[item_type]
         except KeyError:
             return None
 
@@ -746,25 +770,36 @@ class GLMManager:
             # See if we have this object_type.
             if object_type is not None:
                 try:
-                    self.model_map['object'][object_type]
+                    object_dict = self.model_map[item_type][object_type]
                 except KeyError:
                     return None
+                
+                # Loop over the map and create the return. In each list,
+                # the first element is a key into the model_dict, and 
+                # the user of this method doesn't care about that. Thus,
+                # we grab v[1], which is the actual dictionary.
+                return {k: v[1] for k, v in object_dict.items()}
+                
             else:
                 # Require and object_type for item_type of 'object'
                 raise ValueError("If item_type is 'object', then " +
                                  "object_type must not be None.")
-
-            # Since we're working with objects of a specific type,
-            # grab the appropriate dictionary.
-            item_dict = self.model_map['object'][object_type]
+        elif item_type == 'clock':
+            # Simply return the clock dictionary. The first item in this 
+            # list is the key into the model map.
+            return dict_or_list[1]
+        elif item_type == 'module':
+            # Return a dict of dicts keyed by module name.
+            return {k: v[1] for k, v in dict_or_list.items()}
+        elif item_type == 'object_unnamed':
+            # Return a list which doesn't include the keys into the 
+            # model_dict.
+            return [i[1] for i in dict_or_list]
         else:
-            # Not working with objects, pull top level item_dict.
-            item_dict = self.model_map[item_type]
-
-        # Loop over the items in the dictionary, and extract just their
-        # property dictionary (we don't need the key into the
-        # model_dict)
-        return {k: v[1] for k, v in item_dict.items()}
+            # Hopefully we never get here, as the try/except at the
+            # very beginning of this method will catch most cases.
+            raise ValueError(
+                'The given item_type, {}, is not supported.'.format(item_type))
 
     def _add_non_object(self, item_type, item_dict):
         """Add a non-object to the model.
