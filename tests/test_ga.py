@@ -7,6 +7,7 @@ from pyvvo import ga
 from pyvvo import equipment
 from tests.test_sparql import CAPACITORS, REGULATORS
 from pyvvo.glm import GLMManager
+from pyvvo.utils import run_gld
 
 import pandas as pd
 import numpy as np
@@ -101,10 +102,57 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         cls.glm_mgr = GLMManager(IEEE_8500)
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 5)
+        ga.prep_glm_mgr(cls.glm_mgr, cls.starttime, cls.stoptime)
 
-    def test_one(self):
-        ga.prep_glm_mgr(self.glm_mgr, self.starttime, self.stoptime)
-        self.assertTrue(False)
+        # Write file.
+        cls.out_file = 'tmp.glm'
+        cls.glm_mgr.write_model(cls.out_file)
+
+    @classmethod
+    def tearDownClass(cls):
+        os.remove(cls.out_file)
+        try:
+            os.remove('gridlabd.xml')
+        except FileNotFoundError:
+            pass
+
+    def test_clock_present(self):
+        """This is a so-so way to ensure add_run_components ran.
+
+        Really, we should be using mock to ensure the method is called.
+        """
+        c = self.glm_mgr.get_items_by_type(item_type='clock')
+        self.assertIn('clock', c)
+
+    def test_regs_manual(self):
+        regs = self.glm_mgr.get_objects_by_type(
+            object_type='regulator_configuration')
+        for r in regs:
+            self.assertEqual('MANUAL', r['Control'])
+
+    def test_caps_manual(self):
+        caps = self.glm_mgr.get_objects_by_type(object_type='capacitor')
+        for c in caps:
+            self.assertEqual('MANUAL', c['control'])
+
+    def test_triplex_load_has_group(self):
+        tls = self.glm_mgr.get_objects_by_type(object_type='triplex_load')
+        for tl in tls:
+            self.assertEqual(ga.TRIPLEX_GROUP, tl['groupid'])
+
+    def test_mysql_present(self):
+        m = self.glm_mgr.get_items_by_type(item_type='module')
+        self.assertIn('mysql', m)
+
+    def test_mysql_group_recorder_present(self):
+        r = self.glm_mgr.get_objects_by_type(
+            object_type='mysql.recorder')
+        self.assertIsNotNone(r)
+
+    def test_model_runs(self):
+        result = run_gld(self.out_file)
+        self.assertEqual(0, result.returncode)
+
 
 if __name__ == '__main__':
     unittest.main()

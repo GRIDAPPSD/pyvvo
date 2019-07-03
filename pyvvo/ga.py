@@ -1,12 +1,16 @@
-"""Module for pyvvo's genetic algorithm."""
+"""Module for pyvvo's genetic algorithm.
+
+TODO: Create some sort of configuration file, like ga_config.json.
+"""
 # Standard library:
 import random
 import multiprocessing as mp
 import array
-from uuid import uuid4
+import os
+from queue import Queue
 
 # Third party:
-from deap import base, creator, tools
+import numpy as np
 
 # pyvvo:
 from pyvvo import equipment
@@ -122,7 +126,7 @@ def int_bin_length(x):
     return len(bin(x)[2:])
 
 
-def prep_glm_mgr(glm_mgr, starttime, stoptime):#, db_inputs):
+def prep_glm_mgr(glm_mgr, starttime, stoptime):
     """Helper to get a glm.GLMManager object ready to run.
 
     :param glm_mgr: glm.GLMManager object, which has been instantiated
@@ -131,26 +135,24 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):#, db_inputs):
     :param starttime: Python datetime.datetime object for simulation
         start. Do everyone a favor: convert to UTC.
     :param stoptime: See starttime, but for simulation stop.
-    :param db_inputs: Dictionary of parameters for creating a
-        'database' object. Valid parameters are documented here:
-        http://gridlab-d.shoutwiki.com/wiki/Database. However, we'll
-        likely only ever need the following:
-            - hostname
-            - username
-            - password
-            - schema
-            - port
-            -tz_offset
 
     This method will update the glm_mgr as follows:
-    1) Call add_glm_mrg.run_components, passing in starttime and
+    1) Call glm_mgr.add_run_components, passing in starttime and
         stoptime.
         NOTE: This method has more inputs, which we could update later.
     2) Ensure all regulators are set to MANUAL control.
     3) Ensure all capacitors are set to MANUAL control.
     4) Add all triplex_load objects to a group.
     5) Add the MySQL module to the model.
-    6) Add database object.
+    6) Add database object. The following environment variables (
+        at present defined in docker-compose.yml) are necessary:
+            DB_HOST: hostname of the MySQL database.
+            DB_USER: User to use to connect to MySQL.
+            DB_PASS: Password for DB_USER.
+            DB_DB: Database to use.
+            DB_PORT: Port to connect to MySQL.
+    7) Add a recorder for the triplex group.
+    TODO: Add recorder(s) for head(s) of feeder.
     """
     ####################################################################
     # 1)
@@ -202,7 +204,36 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):#, db_inputs):
     ####################################################################
     # 6)
     # Add a 'database' object.
-    # glm_mgr.add_item({'object': 'database', **db_inputs})
+    glm_mgr.add_item({'object': 'database',
+                      'hostname': os.environ['DB_HOST'],
+                      'username': os.environ['DB_USER'],
+                      'password': os.environ['DB_PASS'],
+                      'port': os.environ['DB_PORT'],
+                      'schema': os.environ['DB_DB']})
+    ####################################################################
+
+    ####################################################################
+    # 7)
+    # Add a MySQL recorder for the triplex loads.
+    glm_mgr.add_item(
+        # We use the mysql.group_recorder syntax to be very careful
+        # avoiding collisions with the tape module.
+        {'object': 'mysql.recorder',
+         'table': 'triplex_voltage',
+         'name': 'triplex_load_recorder',
+         'group': '"groupid={}"'.format(TRIPLEX_GROUP),
+         'property': '"measured_voltage_12.mag"',
+         # TODO: Stop hard-coding.
+         'interval': 60,
+         'limit': -1,
+         # TODO: Ensure we're being adequately careful with mode.
+         'mode': 'a',
+         # TODO: Stop hard-coding, put in config.
+         'query_buffer_limit': 20000
+         })
+    ####################################################################
+
+    # TODO: Add recorders for other things.
     pass
 
 
@@ -226,28 +257,17 @@ def main(weight_dict, glm_mgr):
         individual's overall fitness.
     :param glm_mgr: glm.GLMManager object. Should have a run-able model.
     """
+    # TODO: Stop hard-coding the number of individuals.
+    NUM_IND = 100
 
-    # We're minimizing penalties. Get a deap creator for fitness
-    # minimization.
-    creator.create("FitnessMin", base.Fitness,
-                   weights=tuple(weight_dict.items()))
+    # Create a queue containing ID's for individuals.
+    # Note that the only parallelized operation is the evaluation of
+    # an individual's fitness, so we'll use a standard Queue object.
+    id_q = Queue()
+    for k in range(NUM_IND):
+        id_q.put_nowait(k)
 
-    # To keep individuals simple, they'll just be arrays of 0's and 1's.
-    # The evaluate function will handle translating these arrays into
-    # usable information. Use the "H" type code for the unsigned shorts.
-    # https://docs.python.org/3.7/library/array.html
-    creator.create("Individual", array.array, typecode="H")
 
-    # Initialize our toolbox. Note that toolboxes start with clone and
-    # map methods.
-    # https://deap.readthedocs.io/en/master/api/base.html#toolbox
-    toolbox = base.Toolbox()
+if __name__ == '__main__':
+    main(weight_dict={'one': -1, 'two': -2, 'three': -3}, glm_mgr=None)
 
-    # Following the deap documentation's examples, create an attribute
-    # generator for initializing chromosomes.
-    toolbox.register("attr_bool", random.randint, 0, 1)
-
-    # Register tool for initializing individuals.
-    # TODO: Add seeding support.
-    # https://deap.readthedocs.io/en/master/tutorials/basic/part1.html
-    toolbox.register("individual", tools.initRepeat, )
