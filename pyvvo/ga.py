@@ -150,7 +150,8 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):
             DB_DB: Database to use.
             DB_PORT: Port to connect to MySQL.
     7) Add a recorder for the triplex group.
-    TODO: Add recorder(s) for head(s) of feeder.
+    8) Add a meter to the substation object.
+    9) Add a recorder for the substation meter.
     """
     ####################################################################
     # 1)
@@ -231,7 +232,34 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):
          })
     ####################################################################
 
-    # TODO: Add recorders for other things.
+    ####################################################################
+    # 8)
+    # Add a meter at the head of the feeder.
+    sub_meter = glm_mgr.add_substation_meter()
+    ####################################################################
+
+    ####################################################################
+    # 8)
+    # Add a recorder for the new meter.
+    glm_mgr.add_item(
+        # We use the mysql.group_recorder syntax to be very careful
+        # avoiding collisions with the tape module.
+        {'object': 'mysql.recorder',
+         'table': 'substation',
+         'name': 'substation_recorder',
+         'parent': sub_meter,
+         'property': '"measured_real_energy, measured_real_power, '
+                     'measured_reactive_power"',
+         # TODO: Stop hard-coding.
+         'interval': 60,
+         'limit': -1,
+         # TODO: Ensure we're being adequately careful with mode.
+         'mode': 'a',
+         # TODO: Stop hard-coding, put in config.
+         'query_buffer_limit': 20000
+         })
+    ####################################################################
+
     pass
 
 

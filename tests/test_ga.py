@@ -102,14 +102,19 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         cls.glm_mgr = GLMManager(IEEE_8500)
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 5)
+        cls.out_file = 'tmp.glm'
+
+        # Run the prep function.
         ga.prep_glm_mgr(cls.glm_mgr, cls.starttime, cls.stoptime)
 
         # Write file.
-        cls.out_file = 'tmp.glm'
         cls.glm_mgr.write_model(cls.out_file)
 
     @classmethod
     def tearDownClass(cls):
+        # TODO: DROP DATABASE TABLES
+        # Why is PyCharm telling me this attribute isn't defined? It
+        # clearly is!
         os.remove(cls.out_file)
         try:
             os.remove('gridlabd.xml')
@@ -145,9 +150,18 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         self.assertIn('mysql', m)
 
     def test_mysql_group_recorder_present(self):
-        r = self.glm_mgr.get_objects_by_type(
-            object_type='mysql.recorder')
+        r = self.glm_mgr.find_object(obj_type='mysql.recorder',
+                                     obj_name='triplex_load_recorder')
         self.assertIsNotNone(r)
+
+    def test_swing_meter_present(self):
+        sm = self.glm_mgr.find_object(obj_type='meter',
+                                      obj_name='"sourcebus_meter"')
+        self.assertIsNotNone(sm)
+
+    def test_swing_recorder_present(self):
+        sr = self.glm_mgr.find_object(obj_type='mysql.recorder',
+                                      obj_name='substation_recorder')
 
     def test_model_runs(self):
         result = run_gld(self.out_file)
