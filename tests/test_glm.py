@@ -20,6 +20,7 @@ TEST_FILE3 = os.path.join(THIS_DIR, 'test3.glm')
 TEST_FILE4 = os.path.join(THIS_DIR, 'test4.glm')
 EXPECTED4 = os.path.join(THIS_DIR, 'test4_expected.glm')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
+IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()
@@ -942,6 +943,46 @@ class RunModelWithDatabaseTestCase(unittest.TestCase):
     def test_model_runs(self):
         result = run_gld(self.out_file)
         self.assertEqual(0, result.returncode)
+
+
+class AddSubstationMeter13TestCase(unittest.TestCase):
+    """Primitive test case for add_substation_meter with IEEE 13 node.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.mgr = glm.GLMManager(IEEE_13, model_is_path=True)
+        cls.meter = cls.mgr.add_substation_meter()
+
+    def test_meter_object(self):
+        m = self.mgr.find_object(obj_type='meter', obj_name=self.meter)
+        self.assertIsNotNone(m)
+        self.assertEqual(m['name'], '"sourcebus_meter"')
+        self.assertEqual(m['parent'], '"sourcebus"')
+
+    def test_xfmr_updated(self):
+        x = self.mgr.find_object(obj_type='transformer', obj_name='"xf_sub3"')
+        self.assertEqual(x['from'], self.meter)
+
+
+class AddSubstationMeter8500TestCase(unittest.TestCase):
+    """Primitive test case for add_substation_meter with IEEE 8500 node.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.mgr = glm.GLMManager(IEEE_8500, model_is_path=True)
+        cls.meter = cls.mgr.add_substation_meter()
+
+    def test_meter_object(self):
+        m = self.mgr.find_object(obj_type='meter', obj_name=self.meter)
+        self.assertIsNotNone(m)
+        self.assertEqual(m['name'], '"sourcebus_meter"')
+        self.assertEqual(m['parent'], '"sourcebus"')
+
+    def test_line_updated(self):
+        x = self.mgr.find_object(obj_type='overhead_line',
+                                 obj_name='"line_hvmv_sub_hsb"')
+        self.assertEqual(x['from'], self.meter)
 
 
 if __name__ == '__main__':

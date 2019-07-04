@@ -395,6 +395,10 @@ class GLMManager:
             a model running when we're just given the "base" model from
             the GridAPPS-D platform. This "base" model is missing
             modules, a clock, etc.
+        - add_substation_meter: Add a meter which monitors the
+            swing bus (a substation object). All objects which were
+            connected to the swing are modified to be connected to the
+            new meter.
             
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
@@ -1255,6 +1259,78 @@ class GLMManager:
 
         # Done.
         return
+
+    def add_substation_meter(self):
+        """Helper to add a meter object to the substation.
+
+        TODO: Handle multiple substations.
+        TODO: Hard-coding the use of "substation" objects could get us
+            into trouble.
+        TODO: This looping to figure out what's connected is NASTY. This
+            class should be augmented to include a graph representation
+            of the model, such as from networkx.
+        """
+        # Get the substation object - for now, only handle a single one.
+        sub = self.get_objects_by_type(object_type='substation')
+        assert len(sub) == 1
+        sub = sub[0]
+        assert sub['bustype'] == 'SWING'
+
+        sub_name = sub['name']
+
+        # Create a name for the meter. We have to watch out for the
+        # good old quotation marks. Note we're going to add the meter
+        # to the model AFTER modifying objects connected to the
+        # substation bus in order to keep our loop cleaner.
+        if sub_name.endswith('"'):
+            meter_name = sub_name[:-1] + '_meter"'
+        else:
+            meter_name = sub_name + '_meter'
+
+        def check_and_modify(mgr, o, p, old_name, new_name):
+            """Nested helper."""
+            try:
+                # Extract the property.
+                p_val = o[p]
+            except KeyError:
+                # This object doesn't have this property.
+                return
+            else:
+                # This object has the property, see if it matches.
+                if p_val == old_name:
+                    # Change the item to reference the new name.
+                    mgr.modify_item({'object': o['object'],
+                                     'name': o['name'],
+                                     p: new_name})
+
+        # Loop through ALL objects. This is terrible - we should have a
+        # graph representation.
+        for obj_type in self.model_map['object']:
+            for obj_list in self.model_map['object'][obj_type].values():
+                # Extract the object.
+                obj = obj_list[1]
+
+                # Check for parented objects.
+                check_and_modify(mgr=self, o=obj, p='parent',
+                                 old_name=sub_name, new_name=meter_name)
+
+                # Check 'from'
+                check_and_modify(mgr=self, o=obj, p='from',
+                                 old_name=sub_name, new_name=meter_name)
+
+                # Check 'to' (though this shouldn't be necessary, right?
+                check_and_modify(mgr=self, o=obj, p='to',
+                                 old_name=sub_name, new_name=meter_name)
+
+        # Add the meter to the model.
+        self.add_item({'object': 'meter',
+                       'phases': sub['phases'],
+                       'nominal_voltage': sub['nominal_voltage'],
+                       'parent': sub['name'],
+                       'name': meter_name})
+
+        # All done.
+        return meter_name
 
 
 class Error(Exception):
