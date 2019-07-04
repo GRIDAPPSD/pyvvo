@@ -154,5 +154,168 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         self.assertEqual(0, result.returncode)
 
 
+class IndividualTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ind = ga.Individual(uid=0, chrom_len=50)
+
+    def test_bad_uid(self):
+        with self.assertRaisesRegex(TypeError, 'uid should be an integer.'):
+            ga.Individual(uid='1', chrom_len=10)
+
+    def test_bad_uid_negative(self):
+        with self.assertRaisesRegex(ValueError, 'uid must be greater than 0.'):
+            ga.Individual(uid=-2, chrom_len=7)
+
+    def test_bad_chrom_len(self):
+        with self.assertRaisesRegex(TypeError, 'chrom_len should be an int'):
+            ga.Individual(uid=3, chrom_len='4')
+
+    def test_bad_chrom_len_negative(self):
+        with self.assertRaisesRegex(ValueError, 'chrom_len must be greater'):
+            ga.Individual(uid=999, chrom_len=-5)
+
+    def test_chromosome_length(self):
+        """Ensure the chromosome matches the given length."""
+        self.assertEqual(self.ind.chrom_len, self.ind.chromosome.shape[0])
+        self.assertEqual(1, len(self.ind.chromosome.shape))
+
+    def test_chromosome_values(self):
+        """Ensure all values are in bounds."""
+        self.assertTrue((self.ind.chromosome <= 1).all())
+        self.assertTrue((self.ind.chromosome >= 0).all())
+        x = self.ind.chromosome == 1
+        y = self.ind.chromosome == 0
+        self.assertTrue((x | y).all())
+
+    def test_fitness_none(self):
+        self.assertIsNone(self.ind.fitness)
+
+    def test_chrom_override_bad_type(self):
+        with self.assertRaisesRegex(TypeError, 'chromosome must be a np.'):
+            ga.Individual(uid=0, chrom_len=10, chrom_override=[1] * 10)
+
+    def test_chrom_override_bad_dtype(self):
+        with self.assertRaisesRegex(ValueError, 'chromosome must have dtype'):
+            ga.Individual(uid=0, chrom_len=10,
+                          chrom_override=np.array([1] * 10, dtype=np.float))
+
+    def test_override_chromosome_bad_length(self):
+        with self.assertRaisesRegex(ValueError, 'chromosome shape must match'):
+            ga.Individual(uid=0, chrom_len=10,
+                          chrom_override=np.array([1] * 9, dtype=np.bool))
+
+    def test_crossover_1(self):
+        """Very simple crossover test."""
+
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=10)
+        ind2 = ga.Individual(uid=1, chrom_len=10)
+
+        # Override their chromosomes.
+        ind1._chromosome = np.ones_like(ind1.chromosome)
+        ind2._chromosome = np.zeros_like(ind2.chromosome)
+
+        # Patch numpy's random randint.
+        with patch('numpy.random.randint',
+                   return_value=np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+                                         dtype=np.bool)):
+            child1, child2 = ind1.crossover_uniform(ind2, 2, 3)
+
+        # Check uid's.
+        self.assertEqual(child1.uid, 2)
+        self.assertEqual(child2.uid, 3)
+
+        # Check chromosomes
+        np.testing.assert_array_equal(
+            child1.chromosome,
+            np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0], dtype=np.bool))
+
+        np.testing.assert_array_equal(
+            child2.chromosome,
+            np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=np.bool))
+
+        # Check fitnesses.
+        self.assertIsNone(child1.fitness)
+        self.assertIsNone(child2.fitness)
+
+    def test_crossover_2(self):
+        """Slightly less simple crossover test."""
+
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=6)
+        ind2 = ga.Individual(uid=1, chrom_len=6)
+
+        # Override their chromosomes.
+        ind1._chromosome = np.array([1, 1, 0, 1, 0, 0], dtype=bool)
+        ind2._chromosome = np.array([1, 0, 0, 0, 1, 0], dtype=bool)
+
+        # Patch numpy's random randint.
+        with patch('numpy.random.randint',
+                   return_value=np.array([0, 0, 1, 1, 1, 1],
+                                         dtype=np.bool)):
+            child1, child2 = ind1.crossover_uniform(ind2, 2, 3)
+
+        # Check uid's.
+        self.assertEqual(child1.uid, 2)
+        self.assertEqual(child2.uid, 3)
+
+        # Check chromosomes
+        np.testing.assert_array_equal(
+            child1.chromosome,
+            np.array([1, 0, 0, 1, 0, 0], dtype=np.bool))
+
+        np.testing.assert_array_equal(
+            child2.chromosome,
+            np.array([1, 1, 0, 0, 1, 0], dtype=np.bool))
+
+        # Check fitnesses.
+        self.assertIsNone(child1.fitness)
+        self.assertIsNone(child2.fitness)
+
+    def test_mutate_1(self):
+        """Simple mutation test."""
+        ind1 = ga.Individual(uid=0, chrom_len=5,
+                             chrom_override=np.array([1, 1, 1, 1, 1],
+                                                     dtype=np.bool))
+
+        with patch('numpy.random.random_sample',
+                   return_value=np.array([0.1, 0.5, 0.2, 0.7, 0.4])):
+            ind1.mutate(mut_prob=0.2)
+
+        np.testing.assert_array_equal(ind1.chromosome,
+                                      np.array([0, 1, 0, 1, 1], dtype=np.bool))
+
+    def test_mutate_2(self):
+        """Slightly less simple mutation test."""
+        ind1 = ga.Individual(uid=0, chrom_len=8,
+                             chrom_override=np.array([0, 0, 1, 0, 1, 1, 0, 1],
+                                                     dtype=np.bool))
+
+        with patch('numpy.random.random_sample',
+                   return_value=np.array(
+                       [0.1, 0.5, 0.2, 0.7, 0.4, 0.21, 0.01, 0.9])):
+            ind1.mutate(mut_prob=0.2)
+
+        np.testing.assert_array_equal(ind1.chromosome,
+                                      np.array([1, 0, 0, 0, 1, 1, 1, 1],
+                                               dtype=np.bool))
+
+    def test_mutate_bad_type(self):
+        with self.assertRaises(TypeError):
+            self.ind.mutate(mut_prob='0.2')
+
+    def test_mutate_too_high(self):
+        with self.assertRaisesRegex(ValueError, 'mut_prob must be on the'):
+            self.ind.mutate(mut_prob=1.00001)
+
+    def test_mutate_too_low(self):
+        with self.assertRaisesRegex(ValueError, 'mut_prob must be on the'):
+            self.ind.mutate(mut_prob=-0.00001)
+
+
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -3,9 +3,7 @@
 TODO: Create some sort of configuration file, like ga_config.json.
 """
 # Standard library:
-import random
 import multiprocessing as mp
-import array
 import os
 from queue import Queue
 
@@ -237,17 +235,137 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):
     pass
 
 
-def evaluate(individual):
-    """Evaluate the fitness of an individual.
+class Individual:
+    """Class for representing an individual in the genetic algorithm."""
 
-    In our case, this means to:
-    1) Translate chromosome into regulator and capacitor positions.
-    2) Update a GridLAB-D model with the aforementioned positions.
-    3) Run the GridLAB-D model.
-    4) Use the results of the GridLAB-D model run to compute the
-        individual's fitness.
-    """
-    pass
+    def __init__(self, uid, chrom_len, chrom_override=None):
+        """Initialize an individual for the genetic algorithm.
+
+        :param uid: Unique identifier for this individual. Integer.
+        :param chrom_len: Length of chromosome to generate.
+        :param chrom_override: If provided (not None), this chromosome
+            is used instead of randomly generating one. Must be a
+            numpy.ndarray with dtype np.bool and shape (chrom_len,).
+        """
+        # Input checking.
+        if not isinstance(uid, int):
+            raise TypeError('uid should be an integer.')
+
+        if uid < 0:
+            raise ValueError('uid must be greater than 0.')
+
+        if not isinstance(chrom_len, int):
+            raise TypeError('chrom_len should be an integer.')
+
+        if chrom_len < 0:
+            raise ValueError('chrom_len must be greater than 0.')
+
+        # Set uid and chrom_len (read only).
+        self._uid = uid
+        self._chrom_len = chrom_len
+
+        # Either randomly initialize a chromosome, or use the given
+        # chromosome.
+        if chrom_override is None:
+            # Initialize a random chromosome of the given length.
+            self._chromosome = np.random.randint(0, 2, self.chrom_len,
+                                                 dtype=np.bool)
+        else:
+            # Check the chromosome.
+            self._check_chromosome(chrom_override)
+
+            # If we're here, the chromosome is acceptable.
+            self._chromosome = chrom_override
+
+        # Initialize fitness to None.
+        self._fitness = None
+
+    @property
+    def uid(self):
+        return self._uid
+
+    @property
+    def chrom_len(self):
+        return self._chrom_len
+
+    @property
+    def chromosome(self):
+        return self._chromosome
+
+    @property
+    def fitness(self):
+        return self._fitness
+
+    def _check_chromosome(self, chromosome):
+        """Helper method to ensure a given chromosome is acceptable.
+
+        :param chromosome: np.ndarray, dtype np.bool, shape
+            (self.chrom_len,).
+
+        :raises TypeError, ValueError
+        """
+        # Input checking.
+        if not isinstance(chromosome, np.ndarray):
+            raise TypeError('chromosome must be a np.ndarray instance.')
+
+        if not np.issubdtype(chromosome.dtype, np.dtype('bool')):
+            raise ValueError('chromosome must have dtype np.bool.')
+
+        if chromosome.shape != (self.chrom_len,):
+            raise ValueError('chromosome shape must match self.chrom_len.')
+
+    def crossover_uniform(self, other, uid1, uid2):
+        """Perform a uniform crossover between self and other, returning
+        two children.
+
+        Good reference:
+        https://www.tutorialspoint.com/genetic_algorithms/genetic_algorithms_crossover.htm
+
+        :param other: initialize ga.Individual object.
+        :param uid1: uid for child 1.
+        :param uid2: uid for child 2.
+        """
+        # Draw a random mask.
+        mask = np.random.randint(low=0, high=2, dtype=np.bool)
+
+        # Initialize empty arrays for the children.
+        chrom1 = np.empty(self.chrom_len, dtype=np.bool)
+        chrom2 = np.empty(self.chrom_len, dtype=np.bool)
+
+        # Use array broadcasting to fill the arrays.
+        chrom1[mask] = self.chromosome[mask]
+        chrom1[~mask] = other.chromosome[~mask]
+
+        chrom2[mask] = other.chromosome[mask]
+        chrom2[~mask] = self.chromosome[~mask]
+
+        # Initialize children.
+        child1 = Individual(uid=uid1, chrom_len=self.chrom_len,
+                            chrom_override=chrom1)
+        child2 = Individual(uid=uid2, chrom_len=self.chrom_len,
+                            chrom_override=chrom2)
+
+        # All done.
+        return child1, child2
+
+    def mutate(self, mut_prob):
+        """Simple bit-flipping mutation.
+
+        :param mut_prob: Probability an individual bit is flipped.
+            Should be low. On the interval [0, 1]
+        """
+        # Input checking.
+        if (mut_prob < 0) or (mut_prob > 1):
+            raise ValueError('mut_prob must be on the interval [0, 1]')
+
+        # Draw random numbers.
+        draw = np.random.random_sample(size=(self.chrom_len,))
+
+        # Create our mask.
+        mask = draw <= mut_prob
+
+        # Flip bits (that's it!).
+        self.chromosome[mask] = ~self.chromosome[mask]
 
 
 def main(weight_dict, glm_mgr):
