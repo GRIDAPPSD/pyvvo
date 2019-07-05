@@ -5,6 +5,7 @@ import cmath
 import subprocess
 import logging
 from datetime import datetime, timezone
+import numpy as np
 import pandas as pd
 
 # Setup log.
@@ -241,3 +242,17 @@ def map_dataframe_columns(map, df, cols):
             LOG.warning('Column {} does not exist in DataFrame.'.format(col))
 
     return df
+
+
+def power_factor(p):
+    """Given a numpy array of complex values, compute power factor.
+
+    :param p: numpy.ndarray of complex values.
+
+    :returns: An array of power factor values. Value will be negative
+        if leading, positive if lagging.
+    """
+    # The use of abs here ensures this also works for power generation.
+    pf = np.abs(p.real) / np.abs(p)
+    angle = np.angle(p)
+    return pf * np.sign(angle)
