@@ -52,6 +52,10 @@ GEN_CLASSES = ['inverter', 'battery', 'diesel_dg', 'dc_dc_converter',
 # List of valid phases for objects (not including the neutral.
 PHASES = ('A', 'B', 'C')
 
+# List of valid capacitor switch statuses.
+CAP_STATUSES = ('OPEN', 'CLOSED')
+
+
 def parse(input_str, file_path=True):
     """
     Parse a GLM into an omf.feeder tree. This is so we can walk the tree,
@@ -1337,19 +1341,13 @@ class GLMManager:
         return meter_name
 
     def update_reg_taps(self, reg_name, pos_dict):
-        """Update a regulators tap positions, both in the regulator
+        """Update a regulator's tap positions, both in the regulator
         object itself, as well as its configuration.
 
         :param reg_name: Name of the regulator in question.
         :param pos_dict: Dictionary mapping phases to positions. E.g.,
             {'A': 12, 'B': 4, 'C': 16}. Not all phases must be present.
         """
-        # Ensure the position dict has valid keys.
-        for key in pos_dict.keys():
-            if key not in PHASES:
-                raise ValueError(
-                    "pos_dict's keys must be in {}".format(PHASES))
-
         # Lookup the regulator.
         reg = self.find_object(obj_type='regulator', obj_name=reg_name)
 
@@ -1375,14 +1373,68 @@ class GLMManager:
         # Loop and update. It's a tad dangerous to do this directly,
         # but it kills me to double-loop.
         for phase, tap in pos_dict.items():
+            # Ensure phase is valid.
+            if phase not in PHASES:
+                raise ValueError(
+                    "pos_dict's keys must be in {}".format(PHASES))
+
+            # Ensure the given tap is valid.
             if (tap > ub) or (tap < lb):
                 raise ValueError('Given tap position, {}, for phase {} is out '
                                  'of bounds! It should be on interval [{}, {}]'
                                  .format(tap, phase, lb, ub))
+
+            # Ensure this regulator has this phase.
+            if phase not in reg['phases']:
+                raise ValueError(
+                    'Regulator {} does not have phase {}.'.format(reg_name,
+                                                                  phase))
+
+            # Update the regulator and its configuration.
             reg['tap_' + phase] = tap
             reg_conf['tap_pos_' + phase] = tap
 
         # That's it, we're done. Taps have been updated.
+
+    def update_cap_switches(self, cap_name, phase_dict):
+        """Update a capacitor's switch positions.
+
+        :param cap_name: Name of the capacitor.
+        :param phase_dict: Dictionary mapping of phases to states. E.g.,
+            {'A': 'OPEN', 'B': 'CLOSED', 'C': 'OPEN}. Not all phases
+            must be present.
+        """
+        # Lookup the capacitor.
+        cap = self.find_object(obj_type='capacitor', obj_name=cap_name)
+
+        if cap is None:
+            raise ValueError(
+                'There is no capacitor named {} in the model'.format(cap_name)
+            )
+
+        # Loop and update.
+        for phase, status in phase_dict.items():
+            # Ensure key is valid.
+            if phase not in PHASES:
+                raise ValueError(
+                    "phase_dict's keys must be in {}".format(PHASES))
+
+            # Ensure value is valid.
+            if status not in CAP_STATUSES:
+                raise ValueError(
+                    'Capacitor status must be in {}'.format(CAP_STATUSES))
+
+            # Ensure this capacitor has this phase.
+            if phase not in cap['phases']:
+                raise ValueError(
+                    'Capacitor {} does not have phase {}.'.format(cap_name,
+                                                                  phase)
+                )
+
+            # Update.
+            cap['switch' + phase] = status
+
+        # Done.
 
 
 class Error(Exception):

@@ -1014,6 +1014,20 @@ class UpdateRegTapsTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Given tap position, -20,'):
             self.mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 6, 'C': -20})
 
+    def test_update_nonexistent_phase(self):
+        # Get an independent manager.
+        mgr = glm.GLMManager(IEEE_13, model_is_path=True)
+
+        # Lookup the regulator.
+        reg = mgr.find_object(obj_type='regulator', obj_name='"reg_Reg"')
+
+        # Tweak its phases.
+        reg['phases'] = 'AB'
+
+        # Attempt to update all three phases.
+        with self.assertRaisesRegex(ValueError, 'does not have phase'):
+            mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 6, 'C': -8})
+
     def test_works(self):
         d = {'A': -7, 'B': 16, 'C': 0}
         self.mgr.update_reg_taps('"reg_Reg"', d)
@@ -1026,6 +1040,47 @@ class UpdateRegTapsTestCase(unittest.TestCase):
         for key, value in d.items():
             self.assertEqual(value, reg['tap_' + key])
             self.assertEqual(value, rc['tap_pos_' + key])
+
+
+class UpdateCapSwitchesTestCase(unittest.TestCase):
+    """Test update_cap_switches"""
+    @classmethod
+    def setUpClass(cls):
+        cls.mgr = glm.GLMManager(IEEE_13, model_is_path=True)
+
+    def test_bad_cap_name(self):
+        with self.assertRaisesRegex(ValueError, 'There is no capacitor named'):
+            self.mgr.update_cap_switches('"cap_cap3"', {'A': 'OPEN',
+                                                        'B': 'CLOSED',
+                                                        'C': 'CLOSED'})
+
+    def test_bad_phase_dict(self):
+        with self.assertRaisesRegex(ValueError, "phase_dict's keys must be"):
+            self.mgr.update_cap_switches('"cap_cap1"', {'A': 'OPEN',
+                                                        'b': 'CLOSED',
+                                                        'C': 'CLOSED'})
+
+    def test_bad_status(self):
+        with self.assertRaisesRegex(ValueError, "Capacitor status must be in"):
+            self.mgr.update_cap_switches('"cap_cap1"', {'A': 'OPEN',
+                                                        'B': 'CLOSED',
+                                                        'C': 'CLOsED'})
+
+    def test_missing_phase(self):
+        with self.assertRaisesRegex(ValueError, 'does not have phase'):
+            self.mgr.update_cap_switches('"cap_cap2"', {'A': 'OPEN',
+                                                        'B': 'CLOSED',
+                                                        'C': 'CLOSED'})
+
+    def test_works(self):
+        d = {'A': 'OPEN', 'B': 'OPEN', 'C': 'OPEN'}
+        self.mgr.update_cap_switches(cap_name='"cap_cap1"', phase_dict=d)
+
+        # Lookup and check.
+        cap = self.mgr.find_object(obj_type='capacitor', obj_name='"cap_cap1"')
+
+        for phase, status in d.items():
+            self.assertEqual(status, cap['switch' + phase])
 
 
 if __name__ == '__main__':
