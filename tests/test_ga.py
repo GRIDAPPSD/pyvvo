@@ -33,7 +33,8 @@ class MapChromosomeTestCase(unittest.TestCase):
         self.assertEqual(4 * 3 * 6 + 9, self.len)
 
     def test_map_length(self):
-        self.assertEqual(4 * 3 + 9, len(self.map))
+        """4 regs, 9 caps."""
+        self.assertEqual(4 + 9, len(self.map))
 
     def test_map_idx(self):
         """Ensure we have purely non-overlapping indices that cover
@@ -46,8 +47,9 @@ class MapChromosomeTestCase(unittest.TestCase):
         expected = np.array([1] * self.len)
 
         # Loop over each item in the map.
-        for m in self.map.values():
-            chrom[m['idx'][0]:m['idx'][1]] += 1
+        for m1 in self.map.values():
+            for m2 in m1.values():
+                chrom[m2['idx'][0]:m2['idx'][1]] += 1
 
         # Ensure our arrays are equal.
         np.testing.assert_array_equal(chrom, expected)

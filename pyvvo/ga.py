@@ -11,7 +11,7 @@ from queue import Queue
 import numpy as np
 
 # pyvvo:
-from pyvvo import equipment
+from pyvvo import db, equipment, glm, utils
 
 # Constants.
 TRIPLEX_GROUP = 'tl'
@@ -25,12 +25,13 @@ def map_chromosome(regulators, capacitors):
     :param capacitors: dictionary as returned by
         equipment.initialize_capacitors
 
-    The map will be keyed by name rather than MRID - this is because
-    we'll be looking up objects in GridLAB-D models by name many times,
-    but only commanding regulators by MRID once.
+    :returns: Dict as a map, which will be keyed by name rather than
+        MRID - this is because we'll be looking up objects in GridLAB-D
+        models by name many times, but only commanding regulators by
+        MRID once (and outside of this module).
 
-    Equipment phase will be appended to the name with an underscore.
-    E.g., reg1_A.
+        Equipment phase will be appended to the name with an underscore.
+        E.g., reg1_A.
     """
     # Initialize our output
     out = {}
@@ -44,18 +45,21 @@ def map_chromosome(regulators, capacitors):
         if not reg_in.controllable:
             return dict_out, idx_in
 
-        # Create a key for this regulator
-        key = equip_key(reg_in)
-
         # Compute how many bits are needed to represent this
         # regulator's tap positions.
-        length = reg_bin_length(reg_in)
+        num_bits = reg_bin_length(reg_in)
 
-        # Map. Track MRID so we can command the regulators later.
-        dict_out[key] = {'idx': (idx_in, idx_in + length),
-                         'mrid': reg_in.mrid}
+        # Initialize dictionary for mapping.
+        m = {'idx': (idx_in, idx_in + num_bits), 'eq_obj': reg_in}
+        # Map.
+        try:
+            dict_out[reg_in.name][reg_in.phase] = m
+        except KeyError:
+            # We don't have a dictionary for this regulator yet.
+            dict_out[reg_in.name] = {reg_in.phase: m}
 
-        return dict_out, idx_in + length
+        # Explicitly return the dictionary and the incremented index.
+        return dict_out, idx_in + num_bits
 
     def map_cap(cap_in, dict_out, idx_in):
         """Nested helper to map a capacitor."""
@@ -66,9 +70,15 @@ def map_chromosome(regulators, capacitors):
         # Create a key.
         key = equip_key(cap_in)
 
-        # At the moment, we're only supporting capacitors with only one
-        # switch, so we can just hard-code the length to be one.
-        dict_out[key] = {'idx': (idx_in, idx_in + 1), 'mrid': cap_in.mrid}
+        # Initialize dictionary for mapping. Capacitors always only get
+        # one bit.
+        m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in}
+
+        try:
+            dict_out[cap_in.name][cap_in.phase] = m
+        except KeyError:
+            # We don't have a dictionary for this capacitor yet.
+            dict_out[cap_in.name] = {cap_in.phase: m}
 
         return dict_out, idx_in + 1
 
