@@ -49,6 +49,8 @@ GEN_CLASSES = ['inverter', 'battery', 'diesel_dg', 'dc_dc_converter',
                'energy_storage', 'microturbine', 'power_electronics',
                'rectifier', 'solar', 'windturb_dg']
 
+# List of valid phases for objects (not including the neutral.
+PHASES = ('A', 'B', 'C')
 
 def parse(input_str, file_path=True):
     """
@@ -399,6 +401,8 @@ class GLMManager:
             swing bus (a substation object). All objects which were
             connected to the swing are modified to be connected to the
             new meter.
+        - update_reg_taps: Update a regulator's tap positions, both in
+            the regulator itself, and its corresponding configuration.
             
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
@@ -1331,6 +1335,54 @@ class GLMManager:
 
         # All done.
         return meter_name
+
+    def update_reg_taps(self, reg_name, pos_dict):
+        """Update a regulators tap positions, both in the regulator
+        object itself, as well as its configuration.
+
+        :param reg_name: Name of the regulator in question.
+        :param pos_dict: Dictionary mapping phases to positions. E.g.,
+            {'A': 12, 'B': 4, 'C': 16}. Not all phases must be present.
+        """
+        # Ensure the position dict has valid keys.
+        for key in pos_dict.keys():
+            if key not in PHASES:
+                raise ValueError(
+                    "pos_dict's keys must be in {}".format(PHASES))
+
+        # Lookup the regulator.
+        reg = self.find_object(obj_type='regulator', obj_name=reg_name)
+
+        if reg is None:
+            raise ValueError(
+                'There is no regulator named {} in the model.'.format(reg_name)
+            )
+
+        # Lookup the regulator configuration.
+        reg_conf = self.find_object(obj_type='regulator_configuration',
+                                    obj_name=reg['configuration'])
+
+        if reg_conf is None:
+            raise ValueError('While the regulator {} exists, its '
+                             'configuration, {}, does not.'.format(
+                                reg_name, reg['configuration']))
+
+        # Grab upper and lower bounds for the regulator.
+        # http://gridlab-d.shoutwiki.com/wiki/Power_Flow_User_Guide#Regulator
+        ub = int(reg_conf['raise_taps'])
+        lb = -int(reg_conf['lower_taps'])
+
+        # Loop and update. It's a tad dangerous to do this directly,
+        # but it kills me to double-loop.
+        for phase, tap in pos_dict.items():
+            if (tap > ub) or (tap < lb):
+                raise ValueError('Given tap position, {}, for phase {} is out '
+                                 'of bounds! It should be on interval [{}, {}]'
+                                 .format(tap, phase, lb, ub))
+            reg['tap_' + phase] = tap
+            reg_conf['tap_pos_' + phase] = tap
+
+        # That's it, we're done. Taps have been updated.
 
 
 class Error(Exception):

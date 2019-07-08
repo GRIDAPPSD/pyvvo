@@ -985,5 +985,48 @@ class AddSubstationMeter8500TestCase(unittest.TestCase):
         self.assertEqual(x['from'], self.meter)
 
 
+class UpdateRegTapsTestCase(unittest.TestCase):
+    """Test update_reg_taps"""
+    @classmethod
+    def setUpClass(cls):
+        cls.mgr = glm.GLMManager(IEEE_13, model_is_path=True)
+
+    def test_bad_reg_name(self):
+        with self.assertRaisesRegex(ValueError, 'There is no regulator'):
+            self.mgr.update_reg_taps('bad_reg', {'A': 0, 'B': 0, 'C': 0})
+
+    def test_bad_dict_keys(self):
+        with self.assertRaisesRegex(ValueError, "pos_dict's keys must be in"):
+            self.mgr.update_reg_taps('"reg_Reg"', {'a': 7, 'b': 2, 'c': 9})
+
+    def test_missing_regulator_configuration(self):
+        mgr = glm.GLMManager(IEEE_13, model_is_path=True)
+        mgr.remove_item({'object': 'regulator_configuration',
+                         'name': '"rcon_Reg"'})
+        with self.assertRaisesRegex(ValueError, 'While the regulator '):
+            mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 3, 'C': 7})
+
+    def test_tap_too_high(self):
+        with self.assertRaisesRegex(ValueError, 'Given tap position, 17,'):
+            self.mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 17, 'C': 7})
+
+    def test_tap_too_low(self):
+        with self.assertRaisesRegex(ValueError, 'Given tap position, -20,'):
+            self.mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 6, 'C': -20})
+
+    def test_works(self):
+        d = {'A': -7, 'B': 16, 'C': 0}
+        self.mgr.update_reg_taps('"reg_Reg"', d)
+
+        # Lookup and check.
+        reg = self.mgr.find_object(obj_type='regulator', obj_name='"reg_Reg"')
+        rc = self.mgr.find_object(obj_type='regulator_configuration',
+                                  obj_name='"rcon_Reg"')
+
+        for key, value in d.items():
+            self.assertEqual(value, reg['tap_' + key])
+            self.assertEqual(value, rc['tap_pos_' + key])
+
+
 if __name__ == '__main__':
     unittest.main()
