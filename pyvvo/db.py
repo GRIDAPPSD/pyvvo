@@ -69,3 +69,45 @@ def connect_loop(timeout=30, retry_interval=0.25):
     # We're outside of the loop, raise exception.
     # noinspection PyUnboundLocalVariable
     raise recent_e
+
+
+def truncate_table(db_conn, table):
+    """Truncate a table if it exists."""
+    # Get a cursor.
+    cursor = db_conn.cursor()
+    try:
+        # Run the command.
+        cursor.execute("TRUNCATE TABLE " + table)
+    except db_conn.ProgrammingError as e:
+        # It's okay if the table doesn't exist.
+        expected_string = "Table '{}.{}' doesn't exist".format(
+            os.environ['DB_DB'], table
+        )
+        if not ((e.args[0] == 1146) and (e.args[1] == expected_string)):
+            # We got some other error, so we should raise it.
+            raise e
+    else:
+        # If the command succeeded, call commit. This may not be
+        # necessary.
+        db_conn.commit()
+    finally:
+        # Always close the cursor.
+        cursor.close()
+
+
+def execute_and_fetch_all(db_conn, query):
+    """Simple wrapper to execute a query and return all results."""
+    # Get cursor.
+    cursor = db_conn.cursor()
+    try:
+        cursor.execute(query)
+    except Exception as e:
+        raise e
+    else:
+        # Fetch the data.
+        out = cursor.fetchall()
+    finally:
+        cursor.close()
+        db_conn.commit()
+
+    return out
