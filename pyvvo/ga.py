@@ -134,6 +134,16 @@ def int_bin_length(x):
     return len(bin(x)[2:])
 
 
+def _binary_array_to_scalar(a):
+    """Given a numpy.ndarray which represents a binary number, compute
+    its scalar representation.
+
+    We won't be doing any input checks here, as this should only be used
+    in this module.
+    """
+    return (a * np.power(2, np.arange(a.shape[0] - 1, -1, -1))).sum()
+
+
 def prep_glm_mgr(glm_mgr, starttime, stoptime):
     """Helper to get a glm.GLMManager object ready to run.
 

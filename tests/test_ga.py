@@ -331,6 +331,51 @@ class IndividualTestCase(unittest.TestCase):
             self.ind.mutate(mut_prob=-0.00001)
 
 
+class BinaryArrayToScalarTestCase(unittest.TestCase):
+    """Test _binary_array_to_scalar"""
+
+    def test_zero(self):
+        a = np.array([0])
+        self.assertEqual(0, ga._binary_array_to_scalar(a))
+
+    def test_one(self):
+        a = np.array([1])
+        self.assertEqual(1, ga._binary_array_to_scalar(a))
+
+    def test_two(self):
+        a = np.array([1, 0])
+        self.assertEqual(2, ga._binary_array_to_scalar(a))
+
+    def test_three(self):
+        a = np.array([1, 1])
+        self.assertEqual(3, ga._binary_array_to_scalar(a))
+
+    def test_four(self):
+        a = np.array([1, 0, 0])
+        self.assertEqual(4, ga._binary_array_to_scalar(a))
+
+    def test_five(self):
+        a = np.array([1, 0, 1])
+        self.assertEqual(5, ga._binary_array_to_scalar(a))
+
+    def test_six(self):
+        a = np.array([1, 1, 0])
+        self.assertEqual(6, ga._binary_array_to_scalar(a))
+
+    def test_seven(self):
+        a = np.array([1, 1, 1])
+        self.assertEqual(7, ga._binary_array_to_scalar(a))
+
+    def test_eight(self):
+        a = np.array([1, 0, 0, 0])
+        self.assertEqual(8, ga._binary_array_to_scalar(a))
+
+    def test_big_number(self):
+        n = 239034
+        b = bin(n)
+        # bin is prefixed with '0b', so start at 2.
+        a = np.array([int(i) for i in b[2:]])
+        self.assertEqual(n, ga._binary_array_to_scalar(a))
 
 
 if __name__ == '__main__':
