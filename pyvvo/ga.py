@@ -67,9 +67,6 @@ def map_chromosome(regulators, capacitors):
         if not cap_in.controllable:
             return dict_out, idx_in
 
-        # Create a key.
-        key = equip_key(cap_in)
-
         # Initialize dictionary for mapping. Capacitors always only get
         # one bit.
         m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in}
@@ -106,12 +103,6 @@ def map_chromosome(regulators, capacitors):
     # At this point, our idx represents the total length of the
     # chromosome.
     return out, idx
-
-
-def equip_key(eq):
-    """Given an object which inherits from
-    equipment.EquipmentSinglePhase, create a useful key."""
-    return eq.name + '_' + eq.phase
 
 
 def reg_bin_length(reg):
