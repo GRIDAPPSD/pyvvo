@@ -965,7 +965,7 @@ class TestGLDZIP(unittest.TestCase):
         recorders = glm_manager.get_objects_by_type('recorder')
 
         # Grab triplex_loads, keyed by name.
-        load_data = glm_manager.get_items_of_type(item_type='object',
+        load_data = glm_manager.get_items_by_type(item_type='object',
                                                   object_type='triplex_load')
 
         # Extract file and load names from the recorder dictionaries.
