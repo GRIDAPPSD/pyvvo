@@ -80,47 +80,130 @@ class MapChromosomeTestCase(unittest.TestCase):
                     raise TypeError('Bad equipment type!')
 
 
+class BinaryArrayToScalarTestCase(unittest.TestCase):
+    """Test _binary_array_to_scalar"""
+
+    def test_zero(self):
+        a = np.array([0])
+        self.assertEqual(0, ga._binary_array_to_scalar(a))
+
+    def test_one(self):
+        a = np.array([1])
+        self.assertEqual(1, ga._binary_array_to_scalar(a))
+
+    def test_two(self):
+        a = np.array([1, 0])
+        self.assertEqual(2, ga._binary_array_to_scalar(a))
+
+    def test_three(self):
+        a = np.array([1, 1])
+        self.assertEqual(3, ga._binary_array_to_scalar(a))
+
+    def test_four(self):
+        a = np.array([1, 0, 0])
+        self.assertEqual(4, ga._binary_array_to_scalar(a))
+
+    def test_five(self):
+        a = np.array([1, 0, 1])
+        self.assertEqual(5, ga._binary_array_to_scalar(a))
+
+    def test_six(self):
+        a = np.array([1, 1, 0])
+        self.assertEqual(6, ga._binary_array_to_scalar(a))
+
+    def test_seven(self):
+        a = np.array([1, 1, 1])
+        self.assertEqual(7, ga._binary_array_to_scalar(a))
+
+    def test_eight(self):
+        a = np.array([1, 0, 0, 0])
+        self.assertEqual(8, ga._binary_array_to_scalar(a))
+
+    def test_big_number(self):
+        n = 239034
+        b = bin(n)
+        # bin is prefixed with '0b', so start at 2.
+        a = np.array([int(i) for i in b[2:]])
+        self.assertEqual(n, ga._binary_array_to_scalar(a))
+
+
+class CIMToGLMNameTestCase(unittest.TestCase):
+    """Test _cim_to_glm_name"""
+    def test_one(self):
+        self.assertEqual('"my_name"',
+                         ga._cim_to_glm_name(prefix='my',
+                                             cim_name='"name"'))
+
+    def test_two(self):
+        self.assertEqual('pfah_stuff',
+                         ga._cim_to_glm_name(prefix='pfah',
+                                             cim_name='stuff'))
+
+    def test_three(self):
+        self.assertEqual("'bad_people'",
+                         ga._cim_to_glm_name(prefix='bad',
+                                             cim_name="'people'"))
+
+
 class IntBinLengthTestCase(unittest.TestCase):
-    """Test int_bin_length"""
+    """Test _int_bin_length"""
     def test_0(self):
-        self.assertEqual(1, ga.int_bin_length(0))
+        self.assertEqual(1, ga._int_bin_length(0))
 
     def test_1(self):
-        self.assertEqual(1, ga.int_bin_length(1))
+        self.assertEqual(1, ga._int_bin_length(1))
 
     def test_2(self):
-        self.assertEqual(2, ga.int_bin_length(2))
+        self.assertEqual(2, ga._int_bin_length(2))
 
     def test_3(self):
-        self.assertEqual(2, ga.int_bin_length(3))
+        self.assertEqual(2, ga._int_bin_length(3))
 
     def test_32(self):
-        self.assertEqual(6, ga.int_bin_length(32))
+        self.assertEqual(6, ga._int_bin_length(32))
 
     def test_63(self):
-        self.assertEqual(6, ga.int_bin_length(63))
+        self.assertEqual(6, ga._int_bin_length(63))
 
     def test_255(self):
-        self.assertEqual(8, ga.int_bin_length(255))
+        self.assertEqual(8, ga._int_bin_length(255))
 
+
+class IntToBinaryListTestCase(unittest.TestCase):
+    """Test _int_to_binary_list."""
+    def test_0_1(self):
+        self.assertListEqual([0],
+                             ga._int_to_binary_list(0, 1))
+
+    def test_0_0(self):
+        self.assertListEqual([0],
+                             ga._int_to_binary_list(0, 0))
+
+    def test_0_2(self):
+        self.assertListEqual([0, 0],
+                             ga._int_to_binary_list(0, 2))
+
+    def test_16_32(self):
+        self.assertListEqual([0, 1, 0, 0, 0, 0],
+                             ga._int_to_binary_list(16, 32))
 
 @patch('pyvvo.equipment.RegulatorSinglePhase', autospec=True)
 class RegBinLengthTestCase(unittest.TestCase):
-    """Test reg_bin_length."""
+    """Test _reg_bin_length."""
     def test_16_16(self, reg_mock):
         reg_mock.raise_taps = 16
         reg_mock.lower_taps = 16
-        self.assertEqual(6, ga.reg_bin_length(reg_mock))
+        self.assertEqual(6, ga._reg_bin_length(reg_mock))
 
     def test_16_0(self, reg_mock):
         reg_mock.raise_taps = 16
         reg_mock.lower_taps = 0
-        self.assertEqual(5, ga.reg_bin_length(reg_mock))
+        self.assertEqual(5, ga._reg_bin_length(reg_mock))
 
     def test_32_0(self, reg_mock):
         reg_mock.raise_taps = 32
         reg_mock.lower_taps = 0
-        self.assertEqual(6, ga.reg_bin_length(reg_mock))
+        self.assertEqual(6, ga._reg_bin_length(reg_mock))
 
 
 class PrepGLMMGRTestCase(unittest.TestCase):

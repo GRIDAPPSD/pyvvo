@@ -54,7 +54,7 @@ def map_chromosome(regulators, capacitors):
 
         # Compute how many bits are needed to represent this
         # regulator's tap positions.
-        num_bits = reg_bin_length(reg_in)
+        num_bits = _reg_bin_length(reg_in)
 
         # Initialize dictionary for mapping.
         m = {'idx': (idx_in, idx_in + num_bits), 'eq_obj': reg_in,
@@ -114,7 +114,54 @@ def map_chromosome(regulators, capacitors):
     return out, idx
 
 
-def reg_bin_length(reg):
+def _binary_array_to_scalar(a):
+    """Given a numpy.ndarray which represents a binary number, compute
+    its scalar representation.
+
+    We won't be doing any input checks here, as this should only be used
+    in this module. Positive numbers only.
+    """
+    return (a * np.power(2, np.arange(a.shape[0] - 1, -1, -1))).sum()
+
+
+def _cim_to_glm_name(prefix, cim_name):
+    """Helper to manage the fact that we need to prefix our object names
+    to make them match what's in the GridLAB-D model.
+    """
+    if cim_name.startswith('"'):
+        return '"{}_{}"'.format(prefix, cim_name.replace('"', ''))
+    elif cim_name.startswith("'"):
+        return "'{}_{}'".format(prefix, cim_name.replace("'", ''))
+    else:
+        return "{}_{}".format(prefix, cim_name)
+
+
+def _int_bin_length(x):
+    """Determine how many bits are needed to represent an integer."""
+    # Rely on the fact that Python's "bin" method prepends the string
+    # with "0b": https://docs.python.org/3/library/functions.html#bin
+    return len(bin(x)[2:])
+
+
+def _int_to_binary_list(n, m):
+    """Private helper to convert a number to a binary list given
+    the maximum value the number could possibly take on.
+
+    :param n: integer to be converted to a binary list.
+    :param m: integer representing the maximum possible value of n.
+    """
+    # Compute the necessary binary width to represent
+    # this range.
+    w = _int_bin_length(m)
+
+    # Get the binary representation as a string.
+    bs = format(n, '0{}b'.format(w))
+
+    # Return the list representation.
+    return [int(x) for x in bs]
+
+
+def _reg_bin_length(reg):
     """Determine how many bits are needed to represent a regulator.
 
     :param reg: regulator.RegulatorSinglePhase object.
@@ -124,24 +171,7 @@ def reg_bin_length(reg):
     """
     # Use raise_taps and lower_taps from GridLAB-D to compute the number
     # of bits needed.
-    return int_bin_length(reg.raise_taps + reg.lower_taps)
-
-
-def int_bin_length(x):
-    """Determine how many bits are needed to represent an integer."""
-    # Rely on the fact that Python's "bin" method prepends the string
-    # with "0b": https://docs.python.org/3/library/functions.html#bin
-    return len(bin(x)[2:])
-
-
-def _binary_array_to_scalar(a):
-    """Given a numpy.ndarray which represents a binary number, compute
-    its scalar representation.
-
-    We won't be doing any input checks here, as this should only be used
-    in this module.
-    """
-    return (a * np.power(2, np.arange(a.shape[0] - 1, -1, -1))).sum()
+    return _int_bin_length(reg.raise_taps + reg.lower_taps)
 
 
 def prep_glm_mgr(glm_mgr, starttime, stoptime):
