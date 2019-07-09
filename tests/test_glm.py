@@ -14,13 +14,14 @@ LOG = logging.getLogger(__name__)
 
 # Define our test files.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_FILE = os.path.join(THIS_DIR, 'test.glm')
-TEST_FILE2 = os.path.join(THIS_DIR, 'test2.glm')
-TEST_FILE3 = os.path.join(THIS_DIR, 'test3.glm')
-TEST_FILE4 = os.path.join(THIS_DIR, 'test4.glm')
-EXPECTED4 = os.path.join(THIS_DIR, 'test4_expected.glm')
-IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
-IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
+MODEL_DIR = os.path.join(THIS_DIR, 'models')
+TEST_FILE = os.path.join(MODEL_DIR, 'test.glm')
+TEST_FILE2 = os.path.join(MODEL_DIR, 'test2.glm')
+TEST_FILE3 = os.path.join(MODEL_DIR, 'test3.glm')
+TEST_FILE4 = os.path.join(MODEL_DIR, 'test4.glm')
+EXPECTED4 = os.path.join(MODEL_DIR, 'test4_expected.glm')
+IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
+IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()

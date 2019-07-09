@@ -12,13 +12,14 @@ from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-REGULATORS = os.path.join(THIS_DIR, 'query_regulators_8500.csv')
-REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas_8500.csv')
-REG_MEAS_MSG = os.path.join(THIS_DIR, 'reg_meas_message_8500.json')
-CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors_8500.csv')
-CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas_8500.csv')
-CAP_MEAS_MSG = os.path.join(THIS_DIR, 'cap_meas_message_8500.json')
-SWITCHES = os.path.join(THIS_DIR, 'query_switches_8500.csv')
+DATA_DIR = os.path.join(THIS_DIR, 'data')
+REGULATORS = os.path.join(DATA_DIR, 'query_regulators_8500.csv')
+REG_MEAS = os.path.join(DATA_DIR, 'query_reg_meas_8500.csv')
+REG_MEAS_MSG = os.path.join(DATA_DIR, 'reg_meas_message_8500.json')
+CAPACITORS = os.path.join(DATA_DIR, 'query_capacitors_8500.csv')
+CAP_MEAS = os.path.join(DATA_DIR, 'query_cap_meas_8500.csv')
+CAP_MEAS_MSG = os.path.join(DATA_DIR, 'cap_meas_message_8500.json')
+SWITCHES = os.path.join(DATA_DIR, 'query_switches_8500.csv')
 
 
 class EquipmentManagerRegulatorTestCase(unittest.TestCase):

@@ -25,12 +25,14 @@ NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
-IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
-IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
-WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
-MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements_13.json')
-HEADER = os.path.join(THIS_DIR, 'simulation_measurements_header_13.json')
+DATA_DIR = os.path.join(THIS_DIR, 'data')
+MODEL_DIR = os.path.join(THIS_DIR, 'models')
+MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
+IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
+IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
+WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
+MEASUREMENTS = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
+HEADER = os.path.join(DATA_DIR, 'simulation_measurements_header_13.json')
 
 
 class GetGADAddressTestCase(unittest.TestCase):

@@ -14,7 +14,8 @@ from tests.test_utils import TEST_ZIP1
 GLD_PRESENT = utils.gld_installed()
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_FILE = os.path.join(THIS_DIR, 'test_zip.glm')
+MODEL_DIR = os.path.join(THIS_DIR, 'models')
+TEST_FILE = os.path.join(MODEL_DIR, 'test_zip.glm')
 
 # Define tolerances for using numpy's isclose function. Use different
 # tolerances for P and Q.
@@ -953,9 +954,7 @@ class TestGLDZIP(unittest.TestCase):
         glm_manager = glm.GLMManager(TEST_FILE, True)
 
         # Run GridLAB-D model.
-        result = subprocess.run(args=['gridlabd', TEST_FILE],
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+        result = utils.run_gld(model_path=TEST_FILE)
 
         # Raise an error if the model didn't successfully run.
         if result.returncode != 0:
@@ -999,8 +998,9 @@ class TestGLDZIP(unittest.TestCase):
             load_dict[load_name] = {}
 
             # Read the file into a DataFrame.
-            gld_out = utils.read_gld_csv(r['file'])
-            cls.out_files.append(r['file'])
+            this_file = os.path.join(MODEL_DIR, r['file'])
+            gld_out = utils.read_gld_csv(this_file)
+            cls.out_files.append(this_file)
 
             # Rename columns.
             gld_out.rename(columns={'measured_real_power': 'p',

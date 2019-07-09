@@ -9,8 +9,9 @@ import numpy as np
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_ZIP1 = os.path.join(THIS_DIR, 'test_zip_1.csv')
-TEST_GLM2 = os.path.join(THIS_DIR, 'test2.glm')
+MODEL_DIR = os.path.join(THIS_DIR, 'models')
+TEST_ZIP1 = os.path.join(MODEL_DIR, 'test_zip_1.csv')
+TEST_GLM2 = os.path.join(MODEL_DIR, 'test2.glm')
 
 
 class TestParseComplexStr(unittest.TestCase):
@@ -144,8 +145,12 @@ class RunGLDTestCase(unittest.TestCase):
         self.assertEqual(0, result.returncode)
 
     def test_run_gld_bad_model(self):
-        result = utils.run_gld('/some/model.glm')
+        result = utils.run_gld(os.path.join(MODEL_DIR, 'nonexistent.glm'))
         self.assertNotEqual(0, result.returncode)
+
+    def test_run_gld_bad_dir(self):
+        with self.assertRaises(FileNotFoundError):
+            utils.run_gld('/some/bad/path.glm')
 
     def test_run_gld_bad_env(self):
         result = utils.run_gld(TEST_GLM2, env={'PATH': '/usr/bin'})

@@ -5,6 +5,7 @@ import cmath
 import subprocess
 import logging
 from datetime import datetime, timezone
+import os
 import numpy as np
 import pandas as pd
 
@@ -160,7 +161,8 @@ def gld_installed(env=None):
 
 def run_gld(model_path, env=None):
     """Helper to run a GRIDLAB-D model. Returns True for success, False
-    for failure.
+    for failure. The GridLAB-D executable will be run from the same
+    directory as the model.
 
     If needed, run options can be added in the future.
 
@@ -168,9 +170,13 @@ def run_gld(model_path, env=None):
     :param env: used to override the environment for subprocess. Leave
         this as None.
     """
+    cwd = os.path.dirname(model_path)
+    if len(cwd) == 0:
+        cwd = None
+
     result = subprocess.run("gridlabd {}".format(model_path), shell=True,
                             stderr=subprocess.PIPE, stdout=subprocess.PIPE,
-                            env=env)
+                            env=env, cwd=cwd)
 
     if result.returncode == 0:
         LOG.debug('GridLAB-D model {} ran successfully.'.format(model_path))

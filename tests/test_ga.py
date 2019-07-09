@@ -13,7 +13,9 @@ import pandas as pd
 import numpy as np
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
+MODEL_DIR = os.path.join(THIS_DIR, 'models')
+IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
+IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
 
 
 class MapChromosomeTestCase(unittest.TestCase):
