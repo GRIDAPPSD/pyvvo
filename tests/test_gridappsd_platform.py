@@ -29,8 +29,8 @@ MODEL_INFO = os.path.join(THIS_DIR, 'query_model_info.json')
 IEEE_8500 = os.path.join(THIS_DIR, 'ieee_8500.glm')
 IEEE_13 = os.path.join(THIS_DIR, 'ieee_13.glm')
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
-MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
-HEADER = os.path.join(THIS_DIR, 'simulation_measurements_header.json')
+MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements_13.json')
+HEADER = os.path.join(THIS_DIR, 'simulation_measurements_header_13.json')
 
 
 class GetGADAddressTestCase(unittest.TestCase):

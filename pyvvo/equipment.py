@@ -703,7 +703,7 @@ class EquipmentManager:
         """
         # # Dump message for testing:
         # import json
-        # with open('cap_meas_message.json', 'w') as f:
+        # with open('cap_meas_message_8500.json', 'w') as f:
         #     json.dump(msg, f)
 
         # Type checking:

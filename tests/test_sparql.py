@@ -25,14 +25,14 @@ MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors.csv')
-REGULATORS = os.path.join(THIS_DIR, 'query_regulators.csv')
-REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas.csv')
-CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas.csv')
-LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements.csv')
-SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source.csv')
-SWITCHES = os.path.join(THIS_DIR, 'query_switches.csv')
-SWITCH_MEAS = os.path.join(THIS_DIR, 'query_switch_meas.csv')
+CAPACITORS = os.path.join(THIS_DIR, 'query_capacitors_8500.csv')
+REGULATORS = os.path.join(THIS_DIR, 'query_regulators_8500.csv')
+REG_MEAS = os.path.join(THIS_DIR, 'query_reg_meas_8500.csv')
+CAP_MEAS = os.path.join(THIS_DIR, 'query_cap_meas_8500.csv')
+LOAD_MEAS = os.path.join(THIS_DIR, 'query_load_measurements_8500.csv')
+SUBSTATION = os.path.join(THIS_DIR, 'query_substation_source_8500.csv')
+SWITCHES = os.path.join(THIS_DIR, 'query_switches_8500.csv')
+SWITCH_MEAS = os.path.join(THIS_DIR, 'query_switch_meas_8500.csv')
 
 
 def gen_expected_results():
@@ -266,7 +266,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_simple_query(self):
         """Hard-coded MRID for 8500 node capacitor (first line of
-        query_capacitors.csv)
+        query_capacitors_8500.csv)
         """
         query = (self.sparql.PREFIX +
                  "SELECT ?name "

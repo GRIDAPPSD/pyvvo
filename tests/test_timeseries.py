@@ -14,7 +14,7 @@ from pyvvo import timeseries
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 WEATHER = os.path.join(THIS_DIR, 'weather_simple.json')
-MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements.json')
+MEASUREMENTS = os.path.join(THIS_DIR, 'simulation_measurements_13.json')
 
 
 # class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
