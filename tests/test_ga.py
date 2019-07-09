@@ -54,6 +54,31 @@ class MapChromosomeTestCase(unittest.TestCase):
         # Ensure our arrays are equal.
         np.testing.assert_array_equal(chrom, expected)
 
+    def test_map_phasing(self):
+        """Ensure each element in the map has valid phases under it."""
+        for eq_name, phase_dict in self.map.items():
+            for phase in phase_dict.keys():
+                self.assertIn(phase, equipment.EquipmentSinglePhase.PHASES)
+
+    def test_map_eq_obj(self):
+        """Ensure each 'eq_obj' element is EquipmentSinglePhase."""
+        for eq_name, phase_dict in self.map.items():
+            for sd in phase_dict.values():
+                self.assertIsInstance(sd['eq_obj'],
+                                      equipment.EquipmentSinglePhase)
+
+    def test_map_range(self):
+        for eq_name, phase_dict in self.map.items():
+            for sd in phase_dict.values():
+                if isinstance(sd['eq_obj'], equipment.CapacitorSinglePhase):
+                    self.assertEqual((0, 1), sd['range'])
+                elif isinstance(sd['eq_obj'], equipment.RegulatorSinglePhase):
+                    self.assertEqual(
+                        (0, sd['eq_obj'].raise_taps + sd['eq_obj'].lower_taps),
+                        sd['range'])
+                else:
+                    raise TypeError('Bad equipment type!')
+
 
 class IntBinLengthTestCase(unittest.TestCase):
     """Test int_bin_length"""

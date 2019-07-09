@@ -25,13 +25,20 @@ def map_chromosome(regulators, capacitors):
     :param capacitors: dictionary as returned by
         equipment.initialize_capacitors
 
-    :returns: Dict as a map, which will be keyed by name rather than
-        MRID - this is because we'll be looking up objects in GridLAB-D
-        models by name many times, but only commanding regulators by
-        MRID once (and outside of this module).
-
-        Equipment phase will be appended to the name with an underscore.
-        E.g., reg1_A.
+    :returns: Dict keyed by equipment name. Each equipment maps to a
+        dictionary keyed by phase (A, B, or C). These phase dictionaries
+        have the following fields:
+        - 'idx': Tuple with a pair of integers, indicating the indices
+            on the chromosome for this particular piece of equipment.
+            These indices can simply be used like so:
+                dict['idx'][0]:dict['idx'][1]
+        - 'eq_obj': The equipment object itself. At the moment, these
+            will be equipment.CapacitorSinglePhase or
+            equipment.RegulatorSinglePhase objects.
+        - 'range': Tuple with a pair of integers, indicating the
+            (low, high) range of states the equipment can take on. This
+            is for convenience, and enables the Individual class to be
+            agnostic about the differences between equipment.
     """
     # Initialize our output
     out = {}
@@ -50,7 +57,8 @@ def map_chromosome(regulators, capacitors):
         num_bits = reg_bin_length(reg_in)
 
         # Initialize dictionary for mapping.
-        m = {'idx': (idx_in, idx_in + num_bits), 'eq_obj': reg_in}
+        m = {'idx': (idx_in, idx_in + num_bits), 'eq_obj': reg_in,
+             'range': (0, reg_in.raise_taps + reg_in.lower_taps)}
         # Map.
         try:
             dict_out[reg_in.name][reg_in.phase] = m
@@ -69,7 +77,8 @@ def map_chromosome(regulators, capacitors):
 
         # Initialize dictionary for mapping. Capacitors always only get
         # one bit.
-        m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in}
+        m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in,
+             'range': (0, 1)}
 
         try:
             dict_out[cap_in.name][cap_in.phase] = m
