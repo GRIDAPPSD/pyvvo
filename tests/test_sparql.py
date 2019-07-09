@@ -19,6 +19,9 @@ import numpy as np
 # Hard-code 8500 node feeder MRID.
 FEEDER_MRID = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
 
+# 13 node:
+FEEDER_MRID_13 = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
+
 # We'll be mocking some query returns.
 MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
                             'prop': ['prop1', 'prop2']})
@@ -35,49 +38,78 @@ SUBSTATION = os.path.join(DATA_DIR, 'query_substation_source_8500.csv')
 SWITCHES = os.path.join(DATA_DIR, 'query_switches_8500.csv')
 SWITCH_MEAS = os.path.join(DATA_DIR, 'query_switch_meas_8500.csv')
 
+# 13 bus outputs for smaller/quicker/more manual tests.
+CAPACITORS_13 = os.path.join(DATA_DIR, 'query_capacitors_13.csv')
+REGULATORS_13 = os.path.join(DATA_DIR, 'query_regulators_13.csv')
+REG_MEAS_13 = os.path.join(DATA_DIR, 'query_reg_meas_13.csv')
+CAP_MEAS_13 = os.path.join(DATA_DIR, 'query_cap_meas_13.csv')
+LOAD_MEAS_13 = os.path.join(DATA_DIR, 'query_load_measurements_13.csv')
+SUBSTATION_13 = os.path.join(DATA_DIR, 'query_substation_source_13.csv')
+SWITCHES_13 = os.path.join(DATA_DIR, 'query_switches_13.csv')
+SWITCH_MEAS_13 = os.path.join(DATA_DIR, 'query_switch_meas_13.csv')
+
 
 def gen_expected_results():
     """Helper to generate expected results. Uncomment in the "main"
-    section.
+    section. This function is a bit gross and not particularly
+    maintainable, it'll do.
     """
-    s = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
+    s1 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
 
     # Create list of lists to run everything. The third tuple element
     # is used to truncate DataFrames (no reason to save 4000 entries
     # to file for testing)
-    a = [
-        (s.query_capacitors, CAPACITORS),
-        (s.query_regulators, REGULATORS),
-        (s.query_rtc_measurements, REG_MEAS),
-        (s.query_capacitor_measurements, CAP_MEAS),
-        (s.query_load_measurements, LOAD_MEAS, 4),
-        (s.query_substation_source, SUBSTATION),
-        (s.query_switches, SWITCHES),
-        (s.query_switch_measurements, SWITCH_MEAS)
+    a1 = [
+        (s1.query_capacitors, CAPACITORS),
+        (s1.query_regulators, REGULATORS),
+        (s1.query_rtc_measurements, REG_MEAS),
+        (s1.query_capacitor_measurements, CAP_MEAS),
+        (s1.query_load_measurements, LOAD_MEAS, 4),
+        (s1.query_substation_source, SUBSTATION),
+        (s1.query_switches, SWITCHES),
+        # The v2019.06.0 version of the platform does not have discrete
+        # position measurements.
+        # (s1.query_switch_measurements, SWITCH_MEAS)
     ]
 
-    for b in a:
-        # Run function.
-        actual_full = b[0]()
+    s2 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID_13)
+    a2 = [
+        (s2.query_capacitors, CAPACITORS_13),
+        (s2.query_regulators, REGULATORS_13),
+        (s2.query_rtc_measurements, REG_MEAS_13),
+        (s2.query_capacitor_measurements, CAP_MEAS_13),
+        # 13 bus does not have load measurements.
+        # (s2.query_load_measurements, LOAD_MEAS_13, 4),
+        (s2.query_substation_source, SUBSTATION_13),
+        (s2.query_switches, SWITCHES_13),
+        # The v2019.06.0 version of the platform does not have discrete
+        # position measurements.
+        # (s2.query_switch_measurements, SWITCH_MEAS_13)
+    ]
 
-        # Truncate if necessary.
-        try:
-            actual = actual_full.iloc[0:b[2]]
-        except IndexError:
-            actual = actual_full
+    for a in [a1, a2]:
+        for b in a:
+            # Run function.
+            actual_full = b[0]()
 
-        # If changing column names, etc, you'll need to write to file
-        # here. Otherwise, to just update MRIDs the file gets written
-        # at the end of the loop.
-        # actual.to_csv(b[1], index=False)
+            # Truncate if necessary.
+            try:
+                actual = actual_full.iloc[0:b[2]]
+            except IndexError:
+                actual = actual_full
 
-        # Read file.
-        expected = pd.read_csv(b[1])
-        # Ensure frames match except for MRIDs.
-        ensure_frame_equal_except_mrid(actual, expected)
+            # If changing column names, etc, you'll need to write to
+            # file here. Otherwise, to just update MRIDs the file gets
+            # written at the end of the loop.
+            actual.to_csv(b[1], index=False)
 
-        # Write new file.
-        actual.to_csv(b[1], index=False)
+            # Read file.
+            expected = pd.read_csv(b[1])
+            # Ensure frames match except for MRIDs.
+            ensure_frame_equal_except_mrid(actual, expected)
+
+            # Write new file.
+            actual.to_csv(b[1], index=False)
 
 
 def ensure_frame_equal_except_mrid(left, right):
