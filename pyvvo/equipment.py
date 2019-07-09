@@ -817,7 +817,22 @@ def initialize_capacitors(df):
     # Filter to get controllable capacitors. Uncontrollable capacitors
     # do not have a "RegulatingControl" object, and are thus missing
     # the attributes in REG_CONTROL.
-    rc = df.loc[:, REG_CONTROL]
+    try:
+        rc = df.loc[:, REG_CONTROL]
+    except KeyError as e:
+        if e.args[0].startswith('None of [Index(') and \
+                e.args[0].endswith('are in the [columns]'):
+            # No capacitors are controllable.
+            nan_data = np.full((df.shape[0], len(REG_CONTROL)), np.nan)
+            rc = pd.DataFrame(nan_data, columns=REG_CONTROL)
+
+            # Create the 'mode' column, and ensure it's dtype is object.
+            # This is necessary to avoid passing NaN values to the
+            # capacitor constructor.
+            df['mode'] = pd.Series(data=None, index=df.index, dtype='object')
+        else:
+            raise e
+
     c_mask = ~rc.isnull().all(axis=1)
     # Add a 'controllable' column.
     df['controllable'] = c_mask

@@ -21,6 +21,8 @@ CAP_MEAS = os.path.join(DATA_DIR, 'query_cap_meas_8500.csv')
 CAP_MEAS_MSG = os.path.join(DATA_DIR, 'cap_meas_message_8500.json')
 SWITCHES = os.path.join(DATA_DIR, 'query_switches_8500.csv')
 
+CAPACITORS_13 = os.path.join(DATA_DIR, 'query_capacitors_13.csv')
+
 
 class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     """Test EquipmentManager with regulator data."""
@@ -857,7 +859,7 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
                 mode='voltage', controllable=False)
 
 
-class InitializeCapacitors(unittest.TestCase):
+class InitializeCapacitorsTestCase(unittest.TestCase):
     """Test initialize_capacitors"""
 
     @classmethod
@@ -891,6 +893,32 @@ class InitializeCapacitors(unittest.TestCase):
         self.assertEqual(cap_count, 9)
         self.assertEqual(dict_count, 1)
         self.assertEqual(dict_cap_count, 3)
+
+
+class InitializeCapacitors13TestCase(unittest.TestCase):
+    """Test initialize_capacitors, but use the 13 bus data.
+    There shouldn't be any controllable capacitors.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.df = pd.read_csv(CAPACITORS_13)
+        cls.caps = equipment.initialize_capacitors(cls.df)
+
+    def test_length(self):
+        """The return should have 2 items - 1 three phase cap and 1
+        single phase."""
+        self.assertEqual(len(self.caps), 2)
+
+    def test_no_controllable_caps(self):
+        """None of these capacitors are controllable."""
+        for _, cap in self.caps.items():
+            self.assertIsInstance(cap, (equipment.CapacitorSinglePhase, dict))
+
+            if isinstance(cap, dict):
+                for c in cap.values():
+                    self.assertFalse(c.controllable)
+            else:
+                self.assertFalse(cap.controllable)
 
 
 class SwitchSinglePhaseTestCase(unittest.TestCase):
