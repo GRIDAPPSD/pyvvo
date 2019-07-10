@@ -1,5 +1,4 @@
 import unittest
-import subprocess
 from pyvvo import zip
 from pyvvo import glm
 from pyvvo import utils

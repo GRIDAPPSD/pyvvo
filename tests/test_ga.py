@@ -2,15 +2,19 @@ import unittest
 from unittest.mock import patch
 import os
 from datetime import datetime
+from copy import deepcopy
 
+import tests.data_files as _df
 from pyvvo import ga
 from pyvvo import equipment
-from tests.test_sparql import CAPACITORS, REGULATORS
 from pyvvo.glm import GLMManager
 from pyvvo.utils import run_gld
+from pyvvo.db import connect_loop
 
 import pandas as pd
 import numpy as np
+
+np.random.seed(42)
 
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_DIR = os.path.join(THIS_DIR, 'models')
@@ -22,8 +26,8 @@ class MapChromosomeTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Get capacitors and regulators."""
-        reg_df = pd.read_csv(REGULATORS)
-        cap_df = pd.read_csv(CAPACITORS)
+        reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -211,7 +215,7 @@ class RegBinLengthTestCase(unittest.TestCase):
 class PrepGLMMGRTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_13)
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 5)
         cls.out_file = 'tmp.glm'
@@ -261,9 +265,9 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         m = self.glm_mgr.get_items_by_type(item_type='module')
         self.assertIn('mysql', m)
 
-    def test_mysql_group_recorder_present(self):
+    def test_mysql_recorder_present(self):
         r = self.glm_mgr.find_object(obj_type='mysql.recorder',
-                                     obj_name='triplex_load_recorder')
+                                     obj_name=ga.TRIPLEX_RECORDER)
         self.assertIsNotNone(r)
 
     def test_swing_meter_present(self):
@@ -273,7 +277,7 @@ class PrepGLMMGRTestCase(unittest.TestCase):
 
     def test_swing_recorder_present(self):
         sr = self.glm_mgr.find_object(obj_type='mysql.recorder',
-                                      obj_name='substation_recorder')
+                                      obj_name=ga.SUBSTATION_RECORDER)
 
     def test_model_runs(self):
         result = run_gld(self.out_file)
@@ -284,23 +288,31 @@ class IndividualTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.ind = ga.Individual(uid=0, chrom_len=50)
+        # Get capacitor and regulator information.
+        reg_df = _df.read_pickle(_df.REGULATORS_13)
+        cap_df = _df.read_pickle(_df.CAPACITORS_13)
+
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
+
+        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
 
     def test_bad_uid(self):
         with self.assertRaisesRegex(TypeError, 'uid should be an integer.'):
-            ga.Individual(uid='1', chrom_len=10)
+            ga.Individual(uid='1', chrom_len=10, chrom_map=self.map)
 
     def test_bad_uid_negative(self):
         with self.assertRaisesRegex(ValueError, 'uid must be greater than 0.'):
-            ga.Individual(uid=-2, chrom_len=7)
+            ga.Individual(uid=-2, chrom_len=7, chrom_map=self.map)
 
     def test_bad_chrom_len(self):
         with self.assertRaisesRegex(TypeError, 'chrom_len should be an int'):
-            ga.Individual(uid=3, chrom_len='4')
+            ga.Individual(uid=3, chrom_len='4', chrom_map=self.map)
 
     def test_bad_chrom_len_negative(self):
         with self.assertRaisesRegex(ValueError, 'chrom_len must be greater'):
-            ga.Individual(uid=999, chrom_len=-5)
+            ga.Individual(uid=999, chrom_len=-5, chrom_map=self.map)
 
     def test_chromosome_length(self):
         """Ensure the chromosome matches the given length."""
@@ -320,24 +332,27 @@ class IndividualTestCase(unittest.TestCase):
 
     def test_chrom_override_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'chromosome must be a np.'):
-            ga.Individual(uid=0, chrom_len=10, chrom_override=[1] * 10)
+            ga.Individual(uid=0, chrom_len=10, chrom_override=[1] * 10,
+                          chrom_map=self.map)
 
     def test_chrom_override_bad_dtype(self):
         with self.assertRaisesRegex(ValueError, 'chromosome must have dtype'):
             ga.Individual(uid=0, chrom_len=10,
-                          chrom_override=np.array([1] * 10, dtype=np.float))
+                          chrom_override=np.array([1] * 10, dtype=np.float),
+                          chrom_map=self.map)
 
     def test_override_chromosome_bad_length(self):
         with self.assertRaisesRegex(ValueError, 'chromosome shape must match'):
             ga.Individual(uid=0, chrom_len=10,
-                          chrom_override=np.array([1] * 9, dtype=np.bool))
+                          chrom_override=np.array([1] * 9, dtype=np.bool),
+                          chrom_map=self.map)
 
     def test_crossover_1(self):
         """Very simple crossover test."""
 
         # Initialize two individuals.
-        ind1 = ga.Individual(uid=0, chrom_len=10)
-        ind2 = ga.Individual(uid=1, chrom_len=10)
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map)
 
         # Override their chromosomes.
         ind1._chromosome = np.ones_like(ind1.chromosome)
@@ -370,8 +385,8 @@ class IndividualTestCase(unittest.TestCase):
         """Slightly less simple crossover test."""
 
         # Initialize two individuals.
-        ind1 = ga.Individual(uid=0, chrom_len=6)
-        ind2 = ga.Individual(uid=1, chrom_len=6)
+        ind1 = ga.Individual(uid=0, chrom_len=6, chrom_map=self.map)
+        ind2 = ga.Individual(uid=1, chrom_len=6, chrom_map=self.map)
 
         # Override their chromosomes.
         ind1._chromosome = np.array([1, 1, 0, 1, 0, 0], dtype=bool)
@@ -404,7 +419,8 @@ class IndividualTestCase(unittest.TestCase):
         """Simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=5,
                              chrom_override=np.array([1, 1, 1, 1, 1],
-                                                     dtype=np.bool))
+                                                     dtype=np.bool),
+                             chrom_map=self.map)
 
         with patch('numpy.random.random_sample',
                    return_value=np.array([0.1, 0.5, 0.2, 0.7, 0.4])):
@@ -417,7 +433,8 @@ class IndividualTestCase(unittest.TestCase):
         """Slightly less simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=8,
                              chrom_override=np.array([0, 0, 1, 0, 1, 1, 0, 1],
-                                                     dtype=np.bool))
+                                                     dtype=np.bool),
+                             chrom_map=self.map)
 
         with patch('numpy.random.random_sample',
                    return_value=np.array(
@@ -441,51 +458,56 @@ class IndividualTestCase(unittest.TestCase):
             self.ind.mutate(mut_prob=-0.00001)
 
 
-class BinaryArrayToScalarTestCase(unittest.TestCase):
-    """Test _binary_array_to_scalar"""
+class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
+    """Test the _update_model_compute_costs method of an individual."""
 
-    def test_zero(self):
-        a = np.array([0])
-        self.assertEqual(0, ga._binary_array_to_scalar(a))
+
+class IndividualEvaluateTestCase(unittest.TestCase):
+    """Test the evaluation method for an individual.
+
+    This is a pretty involved test... That's okay I suppose.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        # 20 second model runtime.
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
+
+        # Prep the GLMManager, as required to run an individual's
+        # "evaluate" method.
+        ga.prep_glm_mgr(cls.glm_mgr, starttime=cls.starttime,
+                        stoptime=cls.stoptime)
+
+        # Get capacitor and regulator information.
+        reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
+
+        # We need to loop over the capacitors and set their states. Just
+        # do so randomly.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = np.random.randint(0, 2)
+            else:
+                for cap in c.values():
+                    cap.state = np.random.randint(0, 2)
+
+        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+
+    def setUp(self):
+        """Get a database connection and a copy of the GLMManager."""
+        self.db_conn = connect_loop()
+        self.glm_fresh = deepcopy(self.glm_mgr)
+        self.individual = ga.Individual(uid=0, chrom_len=self.len,
+                                        chrom_map=self.map)
 
     def test_one(self):
-        a = np.array([1])
-        self.assertEqual(1, ga._binary_array_to_scalar(a))
-
-    def test_two(self):
-        a = np.array([1, 0])
-        self.assertEqual(2, ga._binary_array_to_scalar(a))
-
-    def test_three(self):
-        a = np.array([1, 1])
-        self.assertEqual(3, ga._binary_array_to_scalar(a))
-
-    def test_four(self):
-        a = np.array([1, 0, 0])
-        self.assertEqual(4, ga._binary_array_to_scalar(a))
-
-    def test_five(self):
-        a = np.array([1, 0, 1])
-        self.assertEqual(5, ga._binary_array_to_scalar(a))
-
-    def test_six(self):
-        a = np.array([1, 1, 0])
-        self.assertEqual(6, ga._binary_array_to_scalar(a))
-
-    def test_seven(self):
-        a = np.array([1, 1, 1])
-        self.assertEqual(7, ga._binary_array_to_scalar(a))
-
-    def test_eight(self):
-        a = np.array([1, 0, 0, 0])
-        self.assertEqual(8, ga._binary_array_to_scalar(a))
-
-    def test_big_number(self):
-        n = 239034
-        b = bin(n)
-        # bin is prefixed with '0b', so start at 2.
-        a = np.array([int(i) for i in b[2:]])
-        self.assertEqual(n, ga._binary_array_to_scalar(a))
+        penalties = self.individual.evaluate(glm_mgr=self.glm_fresh,
+                                             db_conn=self.db_conn)
+        self.assertTrue(False)
 
 
 if __name__ == '__main__':

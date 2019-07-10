@@ -4,11 +4,10 @@ recreate files.
 # Standard library.
 import unittest
 from unittest.mock import patch
-import os
-from uuid import UUID
 
 # pyvvo.
 from pyvvo import sparql
+from tests import data_files as _df
 
 # Third-party.
 # noinspection PyPackageRequirements
@@ -16,140 +15,9 @@ from stomp.exception import ConnectFailedException
 import pandas as pd
 import numpy as np
 
-# Hard-code 8500 node feeder MRID.
-FEEDER_MRID = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
-
-# 13 node:
-FEEDER_MRID_13 = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
-
 # We'll be mocking some query returns.
 MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
                             'prop': ['prop1', 'prop2']})
-
-# Handle pathing.
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(THIS_DIR, 'data')
-CAPACITORS = os.path.join(DATA_DIR, 'query_capacitors_8500.csv')
-REGULATORS = os.path.join(DATA_DIR, 'query_regulators_8500.csv')
-REG_MEAS = os.path.join(DATA_DIR, 'query_reg_meas_8500.csv')
-CAP_MEAS = os.path.join(DATA_DIR, 'query_cap_meas_8500.csv')
-LOAD_MEAS = os.path.join(DATA_DIR, 'query_load_measurements_8500.csv')
-SUBSTATION = os.path.join(DATA_DIR, 'query_substation_source_8500.csv')
-SWITCHES = os.path.join(DATA_DIR, 'query_switches_8500.csv')
-SWITCH_MEAS = os.path.join(DATA_DIR, 'query_switch_meas_8500.csv')
-
-# 13 bus outputs for smaller/quicker/more manual tests.
-CAPACITORS_13 = os.path.join(DATA_DIR, 'query_capacitors_13.csv')
-REGULATORS_13 = os.path.join(DATA_DIR, 'query_regulators_13.csv')
-REG_MEAS_13 = os.path.join(DATA_DIR, 'query_reg_meas_13.csv')
-CAP_MEAS_13 = os.path.join(DATA_DIR, 'query_cap_meas_13.csv')
-LOAD_MEAS_13 = os.path.join(DATA_DIR, 'query_load_measurements_13.csv')
-SUBSTATION_13 = os.path.join(DATA_DIR, 'query_substation_source_13.csv')
-SWITCHES_13 = os.path.join(DATA_DIR, 'query_switches_13.csv')
-SWITCH_MEAS_13 = os.path.join(DATA_DIR, 'query_switch_meas_13.csv')
-
-
-def gen_expected_results():
-    """Helper to generate expected results. Uncomment in the "main"
-    section. This function is a bit gross and not particularly
-    maintainable, it'll do.
-    """
-    s1 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
-
-    # Create list of lists to run everything. The third tuple element
-    # is used to truncate DataFrames (no reason to save 4000 entries
-    # to file for testing)
-    a1 = [
-        (s1.query_capacitors, CAPACITORS),
-        (s1.query_regulators, REGULATORS),
-        (s1.query_rtc_measurements, REG_MEAS),
-        (s1.query_capacitor_measurements, CAP_MEAS),
-        (s1.query_load_measurements, LOAD_MEAS, 4),
-        (s1.query_substation_source, SUBSTATION),
-        (s1.query_switches, SWITCHES),
-        # The v2019.06.0 version of the platform does not have discrete
-        # position measurements.
-        # (s1.query_switch_measurements, SWITCH_MEAS)
-    ]
-
-    s2 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID_13)
-    a2 = [
-        (s2.query_capacitors, CAPACITORS_13),
-        (s2.query_regulators, REGULATORS_13),
-        (s2.query_rtc_measurements, REG_MEAS_13),
-        (s2.query_capacitor_measurements, CAP_MEAS_13),
-        # 13 bus does not have load measurements.
-        # (s2.query_load_measurements, LOAD_MEAS_13, 4),
-        (s2.query_substation_source, SUBSTATION_13),
-        (s2.query_switches, SWITCHES_13),
-        # The v2019.06.0 version of the platform does not have discrete
-        # position measurements.
-        # (s2.query_switch_measurements, SWITCH_MEAS_13)
-    ]
-
-    for a in [a1, a2]:
-        for b in a:
-            # Run function.
-            actual_full = b[0]()
-
-            # Truncate if necessary.
-            try:
-                actual = actual_full.iloc[0:b[2]]
-            except IndexError:
-                actual = actual_full
-
-            # If changing column names, etc, you'll need to write to
-            # file here. Otherwise, to just update MRIDs the file gets
-            # written at the end of the loop.
-            actual.to_csv(b[1], index=False)
-
-            # Read file.
-            expected = pd.read_csv(b[1])
-            # Ensure frames match except for MRIDs.
-            ensure_frame_equal_except_mrid(actual, expected)
-
-            # Write new file.
-            actual.to_csv(b[1], index=False)
-
-
-def ensure_frame_equal_except_mrid(left, right):
-    """Helper to ensure DataFrames are equal except for MRIDs.
-
-    When the platform blazegraph docker container gets updated, the
-    MRIDs of things can change.
-    """
-    # Filter columns.
-    left_non_id_cols, left_id_cols = get_non_id_cols(left)
-    right_non_id_cols, right_id_cols = get_non_id_cols(right)
-
-    # Ensure all the "non id" columns match exactly.
-    pd.testing.assert_frame_equal(left[left_non_id_cols],
-                                  right[right_non_id_cols])
-
-    # Ensure everything else is a properly formatted UUID (MRID in the
-    # CIM).
-    for df in [left[left_id_cols], right[right_id_cols]]:
-        for c in list(df.columns):
-            for v in df[c].values:
-                # GridAPPS-D prefixes all of the UUIDs with an
-                # underscore.
-                assert v[0] == '_'
-                UUID(v[1:])
-
-
-def get_non_id_cols(df):
-    """Assume all MRID related columns end with 'id.' This is a bit
-    fragile.
-    """
-    non_id_cols = []
-    id_cols = []
-    for c in list(df.columns.values):
-        if c.endswith('id'):
-            id_cols.append(c)
-        else:
-            non_id_cols.append(c)
-
-    return non_id_cols, id_cols
 
 
 class SPARQLManagerTestCase(unittest.TestCase):
@@ -167,7 +35,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Attempt to connect to the platform."""
         try:
-            cls.sparql = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID)
+            cls.sparql = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_8500)
         except ConnectFailedException:
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
@@ -246,7 +114,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
             mock.assert_called_once()
 
-        ensure_frame_equal_except_mrid(actual, expected)
+        _df.ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_bindings_to_dataframe_mismatched_lengths(self):
         """A warning should be thrown, output should have NaNs."""
@@ -274,7 +142,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
                                                         to_numeric=False)
 
         # Ensure values match.
-        ensure_frame_equal_except_mrid(actual, expected)
+        _df.ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_bindings_to_dataframe_no_value(self):
         self.assertRaises(KeyError, self.sparql._bindings_to_dataframe,
@@ -313,7 +181,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         actual = self.sparql._query(query, to_numeric=False)
         expected = pd.DataFrame({'name': ['capbank0a']})
-        ensure_frame_equal_except_mrid(actual, expected)
+        _df.ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_calls_query_platform(self):
         """Ensure _query_named_objects calls _query_platform, as
@@ -336,7 +204,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
         # Test return value.
         expected = pd.DataFrame({'name': ['object1']})
-        ensure_frame_equal_except_mrid(actual, expected)
+        _df.ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_platform_no_results(self):
         """Give a SPARQL query which won't return any data."""
@@ -357,14 +225,6 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertRaises(sparql.SPARQLQueryError, self.sparql._query_platform,
                           query_string=query)
 
-    def test_sparql_manager_query_capacitors_expected_return(self):
-        """Ensure we get the expected return."""
-        actual = self.sparql.query_capacitors()
-
-        # Compare results
-        expected = pd.read_csv(CAPACITORS)
-        ensure_frame_equal_except_mrid(actual, expected)
-
     def test_sparql_manager_query_capacitors_calls_query_and_map(self):
         """query_capacitors must call _query and map_dataframe_columns.
         """
@@ -373,32 +233,16 @@ class SPARQLManagerTestCase(unittest.TestCase):
             function_string='query_capacitors',
             query='CAPACITOR_QUERY', to_numeric=True)
 
-    def test_sparql_manager_query_switches_expected_return(self):
-        actual = self.sparql.query_switches()
-        expected = pd.read_csv(SWITCHES)
-        ensure_frame_equal_except_mrid(actual, expected)
-
     def test_sparql_manager_query_switches_calls_query(self):
         self.mock_query(
             function_string='query_switches',
             query='SWITCHES_QUERY', to_numeric=True)
-
-    def test_query_switch_meas_expected_return(self):
-        actual = self.sparql.query_switch_measurements()
-        expected = pd.read_csv(SWITCH_MEAS)
-        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_query_switch_meas_calls_query(self):
         """Ensure query_switch_measurements calls _query"""
         self.mock_query(function_string='query_switch_measurements',
                         query='SWITCH_STATUS_QUERY',
                         to_numeric=False)
-
-    def test_sparql_manager_query_regulators_expected_return(self):
-        """Ensure we get the expected return."""
-        actual = self.sparql.query_regulators()
-        expected = pd.read_csv(REGULATORS)
-        ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_regulators_calls_query(self):
         """query_regulators must call _query."""
@@ -433,16 +277,6 @@ class SPARQLManagerTestCase(unittest.TestCase):
             function_string='query_load_measurements',
             query='LOAD_MEASUREMENTS_QUERY', to_numeric=False)
 
-    def test_sparql_manager_query_load_measurements_expected_return(self):
-        """Check one of the elements from query_load_measurements."""
-
-        full_actual = self.sparql.query_load_measurements()
-
-        actual = full_actual.iloc[0:4]
-
-        expected = pd.read_csv(LOAD_MEAS)
-        ensure_frame_equal_except_mrid(actual, expected)
-
     def test_sparql_manager_query_all_measurements_calls_query(self):
         """Ensure query_all_measurements calls _query."""
         self.mock_query(function_string='query_all_measurements',
@@ -467,12 +301,6 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertEqual(actual['pos_meas_mrid'].unique().shape[0],
                          actual.shape[0])
 
-        # Read expected value.
-        expected = pd.read_csv(REG_MEAS)
-
-        # Ensure they're identical
-        ensure_frame_equal_except_mrid(actual, expected)
-
     def test_sparql_manager_query_capacitor_measurements_calls_query(self):
         """Ensure query_capacitor_measurements calls _query"""
         self.mock_query(
@@ -488,9 +316,9 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = self.sparql.query_capacitor_measurements()
 
         # Read expected value.
-        expected = pd.read_csv(CAP_MEAS)
+        expected = _df.read_pickle(_df.CAP_MEAS_8500)
 
-        ensure_frame_equal_except_mrid(actual, expected)
+        _df.ensure_frame_equal_except_mrid(actual, expected)
 
         # Ensure we get measurements associated with 10 capacitors.
         # (3 * 3) + 1, see docstring.
@@ -507,13 +335,6 @@ class SPARQLManagerTestCase(unittest.TestCase):
             function_string='query_substation_source',
             query='SUBSTATION_SOURCE_QUERY', to_numeric=True)
 
-    def test_sparql_manager_query_substation_source_expected_return(self):
-        """Test return is as expected."""
-        actual = self.sparql.query_substation_source()
-
-        expected = pd.read_csv(SUBSTATION)
-        ensure_frame_equal_except_mrid(actual, expected)
-
     def test_sparql_manager_query_measurements_for_bus_calls_query(self):
         # NOTE: bus_mrid is for the substation source bus.
         self.mock_query(
@@ -525,7 +346,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_measurements_for_bus_not_empty(self):
         # Grab the substation source bus.
-        sub = pd.read_csv(SUBSTATION)
+        sub = _df.read_pickle(_df.SUBSTATION_8500)
         bus_mrid = sub.iloc[0]['bus_mrid']
 
         # Query to get measurements.
@@ -536,6 +357,92 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertEqual(actual.shape[0], 6)
 
 
+class ExpectedResults13TestCase(unittest.TestCase):
+    """Check expected results for the 13 bus model."""
+    @classmethod
+    def setUpClass(cls):
+        cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_13)
+
+        cls.a = [
+            (cls.s.query_capacitors, _df.CAPACITORS_13),
+            (cls.s.query_regulators, _df.REGULATORS_13),
+            (cls.s.query_rtc_measurements, _df.REG_MEAS_13),
+            (cls.s.query_capacitor_measurements, _df.CAP_MEAS_13),
+            # Node naming is screwing up dtypes here.
+            (cls.s.query_load_measurements, _df.LOAD_MEAS_13),
+            (cls.s.query_substation_source, _df.SUBSTATION_13),
+            (cls.s.query_switches, _df.SWITCHES_13),
+            # The v2019.06.0 version of the platform does not have discrete
+            # position measurements.
+            # (cls.s.query_switch_measurements, SWITCH_MEAS_13)
+        ]
+
+    def test_all(self):
+        """Loop and subtest."""
+        for t in self.a:
+            actual = t[0]()
+            expected = _df.read_pickle(t[1])
+            with self.subTest(msg=t[1]):
+                _df.ensure_frame_equal_except_mrid(actual, expected)
+
+
+class ExpectedResults123TestCase(unittest.TestCase):
+    """Check expected results for the 13 bus model."""
+    @classmethod
+    def setUpClass(cls):
+        cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_123)
+
+        cls.a = [
+            (cls.s.query_capacitors, _df.CAPACITORS_123),
+            (cls.s.query_regulators, _df.REGULATORS_123),
+            (cls.s.query_rtc_measurements, _df.REG_MEAS_123),
+            (cls.s.query_capacitor_measurements, _df.CAP_MEAS_123),
+            # Node naming is screwing up dtypes here.
+            (cls.s.query_load_measurements, _df.LOAD_MEAS_123),
+            (cls.s.query_substation_source, _df.SUBSTATION_123),
+            (cls.s.query_switches, _df.SWITCHES_123),
+            # The v2019.06.0 version of the platform does not have discrete
+            # position measurements.
+            # (cls.s.query_switch_measurements, SWITCH_MEAS_123)
+        ]
+
+    def test_all(self):
+        """Loop and subtest."""
+        for t in self.a:
+            actual = t[0]()
+            expected = _df.read_pickle(t[1])
+            with self.subTest(msg=t[1]):
+                _df.ensure_frame_equal_except_mrid(actual, expected)
+
+
+class ExpectedResults8500TestCase(unittest.TestCase):
+    """Check expected results for the 13 bus model."""
+    @classmethod
+    def setUpClass(cls):
+        cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_8500)
+
+        cls.a = [
+            (cls.s.query_capacitors, _df.CAPACITORS_8500),
+            (cls.s.query_regulators, _df.REGULATORS_8500),
+            (cls.s.query_rtc_measurements, _df.REG_MEAS_8500),
+            (cls.s.query_capacitor_measurements, _df.CAP_MEAS_8500),
+            # Node naming is screwing up dtypes here.
+            (cls.s.query_load_measurements, _df.LOAD_MEAS_8500),
+            (cls.s.query_substation_source, _df.SUBSTATION_8500),
+            (cls.s.query_switches, _df.SWITCHES_8500),
+            # The v2019.06.0 version of the platform does not have discrete
+            # position measurements.
+            # (cls.s.query_switch_measurements, SWITCH_MEAS_8500)
+        ]
+
+    def test_all(self):
+        """Loop and subtest."""
+        for t in self.a:
+            actual = t[0]()
+            expected = _df.read_pickle(t[1])
+            with self.subTest(msg=t[1]):
+                _df.ensure_frame_equal_except_mrid(actual, expected)
+
+
 if __name__ == '__main__':
-    # gen_expected_results()
     unittest.main()

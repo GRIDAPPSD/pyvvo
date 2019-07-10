@@ -8,6 +8,7 @@ from datetime import datetime
 from pyvvo import gridappsd_platform
 from gridappsd import GridAPPSD
 from pyvvo.timeseries import parse_weather
+import tests.data_files as _df
 
 # Third-party
 from stomp.exception import ConnectFailedException
@@ -25,14 +26,9 @@ NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
 
 # Handle pathing.
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(THIS_DIR, 'data')
 MODEL_DIR = os.path.join(THIS_DIR, 'models')
-MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
 IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
-WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
-MEASUREMENTS = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
-HEADER = os.path.join(DATA_DIR, 'simulation_measurements_header_13.json')
 
 
 class GetGADAddressTestCase(unittest.TestCase):
@@ -83,7 +79,7 @@ class GetGADObjectTestCase(unittest.TestCase):
         #     json.dump(actual_info, f)
 
         # Load the expected result.
-        with open(MODEL_INFO, 'r') as f:
+        with open(_df.MODEL_INFO, 'r') as f:
             expected_info = json.load(f)
 
         # The queries are going to have different id's, so remove those.
@@ -138,10 +134,10 @@ class SimOutRouterTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Load the file we'll be working with, initialize
         SimOutRouter."""
-        with open(MEASUREMENTS, 'r') as f:
+        with open(_df.MEASUREMENTS_13, 'r') as f:
             cls.meas = json.load(f)
 
-        with open(HEADER, 'r') as f:
+        with open(_df.HEADER_13, 'r') as f:
             cls.header = json.load(f)
 
         # For convenience, get a reference to the measurements.
@@ -322,7 +318,7 @@ class PlatformManagerTestCase(unittest.TestCase):
 
     def test_platform_manager_query_weather_simple(self):
         # Retrieve one hour of weather data, ensure it matches expected.
-        with open(WEATHER, 'r') as f:
+        with open(_df.WEATHER, 'r') as f:
             expected = json.load(f)
 
         # Remove the 'id' key.
@@ -356,7 +352,7 @@ class PlatformManagerTestCase(unittest.TestCase):
         # with open('weather_simple.json', 'w') as f:
         #     json.dump(actual, f)
 
-        with open(WEATHER, 'r') as f:
+        with open(_df.WEATHER, 'r') as f:
             expected = json.load(f)
 
         # Pop the IDs from actual and expected.

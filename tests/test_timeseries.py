@@ -2,7 +2,6 @@
 import unittest
 from datetime import datetime
 import copy
-import os
 
 # Third-party installed.
 import simplejson as json
@@ -10,13 +9,7 @@ import pandas as pd
 
 # pyvvo
 from pyvvo import timeseries
-
-# Handle pathing.
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(THIS_DIR, 'data')
-WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
-MEASUREMENTS = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
-
+import tests.data_files as _df
 
 # class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
 #     """Test parse_timeseries, and pass it simulation measurements."""
@@ -39,7 +32,7 @@ class ParseWeatherTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Load the simple weather data dictionary.
-        with open(WEATHER, 'r') as f:
+        with open(_df.WEATHER, 'r') as f:
             cls.weather_simple = json.load(f)
 
         # Create the expected DataFrame.

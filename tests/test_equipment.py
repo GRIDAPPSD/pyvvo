@@ -1,7 +1,6 @@
 import unittest
 from random import randint, choice
 from copy import deepcopy
-import os
 import pandas as pd
 import json
 
@@ -9,20 +8,7 @@ from pyvvo import equipment
 
 from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
     CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL
-
-# Handle pathing.
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(THIS_DIR, 'data')
-REGULATORS = os.path.join(DATA_DIR, 'query_regulators_8500.csv')
-REG_MEAS = os.path.join(DATA_DIR, 'query_reg_meas_8500.csv')
-REG_MEAS_MSG = os.path.join(DATA_DIR, 'reg_meas_message_8500.json')
-CAPACITORS = os.path.join(DATA_DIR, 'query_capacitors_8500.csv')
-CAP_MEAS = os.path.join(DATA_DIR, 'query_cap_meas_8500.csv')
-CAP_MEAS_MSG = os.path.join(DATA_DIR, 'cap_meas_message_8500.json')
-SWITCHES = os.path.join(DATA_DIR, 'query_switches_8500.csv')
-
-CAPACITORS_13 = os.path.join(DATA_DIR, 'query_capacitors_13.csv')
-
+import tests.data_files as _df
 
 class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     """Test EquipmentManager with regulator data."""
@@ -30,8 +16,8 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.reg_meas = pd.read_csv(REG_MEAS)
-        with open(REG_MEAS_MSG, 'r') as f:
+        cls.reg_meas = _df.read_pickle(_df.REG_MEAS_8500)
+        with open(_df.REG_MEAS_MSG_8500, 'r') as f:
             cls.reg_meas_msg = json.load(f)
 
     # noinspection PyPep8Naming
@@ -40,7 +26,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # instances each time. It won't be that slow, I promise.
         self.reg_dict = \
             equipment.initialize_regulators(
-                pd.read_csv(REGULATORS))
+                _df.read_pickle(_df.REGULATORS_8500))
         self.reg_mgr = \
             equipment.EquipmentManager(
                 eq_dict=self.reg_dict, eq_meas=self.reg_meas,
@@ -203,7 +189,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # For some reason the new eq_dict won't pickle?
         # reg_dict_forward = \
         #     equipment.initialize_regulators(
-        #         pd.read_csv(REGULATORS))
+        #         _df.read_pickle(_df.REGULATORS_8500))
 
         # Randomly update steps.
         forward_vals = []
@@ -256,8 +242,8 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.cap_meas = pd.read_csv(CAP_MEAS)
-        with open(CAP_MEAS_MSG, 'r') as f:
+        cls.cap_meas = _df.read_pickle(_df.CAP_MEAS_8500)
+        with open(_df.CAP_MEAS_MSG_8500, 'r') as f:
             cls.cap_meas_msg = json.load(f)
 
     # noinspection PyPep8Naming
@@ -266,7 +252,7 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # instances each time. It won't be that slow, I promise.
         self.cap_dict = \
             equipment.initialize_capacitors(
-                pd.read_csv(CAPACITORS))
+                _df.read_pickle(_df.CAPACITORS_8500))
         self.cap_mgr = \
             equipment.EquipmentManager(
                 eq_dict=self.cap_dict, eq_meas=self.cap_meas,
@@ -413,7 +399,7 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # For some reason the new eq_dict won't pickle?
         # cap_dict_forward = \
         #     equipment.initialize_regulators(
-        #         pd.read_csv(REGULATORS))
+        #         _df.read_pickle(REGULATORS))
 
         def update_state(cap, forward):
             """Nested helper function."""
@@ -481,7 +467,7 @@ class InitializeRegulatorsTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.df = pd.read_csv(REGULATORS)
+        cls.df = _df.read_pickle(_df.REGULATORS_8500)
         cls.regs = equipment.initialize_regulators(cls.df)
 
     def test_twelve_tap_changers(self):
@@ -864,7 +850,7 @@ class InitializeCapacitorsTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.df = pd.read_csv(CAPACITORS)
+        cls.df = _df.read_pickle(_df.CAPACITORS_8500)
         cls.caps = equipment.initialize_capacitors(cls.df)
 
     def test_length(self):
@@ -901,7 +887,7 @@ class InitializeCapacitors13TestCase(unittest.TestCase):
     """
     @classmethod
     def setUpClass(cls):
-        cls.df = pd.read_csv(CAPACITORS_13)
+        cls.df = _df.read_pickle(_df.CAPACITORS_13)
         cls.caps = equipment.initialize_capacitors(cls.df)
 
     def test_length(self):
@@ -960,7 +946,7 @@ class InitializeSwitchesTestCase(unittest.TestCase):
     """Test initialize_switches"""
     @classmethod
     def setUpClass(cls):
-        cls.df = pd.read_csv(SWITCHES)
+        cls.df = _df.read_pickle(_df.SWITCHES_8500)
         cls.switches = equipment.initialize_switches(cls.df)
 
     def test_length(self):
