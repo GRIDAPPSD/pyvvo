@@ -1015,6 +1015,10 @@ class UpdateRegTapsTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Given tap position, -20,'):
             self.mgr.update_reg_taps('"reg_Reg"', {'A': 2, 'B': 6, 'C': -20})
 
+    def test_non_integer_tap(self):
+        with self.assertRaisesRegex(TypeError, 'Tap for phase A is not an'):
+            self.mgr.update_reg_taps('"reg_Reg"', {'A': 2.0, 'B': 6, 'C': -2})
+
     def test_update_nonexistent_phase(self):
         # Get an independent manager.
         mgr = glm.GLMManager(IEEE_13, model_is_path=True)
@@ -1039,8 +1043,8 @@ class UpdateRegTapsTestCase(unittest.TestCase):
                                   obj_name='"rcon_Reg"')
 
         for key, value in d.items():
-            self.assertEqual(value, reg['tap_' + key])
-            self.assertEqual(value, rc['tap_pos_' + key])
+            self.assertEqual(str(value), reg['tap_' + key])
+            self.assertEqual(str(value), rc['tap_pos_' + key])
 
 
 class UpdateCapSwitchesTestCase(unittest.TestCase):

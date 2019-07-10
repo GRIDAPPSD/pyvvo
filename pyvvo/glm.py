@@ -1379,6 +1379,11 @@ class GLMManager:
                     "pos_dict's keys must be in {}".format(PHASES))
 
             # Ensure the given tap is valid.
+
+            if not isinstance(tap, int):
+                raise TypeError('Tap for phase {} is not an integer!'
+                                .format(phase))
+
             if (tap > ub) or (tap < lb):
                 raise ValueError('Given tap position, {}, for phase {} is out '
                                  'of bounds! It should be on interval [{}, {}]'
@@ -1390,9 +1395,12 @@ class GLMManager:
                     'Regulator {} does not have phase {}.'.format(reg_name,
                                                                   phase))
 
-            # Update the regulator and its configuration.
-            reg['tap_' + phase] = tap
-            reg_conf['tap_pos_' + phase] = tap
+            # Update the regulator and its configuration. Check out the
+            # _modify_item method, and notice that values are cast to
+            # strings. This direct updating is dangerous, but avoids
+            # double-looping.
+            reg['tap_' + phase] = str(tap)
+            reg_conf['tap_pos_' + phase] = str(tap)
 
         # That's it, we're done. Taps have been updated.
 
