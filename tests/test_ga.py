@@ -138,17 +138,17 @@ class CIMToGLMNameTestCase(unittest.TestCase):
     def test_one(self):
         self.assertEqual('"my_name"',
                          ga._cim_to_glm_name(prefix='my',
-                                             cim_name='"name"'))
+                                             cim_name='name'))
 
     def test_two(self):
-        self.assertEqual('pfah_stuff',
+        self.assertEqual('"pfah_stuff"',
                          ga._cim_to_glm_name(prefix='pfah',
-                                             cim_name='stuff'))
+                                             cim_name='"stuff"'))
 
     def test_three(self):
-        self.assertEqual("'bad_people'",
-                         ga._cim_to_glm_name(prefix='bad',
-                                             cim_name="'people'"))
+        self.assertEqual('"bad_people"',
+                         ga._cim_to_glm_name(prefix='"bad"',
+                                             cim_name='"people"'))
 
 
 class IntBinLengthTestCase(unittest.TestCase):

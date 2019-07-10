@@ -127,13 +127,14 @@ def _binary_array_to_scalar(a):
 def _cim_to_glm_name(prefix, cim_name):
     """Helper to manage the fact that we need to prefix our object names
     to make them match what's in the GridLAB-D model.
+
+    Also, if the given name is NOT surrounded by quotes, it will be.
+    It would appear that all the 'name' attributes in the GridLAB-D
+    models from the platform are quoted with quotes. However, when
+    querying the CIM triple-store, the names do NOT come back with
+    quotes.
     """
-    if cim_name.startswith('"'):
-        return '"{}_{}"'.format(prefix, cim_name.replace('"', ''))
-    elif cim_name.startswith("'"):
-        return "'{}_{}'".format(prefix, cim_name.replace("'", ''))
-    else:
-        return "{}_{}".format(prefix, cim_name)
+    return '"{}_{}"'.format(prefix.replace('"', ''), cim_name.replace('"', ''))
 
 
 def _int_bin_length(x):
