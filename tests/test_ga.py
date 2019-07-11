@@ -11,7 +11,6 @@ from pyvvo.glm import GLMManager
 from pyvvo.utils import run_gld
 from pyvvo.db import connect_loop
 
-import pandas as pd
 import numpy as np
 
 np.random.seed(42)
@@ -26,11 +25,11 @@ class MapChromosomeTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Get capacitors and regulators."""
-        reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cls.cap_df = _df.read_pickle(_df.CAPACITORS_8500)
 
-        cls.regs = equipment.initialize_regulators(reg_df)
-        cls.caps = equipment.initialize_capacitors(cap_df)
+        cls.regs = equipment.initialize_regulators(cls.reg_df)
+        cls.caps = equipment.initialize_capacitors(cls.cap_df)
 
         cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
 
@@ -84,6 +83,15 @@ class MapChromosomeTestCase(unittest.TestCase):
                         sd['range'])
                 else:
                     raise TypeError('Bad equipment type!')
+
+    def test_map_bad_reg_type(self):
+        with self.assertRaisesRegex(TypeError, 'regulators must be a dict'):
+            ga.map_chromosome(regulators=self.reg_df,
+                              capacitors=self.caps)
+
+    def test_map_bad_cap_type(self):
+        with self.assertRaisesRegex(TypeError, 'capacitors must be a dict'):
+            ga.map_chromosome(regulators=self.regs, capacitors=self.cap_df)
 
 
 class BinaryArrayToScalarTestCase(unittest.TestCase):
@@ -193,6 +201,7 @@ class IntToBinaryListTestCase(unittest.TestCase):
         self.assertListEqual([0, 1, 0, 0, 0, 0],
                              ga._int_to_binary_list(16, 32))
 
+
 @patch('pyvvo.equipment.RegulatorSinglePhase', autospec=True)
 class RegBinLengthTestCase(unittest.TestCase):
     """Test _reg_bin_length."""
@@ -285,12 +294,15 @@ class PrepGLMMGRTestCase(unittest.TestCase):
 
 
 class IndividualTestCase(unittest.TestCase):
+    """Test everything that doesn't involve a glm.GLMManager. Those
+    tests are more involved and will be done elsewhere.
+    """
 
     @classmethod
     def setUpClass(cls):
         # Get capacitor and regulator information.
-        reg_df = _df.read_pickle(_df.REGULATORS_13)
-        cap_df = _df.read_pickle(_df.CAPACITORS_13)
+        reg_df = _df.read_pickle(_df.REGULATORS_123)
+        cap_df = _df.read_pickle(_df.CAPACITORS_123)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -347,103 +359,126 @@ class IndividualTestCase(unittest.TestCase):
                           chrom_override=np.array([1] * 9, dtype=np.bool),
                           chrom_map=self.map)
 
-    def test_crossover_1(self):
+    def test_check_and_fix_chromosome(self):
+        # Grab a copy of the individual's chromosome.
+        c = self.ind.chromosome.copy()
+
+        # Splice in values for reg2 and reg3.
+        idx2 = self.ind._chrom_map['reg2']['A']['idx']
+        idx3 = self.ind._chrom_map['reg3']['C']['idx']
+        # The call below looks wrong, but it's fine, I promise :)
+        # the 'm' argument is just used for the width formatting.
+        c[idx2[0]:idx2[1]] = ga._int_to_binary_list(50, m=32)
+        c[idx3[0]:idx3[1]] = ga._int_to_binary_list(25, m=32)
+
+        # Patch the 'reg2' and 'reg3' ranges and run the check.
+        with patch.dict(self.ind._chrom_map['reg3']['C'], {'range': (31, 32)}):
+            c_new = self.ind._check_and_fix_chromosome(c)
+
+        # Violations above should be cut down to the top of the range.
+        self.assertEqual(ga._binary_array_to_scalar(c_new[idx2[0]:idx2[1]]),
+                         32)
+        # Violations below should be brought up to the bottom of the range.
+        self.assertEqual(ga._binary_array_to_scalar(c_new[idx3[0]:idx3[1]]),
+                         31)
+        pass
+
+    def test_override_calls_check_and_fix_chromosome(self):
+        with patch('pyvvo.ga.Individual._check_and_fix_chromosome',
+                   autospec=True) as p:
+            ga.Individual(uid=0, chrom_len=self.len,
+                          chrom_override=np.ones(self.len, dtype=np.bool),
+                          chrom_map=self.map)
+
+        p.assert_called_once()
+
+    def test_chromosome_values_in_range(self):
+        """Loop over the map, and ensure translating chromosome values
+        to integers results in a valid value.
+
+        This effectively tests an Individual's _initialize_chromosome
+        method.
+        """
+        for phase_dict in self.map.values():
+            for eq_dict in phase_dict.values():
+                idx = eq_dict['idx']
+                # Grab the binary sliver.
+                b = self.ind.chromosome[idx[0]:idx[1]]
+                # Get it as a number.
+                n = ga._binary_array_to_scalar(b)
+                # Ensure it's in range.
+                with self.subTest(msg=eq_dict['eq_obj'].name):
+                    self.assertGreaterEqual(eq_dict['range'][1], n)
+                    self.assertLessEqual(eq_dict['range'][0], n)
+
+    def test_crossover_uniform(self):
         """Very simple crossover test."""
 
         # Initialize two individuals.
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)
         ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map)
 
-        # Override their chromosomes.
-        ind1._chromosome = np.ones_like(ind1.chromosome)
-        ind2._chromosome = np.zeros_like(ind2.chromosome)
+        # Create an array where the first half is ones/True, and the
+        # second half is zeros/False
+        first_half = int(np.ceil(self.len / 2))
+        second_half = int(np.floor(self.len / 2))
+
+        patched_array = np.array([1] * first_half + [0] * second_half,
+                                 dtype=np.bool)
 
         # Patch numpy's random randint.
-        with patch('numpy.random.randint',
-                   return_value=np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
-                                         dtype=np.bool)):
+        with patch('numpy.random.randint', return_value=patched_array):
             child1, child2 = ind1.crossover_uniform(ind2, 2, 3)
 
         # Check uid's.
         self.assertEqual(child1.uid, 2)
         self.assertEqual(child2.uid, 3)
 
-        # Check chromosomes
-        np.testing.assert_array_equal(
-            child1.chromosome,
-            np.array([1, 1, 1, 1, 1, 0, 0, 0, 0, 0], dtype=np.bool))
-
-        np.testing.assert_array_equal(
-            child2.chromosome,
-            np.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=np.bool))
-
         # Check fitnesses.
         self.assertIsNone(child1.fitness)
         self.assertIsNone(child2.fitness)
 
-    def test_crossover_2(self):
-        """Slightly less simple crossover test."""
+        # Check that the children are properly taking values from each
+        # parent. NOTE: This is fragile because
+        # _check_and_fix_chromosome will be called for each child.
+        # HOWEVER, for the 123 node system, cutting the chromosome in
+        # half will never result in a value out of bounds.
+        np.testing.assert_array_equal(child1.chromosome[0:first_half],
+                                      ind1.chromosome[0:first_half])
+        np.testing.assert_array_equal(child1.chromosome[first_half:],
+                                      ind2.chromosome[first_half:])
 
-        # Initialize two individuals.
-        ind1 = ga.Individual(uid=0, chrom_len=6, chrom_map=self.map)
-        ind2 = ga.Individual(uid=1, chrom_len=6, chrom_map=self.map)
+        np.testing.assert_array_equal(child2.chromosome[0:first_half],
+                                      ind2.chromosome[0:first_half])
+        np.testing.assert_array_equal(child2.chromosome[first_half:],
+                                      ind1.chromosome[first_half:])
 
-        # Override their chromosomes.
-        ind1._chromosome = np.array([1, 1, 0, 1, 0, 0], dtype=bool)
-        ind2._chromosome = np.array([1, 0, 0, 0, 1, 0], dtype=bool)
+    def test_crossover_uniform_bad_type(self):
+        with self.assertRaisesRegex(TypeError, 'other must be an Individual'):
+            self.ind.crossover_uniform(other='spam', uid1=10, uid2=400)
 
-        # Patch numpy's random randint.
-        with patch('numpy.random.randint',
-                   return_value=np.array([0, 0, 1, 1, 1, 1],
-                                         dtype=np.bool)):
-            child1, child2 = ind1.crossover_uniform(ind2, 2, 3)
-
-        # Check uid's.
-        self.assertEqual(child1.uid, 2)
-        self.assertEqual(child2.uid, 3)
-
-        # Check chromosomes
-        np.testing.assert_array_equal(
-            child1.chromosome,
-            np.array([1, 0, 0, 1, 0, 0], dtype=np.bool))
-
-        np.testing.assert_array_equal(
-            child2.chromosome,
-            np.array([1, 1, 0, 0, 1, 0], dtype=np.bool))
-
-        # Check fitnesses.
-        self.assertIsNone(child1.fitness)
-        self.assertIsNone(child2.fitness)
-
-    def test_mutate_1(self):
+    def test_mutate(self):
         """Simple mutation test."""
-        ind1 = ga.Individual(uid=0, chrom_len=5,
-                             chrom_override=np.array([1, 1, 1, 1, 1],
-                                                     dtype=np.bool),
-                             chrom_map=self.map)
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             chrom_override=np.zeros(self.len, dtype=np.bool))
 
-        with patch('numpy.random.random_sample',
-                   return_value=np.array([0.1, 0.5, 0.2, 0.7, 0.4])):
-            ind1.mutate(mut_prob=0.2)
+        patched_array = np.ones(self.len)
+        patched_array[7] = 0
+        patched_array[10] = 0
+        with patch('numpy.random.random_sample', return_value=patched_array):
+            with patch.object(ind1, '_check_and_fix_chromosome',
+                              wraps=ind1._check_and_fix_chromosome) as p:
+                ind1.mutate(mut_prob=0.01)
 
-        np.testing.assert_array_equal(ind1.chromosome,
-                                      np.array([0, 1, 0, 1, 1], dtype=np.bool))
+        # Ensure _check_and_fix chromosome is called.
+        p.assert_called_once()
 
-    def test_mutate_2(self):
-        """Slightly less simple mutation test."""
-        ind1 = ga.Individual(uid=0, chrom_len=8,
-                             chrom_override=np.array([0, 0, 1, 0, 1, 1, 0, 1],
-                                                     dtype=np.bool),
-                             chrom_map=self.map)
+        # Our new chromosome should have ones in positions 7 and 10.
+        expected = np.zeros(self.len, dtype=np.bool)
+        expected[7] = True
+        expected[10] = True
 
-        with patch('numpy.random.random_sample',
-                   return_value=np.array(
-                       [0.1, 0.5, 0.2, 0.7, 0.4, 0.21, 0.01, 0.9])):
-            ind1.mutate(mut_prob=0.2)
-
-        np.testing.assert_array_equal(ind1.chromosome,
-                                      np.array([1, 0, 0, 0, 1, 1, 1, 1],
-                                               dtype=np.bool))
+        np.testing.assert_array_equal(ind1.chromosome, expected)
 
     def test_mutate_bad_type(self):
         with self.assertRaises(TypeError):
@@ -459,7 +494,112 @@ class IndividualTestCase(unittest.TestCase):
 
 
 class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
-    """Test the _update_model_compute_costs method of an individual."""
+    """Test the _update_model_compute_costs method of an individual.
+
+    Additionally, we'll test _update_reg and _update_cap.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cls.caps_df = _df.read_pickle(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(cls.reg_df)
+        cls.caps = equipment.initialize_capacitors(cls.caps_df)
+
+        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+
+        cls.glm_mgr = GLMManager(IEEE_8500)
+
+        # Force all the capacitors to be open.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = 0
+            elif isinstance(c, dict):
+                for cc in c.values():
+                    cc.state = 0
+
+        # Force all regulators to be at their minimum.
+        for r in cls.regs.values():
+            if isinstance(r, equipment.RegulatorSinglePhase):
+                r.tap_pos = -r.lower_taps
+            elif isinstance(r, dict):
+                for rr in r.values():
+                    rr.tap_pos = -rr.lower_taps
+
+        # Force the individual to have all capacitors closed and all
+        # regulators at their maximum.
+        def patch_randint(arg1, arg2, arg3):
+            return arg2 - 1
+
+        with patch('numpy.random.randint', new=patch_randint):
+            cls.ind = ga.Individual(uid=0, chrom_len=cls.len,
+                                    chrom_map=cls.map)
+
+    def setUp(self):
+        self.fresh_mgr = deepcopy(self.glm_mgr)
+
+    def test_update_reg(self):
+        """Test _update_reg"""
+        phase_dict = self.map['FEEDER_REG']
+        with patch.dict(ga.CONFIG, {'costs': {'regulator_tap': 10}}):
+            with patch.object(self.fresh_mgr, 'update_reg_taps',
+                              wraps=self.fresh_mgr.update_reg_taps) as p:
+                penalty = self.ind._update_reg(phase_dict=phase_dict,
+                                               glm_mgr=self.fresh_mgr)
+
+        # 3 phases, each phase moved 32 positions with a cost of 10 per
+        # position.
+        self.assertEqual(3 * 32 * 10, penalty)
+
+        # Ensure the taps are being updated properly in the model.
+        # The actual 'update_reg_taps' method is tested elsewhere, so
+        # no need to actually look up the objects and confirm.
+        p.assert_called_once()
+        p.assert_called_with(ga._cim_to_glm_name(prefix=ga.REG_PREFIX,
+                                                 cim_name='FEEDER_REG'),
+                             {'A': 16, 'B': 16, 'C': 16})
+
+    def test_update_cap(self):
+        """Test _update_cap"""
+        phase_dict = self.map['capbank0a']
+        with patch.dict(ga.CONFIG, {'costs': {'capacitor_switch': 10}}):
+            with patch.object(self.fresh_mgr, 'update_cap_switches',
+                              wraps=self.fresh_mgr.update_cap_switches) as p:
+                penalty = self.ind._update_cap(phase_dict=phase_dict,
+                                               glm_mgr=self.fresh_mgr)
+
+        # One phase, one switch --> 10 penalty.
+        self.assertEqual(10, penalty)
+
+        # Ensure capacitor switch position is being updated correctly.
+        p.assert_called_once()
+        p.assert_called_with(ga._cim_to_glm_name(prefix=ga.CAP_PREFIX,
+                                                 cim_name='capbank0a'),
+                             {'A': 'CLOSED'})
+
+    @patch.dict(ga.CONFIG, {'costs': {'regulator_tap': 10,
+                                      'capacitor_switch': 10}})
+    def test_update_model_compute_costs(self):
+        with patch.object(self.ind, '_update_reg',
+                          wraps=self.ind._update_reg) as pr:
+            with patch.object(self.ind, '_update_cap',
+                              wraps=self.ind._update_cap) as pc:
+                reg_penalty, cap_penalty = \
+                    self.ind._update_model_compute_costs(
+                        glm_mgr=self.fresh_mgr)
+
+        # 9 single phase caps switching.
+        self.assertEqual(9 * 10, cap_penalty)
+
+        # 3 phases per regulator, 4 regulators, each moving 32 taps,
+        # with a cost of 10 per tap
+        self.assertEqual(3 * 4 * 32 * 10, reg_penalty)
+
+        # Ensure our helper methods are called the appropriate number of
+        # times.
+        self.assertEqual(9, pc.call_count)
+        self.assertEqual(4, pr.call_count)
+        pass
 
 
 class IndividualEvaluateTestCase(unittest.TestCase):
@@ -505,10 +645,14 @@ class IndividualEvaluateTestCase(unittest.TestCase):
                                         chrom_map=self.map)
 
     def test_one(self):
-        penalties = self.individual.evaluate(glm_mgr=self.glm_fresh,
-                                             db_conn=self.db_conn)
+        # penalties = self.individual.evaluate(glm_mgr=self.glm_fresh,
+        #                                      db_conn=self.db_conn)
         self.assertTrue(False)
 
+
+class EvaluatorTestCase(unittest.TestCase):
+    def test_one(self):
+        self.assertTrue(False)
 
 if __name__ == '__main__':
     unittest.main()
