@@ -1,3 +1,4 @@
 tests/ieee_8500.glm filter=lfs diff=lfs merge=lfs -text
 *.pickle filter=lfs diff=lfs merge=lfs -text
+ieee_*.glm filter=lfs diff=lfs merge=lfs -text
 *.glm filter=lfs diff=lfs merge=lfs -text
