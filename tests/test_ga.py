@@ -12,6 +12,7 @@ from pyvvo.utils import run_gld
 from pyvvo.db import connect_loop
 
 import numpy as np
+import MySQLdb
 
 np.random.seed(42)
 
@@ -651,8 +652,79 @@ class IndividualEvaluateTestCase(unittest.TestCase):
 
 
 class EvaluatorTestCase(unittest.TestCase):
-    def test_one(self):
-        self.assertTrue(False)
+    @classmethod
+    def setUpClass(cls):
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        # 20 second model runtime.
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
+
+        # Prep the GLMManager, as required to run an individual's
+        # "evaluate" method.
+        ga.prep_glm_mgr(cls.glm_mgr, starttime=cls.starttime,
+                        stoptime=cls.stoptime)
+
+    def setUp(self):
+        """Get a database connection and a copy of the GLMManager."""
+        # Mock the db connection for speed. Though this doesn't actually
+        # seem to help with speed...
+        self.db_conn = \
+            unittest.mock.create_autospec(MySQLdb.connection)
+        self.glm_fresh = deepcopy(self.glm_mgr)
+        # Patch the truncate table call for speed.
+        with patch('pyvvo.db.truncate_table', autospec=True):
+            self.evaluator = ga._Evaluator(uid=23, glm_mgr=self.glm_fresh,
+                                           db_conn=self.db_conn)
+
+    def test_init_bad_glm_mgr(self):
+        with self.assertRaisesRegex(TypeError, 'glm_mgr must be a glm\.GLM'):
+            ga._Evaluator(uid=7, glm_mgr={'hello': 'there'},
+                          db_conn=self.db_conn)
+
+    def test_init_bad_db_conn(self):
+        with self.assertRaisesRegex(TypeError, 'db_conn must be a MySQLdb'):
+            ga._Evaluator(uid=7, glm_mgr=self.glm_fresh,
+                          db_conn=7)
+
+    def test_init_uid(self):
+        # hard-coding for the win!
+        self.assertEqual(self.evaluator.uid, 23)
+
+    def test_init_starttime(self):
+        self.assertEqual(self.starttime.strftime(self.glm_fresh.DATE_FORMAT),
+                         self.evaluator.starttime)
+
+    def test_init_triplex_table(self):
+        self.assertEqual(self.evaluator.triplex_table,
+                         '{}_{}'.format(ga.TRIPLEX_TABLE, self.evaluator.uid))
+
+    def test_init_substation_table(self):
+        self.assertEqual(self.evaluator.substation_table,
+                         '{}_{}'.format(ga.SUBSTATION_TABLE,
+                                        self.evaluator.uid))
+
+    def test_init_truncates_tables(self):
+        with patch('pyvvo.db.truncate_table', autospec=True) as p:
+            self.evaluator = ga._Evaluator(uid=23, glm_mgr=self.glm_fresh,
+                                           db_conn=self.db_conn)
+
+        self.assertEqual(2, p.call_count)
+        self.assertEqual(p.call_args_list,
+                         [({'db_conn': self.db_conn,
+                            'table': self.evaluator.triplex_table},),
+                          ({'db_conn': self.db_conn,
+                           'table': self.evaluator.substation_table},)])
+
+    def test_init_modifies_glm_tables(self):
+        tt = self.glm_fresh.find_object(obj_type='mysql.recorder',
+                                        obj_name=ga.TRIPLEX_RECORDER)
+        st = self.glm_fresh.find_object(obj_type='mysql.recorder',
+                                        obj_name=ga.SUBSTATION_RECORDER)
+
+        self.assertEqual(tt['table'], self.evaluator.triplex_table)
+        self.assertEqual(st['table'], self.evaluator.substation_table)
+
+
 
 if __name__ == '__main__':
     unittest.main()

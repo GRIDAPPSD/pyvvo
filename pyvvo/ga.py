@@ -800,7 +800,7 @@ class _Evaluator:
         self.glm_mgr = glm_mgr
 
         # Ensure we're getting a database connection.
-        if not isinstance(db_conn, MySQLdb.Connection):
+        if not isinstance(db_conn, MySQLdb.connection):
             raise TypeError('db_conn must be a MySQLdb Connection object.')
 
         self.db_conn = db_conn
