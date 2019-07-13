@@ -12,6 +12,7 @@ from pyvvo.utils import run_gld
 from pyvvo.db import connect_loop
 
 import numpy as np
+import pandas as pd
 import MySQLdb
 
 np.random.seed(42)
@@ -651,10 +652,15 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         self.assertTrue(False)
 
 
+class PatchSubprocessResult:
+    def __init__(self):
+        self.returncode = 0
+
+
 class EvaluatorTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_13)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
@@ -724,6 +730,196 @@ class EvaluatorTestCase(unittest.TestCase):
         self.assertEqual(tt['table'], self.evaluator.triplex_table)
         self.assertEqual(st['table'], self.evaluator.substation_table)
 
+    def test_voltage_penalty_none(self):
+        with patch('pyvvo.db.execute_and_fetch_all', return_value=((None,),)):
+            penalty = self.evaluator._voltage_penalty(query='who cares')
+
+        self.assertEqual(penalty, 0)
+
+    def test_voltage_penalty_float(self):
+        p = 34856.2
+        with patch('pyvvo.db.execute_and_fetch_all', return_value=((p,),)):
+            penalty = self.evaluator._voltage_penalty(query='who cares')
+
+        self.assertEqual(penalty, p)
+
+    def test_voltage_penalty_bad_return_1(self):
+        with patch('pyvvo.db.execute_and_fetch_all',
+                   return_value=((7, 12),)):
+            with self.assertRaisesRegex(ValueError, 'Voltage penalty queries'):
+                self.evaluator._voltage_penalty(query='who cares')
+
+    def test_voltage_penalty_bad_return_2(self):
+        with patch('pyvvo.db.execute_and_fetch_all',
+                   return_value=((7,), (8,))):
+            with self.assertRaisesRegex(ValueError, 'Voltage penalty queries'):
+                self.evaluator._voltage_penalty(query='who cares')
+
+    def test_low_voltage_penalty(self):
+        with patch.object(self.evaluator, '_voltage_penalty', autospec=True,
+                          return_value=10) as p:
+            with patch.dict(ga.CONFIG['costs'], {'voltage_violation_low': 2}):
+                penalty = self.evaluator._low_voltage_penalty()
+
+        p.assert_called_once()
+        self.assertEqual(penalty, 10)
+
+        # Do a fragile hard-coded assertion.
+        self.assertEqual(p.call_args[1]['query'],
+                         ("SELECT SUM((240 - measured_voltage_12_mag) * 2) "
+                          "as penalty FROM triplex_23 WHERE "
+                          "(measured_voltage_12_mag < 228.0 AND "
+                          "t > '2013-04-01 12:00:00')"))
+
+    def test_high_voltage_penalty(self):
+        with patch.object(self.evaluator, '_voltage_penalty',
+                          autospec=True,
+                          return_value=42) as p:
+            with patch.dict(ga.CONFIG['costs'],
+                            {'voltage_violation_high': 3}):
+                penalty = self.evaluator._high_voltage_penalty()
+
+        p.assert_called_once()
+        self.assertEqual(penalty, 42)
+
+        # Do a fragile hard-coded assertion.
+        self.assertEqual(p.call_args[1]['query'],
+                         (
+                             "SELECT SUM((measured_voltage_12_mag - 240) * 3) "
+                             "as penalty FROM triplex_23 WHERE "
+                             "(measured_voltage_12_mag > 252.0 AND "
+                             "t > '2013-04-01 12:00:00')"))
+
+    def test_get_substation_data_query(self):
+        r = pd.DataFrame([[1, 2, 3], [4, 5, 6]],
+                         columns=list(ga.SUBSTATION_COLUMNS))
+        with patch('pandas.read_sql_query', autospec=True,
+                   return_value=r) as p:
+            data = self.evaluator._get_substation_data()
+
+        p.assert_called_once()
+        self.assertEqual(
+            p.call_args[1]['sql'],
+            "SELECT * FROM substation_23 WHERE t > '2013-04-01 12:00:00';")
+        pd.testing.assert_frame_equal(r, data)
+
+    def test_get_substation_data_empty_return(self):
+        r = pd.DataFrame()
+        with patch('pandas.read_sql_query', autospec=True,
+                   return_value=r):
+            with self.assertRaisesRegex(ValueError, 'No substation data was'):
+                self.evaluator._get_substation_data()
+
+    def test_get_substation_data_bad_columns(self):
+        r = pd.DataFrame([[1, 3, 4], [4, 59, 1]])
+        with patch('pandas.read_sql_query', autospec=True,
+                   return_value=r):
+            with self.assertRaisesRegex(ValueError,
+                                        'Unexpected substation data columns.'):
+                self.evaluator._get_substation_data()
+
+    def test_pf_lag_penalty(self):
+        pf = np.array([0.95, -0.97, 0.93, 0.99, 0.98])
+        with patch.dict(ga.CONFIG, {'limits': {'power_factor_lag': 0.98},
+                                    'costs': {'power_factor_lag': 3}}):
+            penalty = self.evaluator._pf_lag_penalty(pf)
+
+        self.assertAlmostEqual(penalty, 3 * 3 + 5 * 3, places=10)
+
+    def test_pf_lead_penalty(self):
+        pf = np.array([0.95, -0.97, 0.93, 0.99, 0.98])
+        with patch.dict(ga.CONFIG, {'limits': {'power_factor_lead': 0.98},
+                                    'costs': {'power_factor_lead': 16}}):
+            penalty = self.evaluator._pf_lead_penalty(pf)
+
+        self.assertAlmostEqual(penalty, 16, places=10)
+
+    def test_power_factor_penalty(self):
+        """Ensure helper methods are called correctly. No need to check
+        accuracy, as all the helper functions themselves have been
+        tested.
+        """
+        data = pd.DataFrame([[1, 1], [2, -2]],
+                            columns=[ga.SUBSTATION_REAL_POWER,
+                                     ga.SUBSTATION_REACTIVE_POWER])
+        a = np.array([0.99, -0.99])
+        with patch('pyvvo.utils.power_factor', autospec=True,
+                   return_value=a) as pf:
+            with patch.object(self.evaluator, '_pf_lead_penalty',
+                              autospec=True, return_value=3) as p_lead:
+                with patch.object(self.evaluator, '_pf_lag_penalty',
+                                  autospec=True, return_value=7) as p_lag:
+                    lead, lag = self.evaluator._power_factor_penalty(data)
+
+        pf.assert_called_once()
+        np.testing.assert_array_equal(np.array([1 + 1j, 2 + 1j * -2]),
+                                      pf.call_args[0][0])
+        p_lead.assert_called_once()
+        np.testing.assert_array_equal(a, p_lead.call_args[0][0])
+        p_lag.assert_called_once()
+        np.testing.assert_array_equal(a, p_lag.call_args[0][0])
+        self.assertEqual(3, lead)
+        self.assertEqual(7, lag)
+
+    def test_energy_penalty(self):
+        data = pd.DataFrame([1, 2, 3, 4, 5, 6, 7000],
+                            columns=[ga.SUBSTATION_ENERGY])
+        with patch.dict(ga.CONFIG['costs'], {'energy': 3}):
+            penalty = self.evaluator._energy_penalty(data)
+
+        self.assertEqual(penalty, 21)
+
+    @patch('pyvvo.ga._Evaluator._energy_penalty', autospec=True,
+           return_value=5)
+    @patch('pyvvo.ga._Evaluator._power_factor_penalty', autospec=True,
+           return_value=(3, 4))
+    @patch('pyvvo.ga._Evaluator._get_substation_data', autospec=True,
+           return_value=pd.DataFrame([[1, 2, 3],],
+                                     columns=[ga.SUBSTATION_REAL_POWER,
+                                              ga.SUBSTATION_REACTIVE_POWER,
+                                              ga.SUBSTATION_ENERGY]))
+    @patch('pyvvo.ga._Evaluator._low_voltage_penalty', autospec=True,
+           return_value=2)
+    @patch('pyvvo.ga._Evaluator._high_voltage_penalty', autospec=True,
+           return_value=1)
+    @patch('pyvvo.utils.run_gld', autospec=True,
+           return_value=PatchSubprocessResult())
+    @patch('pyvvo.glm.GLMManager.write_model', autospec=True,
+           return_value=None)
+    def test_evaluate(self, write_model_patch, run_gld_patch, hv_patch,
+                      lv_patch, sub_data_patch, pf_patch, e_patch):
+        """Patch everything and just make sure the appropriate helper
+        method results get assigned to the correct penalties.
+        """
+        penalties = self.evaluator.evaluate()
+
+        write_model_patch.assert_called_once()
+        write_model_patch.assert_called_with(self.glm_fresh, 'model_23.glm')
+
+        run_gld_patch.assert_called_once()
+        run_gld_patch.assert_called_with('model_23.glm')
+
+        hv_patch.assert_called_once()
+
+        lv_patch.assert_called_once()
+
+        sub_data_patch.assert_called_once()
+
+        df = pd.DataFrame([[1, 2, 3],],
+                          columns=[ga.SUBSTATION_REAL_POWER,
+                                   ga.SUBSTATION_REACTIVE_POWER,
+                                   ga.SUBSTATION_ENERGY])
+
+        pf_patch.assert_called_once()
+        pd.testing.assert_frame_equal(df, pf_patch.call_args[1]['data'])
+
+        e_patch.assert_called_once()
+        pd.testing.assert_frame_equal(df, e_patch.call_args[1]['data'])
+
+        self.assertDictEqual({'voltage_high': 1, 'voltage_low': 2,
+                              'power_factor_lead': 3, 'power_factor_lag': 4,
+                              'energy': 5},
+                             penalties)
 
 
 if __name__ == '__main__':

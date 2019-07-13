@@ -42,6 +42,8 @@ TRIPLEX_PROPERTY_DB = TRIPLEX_PROPERTY_IN.replace('.', '_')
 SUBSTATION_ENERGY = 'measured_real_energy'
 SUBSTATION_REAL_POWER = 'measured_real_power'
 SUBSTATION_REACTIVE_POWER = 'measured_reactive_power'
+SUBSTATION_COLUMNS = {SUBSTATION_ENERGY, SUBSTATION_REAL_POWER,
+                      SUBSTATION_REACTIVE_POWER}
 # The GridLAB-D models from the platform have prefixes on object names,
 # and thus don't precisely line up with the names from the CIM.
 # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.06.beta/services/fncsgossbridge/service/fncs_goss_bridge.py
@@ -858,12 +860,7 @@ class _Evaluator:
         penalties['power_factor_lead'], penalties['power_factor_lag'] = \
             self._power_factor_penalty(data=sub_data)
 
-        # Compute the energy cost. Note the energy cost in CONFIG is
-        # a per kWh figure, and returns from GridLAB-D are in Wh. Also
-        # note that the measured_real_energy property of a meter
-        # reports accumulation - hence why we grab the last item.
-        penalties['energy'] = (sub_data.iloc[-1][SUBSTATION_ENERGY]
-                               * TO_KW_FACTOR * CONFIG['costs']['energy'])
+        penalties['energy'] = self._energy_penalty(data=sub_data)
 
         # We're done here. Rely on the calling Individual to add tap
         # changing and capacitor switching costs.
@@ -876,6 +873,13 @@ class _Evaluator:
         """
         result = db.execute_and_fetch_all(db_conn=self.db_conn,
                                           query=query)
+
+        # We're expecting to get back a single value inside a tuple of
+        # tuples.
+        if len(result) != 1 or len(result[0]) != 1:
+            raise ValueError('Voltage penalty queries should be formed '
+                             'in a way in which only a single value is '
+                             'returned.')
 
         # The queries in _high and _low _voltage_penalty guarantee we
         # only get one value back. However, it's a tuple of tuples.
@@ -926,7 +930,7 @@ class _Evaluator:
                  " FROM {table} WHERE ({mag_col} > {high_v} " \
                  "AND t > '{starttime}')".format(
                     nom_v=TRIPLEX_NOMINAL_VOLTAGE, mag_col=TRIPLEX_PROPERTY_DB,
-                    penalty=CONFIG['costs']['voltage_violation_low'],
+                    penalty=CONFIG['costs']['voltage_violation_high'],
                     table=self.triplex_table, high_v=TRIPLEX_HIGH_VOLTAGE,
                     starttime=self.starttime
                     )
@@ -951,6 +955,12 @@ class _Evaluator:
                              'indicates something is wrong with the configured'
                              ' start/stop time, sample interval, and/or '
                              'minimum timestep.')
+
+        # We're expecting three columns back, ensure we get them.
+        if set(sub_data.columns) ^ SUBSTATION_COLUMNS != set():
+            raise ValueError('Unexpected substation data columns. Expected: {}'
+                             ', Actual: {}'.format(SUBSTATION_COLUMNS,
+                                                   set(sub_data.columns)))
 
         return sub_data
 
@@ -977,8 +987,10 @@ class _Evaluator:
 
     @staticmethod
     def _pf_lag_penalty(pf):
-        # Compute the penalty for lagging power factors. Start by
-        # finding all values which are both lagging and below the limit.
+        """Compute penalty for lagging power factors. Penalties are
+        assessed per 0.01 deviation.
+        """
+        # Find all values which are both lagging and below the limit.
         lag_limit = CONFIG['limits']['power_factor_lag']
         lag_mask = (pf > 0) & (pf < lag_limit)
         # Take the difference between the limit and the values. Multiply
@@ -989,8 +1001,10 @@ class _Evaluator:
 
     @staticmethod
     def _pf_lead_penalty(pf):
-        # Compute the penalty for leading power factors. Start by
-        # finding all values which are both leading and below the limit.
+        """Compute penalty for leading power factors. Penalties are
+        assessed per 0.01 deviation.
+        """
+        # Find all values which are both leading and below the limit.
         # Leading power factors are negative, hence the use of abs.
         lead_limit = CONFIG['limits']['power_factor_lead']
         lead_mask = (pf < 0) & (np.abs(pf) < lead_limit)
@@ -999,6 +1013,19 @@ class _Evaluator:
         # Finally, multiply by the costs
         return ((lead_limit - np.abs(pf[lead_mask])) * 100
                 * CONFIG['costs']['power_factor_lead']).sum()
+
+    @staticmethod
+    def _energy_penalty(data):
+        """Given substation data from _get_substation_data, compute the
+        energy penalty. Note GridLAB-D returns are in Wh, but penalty is
+        in kWh.
+        """
+        # Compute the energy cost. Note the energy cost in CONFIG is
+        # a per kWh figure, and returns from GridLAB-D are in Wh. Also
+        # note that the measured_real_energy property of a meter
+        # reports accumulation - hence why we grab the last item.
+        return (data.iloc[-1][SUBSTATION_ENERGY]
+                * TO_KW_FACTOR * CONFIG['costs']['energy'])
 
 
 def main(weight_dict, glm_mgr):
