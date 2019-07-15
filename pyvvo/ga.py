@@ -389,12 +389,15 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):
 class Individual:
     """Class for representing an individual in the genetic algorithm."""
 
-    def __init__(self, uid, chrom_len, chrom_map, chrom_override=None):
+    def __init__(self, uid, chrom_len, num_eq, chrom_map, chrom_override=None):
         """Initialize an individual for the genetic algorithm.
 
         :param uid: Unique identifier for this individual. Integer.
         :param chrom_len: Length of chromosome to generate. This is the
             second return from the map_chromosome method of this module.
+        :param num_eq: Total number of equipment.EquipmentSinglePhase
+            objects present in the chrom_map input. This is the third
+            return from the map_chromosome method of this module.
         :param chrom_map: Dictionary mapping of the chromosome. Comes
             from the first return of the map_chromosome method.
         :param chrom_override: If provided (not None), this chromosome
@@ -427,6 +430,14 @@ class Individual:
 
         # Set chrom_len (read only).
         self._chrom_len = chrom_len
+
+        if not isinstance(num_eq, int):
+            raise TypeError('num_eq should be an integer.')
+
+        if num_eq < 1:
+            raise ValueError('There must be at least one piece of equipment.')
+
+        self.num_eq = num_eq
 
         if not isinstance(chrom_map, dict):
             raise TypeError('chrom_map must be a dictionary. It should come '
@@ -633,9 +644,11 @@ class Individual:
         # Initialize children. Note that any out of range values will
         # be truncated to the top of the allowable range.
         child1 = Individual(uid=uid1, chrom_len=self.chrom_len,
-                            chrom_override=chrom1, chrom_map=self.chrom_map)
+                            chrom_override=chrom1, chrom_map=self.chrom_map,
+                            num_eq=self.num_eq)
         child2 = Individual(uid=uid2, chrom_len=self.chrom_len,
-                            chrom_override=chrom2, chrom_map=self.chrom_map)
+                            chrom_override=chrom2, chrom_map=self.chrom_map,
+                            num_eq=self.num_eq)
 
         # All done.
         return child1, child2

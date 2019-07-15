@@ -63,7 +63,7 @@ class MapChromosomeTestCase(unittest.TestCase):
 
     def test_map_num_eq(self):
         """4x3 regs, 9 caps"""
-        self.assertEqual(4*3 + 9, self.num_eq)
+        self.assertEqual(4 * 3 + 9, self.num_eq)
 
     def test_map_phasing(self):
         """Ensure each element in the map has valid phases under it."""
@@ -149,6 +149,7 @@ class BinaryArrayToScalarTestCase(unittest.TestCase):
 
 class CIMToGLMNameTestCase(unittest.TestCase):
     """Test _cim_to_glm_name"""
+
     def test_one(self):
         self.assertEqual('"my_name"',
                          ga._cim_to_glm_name(prefix='my',
@@ -167,6 +168,7 @@ class CIMToGLMNameTestCase(unittest.TestCase):
 
 class IntBinLengthTestCase(unittest.TestCase):
     """Test _int_bin_length"""
+
     def test_0(self):
         self.assertEqual(1, ga._int_bin_length(0))
 
@@ -191,6 +193,7 @@ class IntBinLengthTestCase(unittest.TestCase):
 
 class IntToBinaryListTestCase(unittest.TestCase):
     """Test _int_to_binary_list."""
+
     def test_0_1(self):
         self.assertListEqual([0],
                              ga._int_to_binary_list(0, 1))
@@ -211,6 +214,7 @@ class IntToBinaryListTestCase(unittest.TestCase):
 @patch('pyvvo.equipment.RegulatorSinglePhase', autospec=True)
 class RegBinLengthTestCase(unittest.TestCase):
     """Test _reg_bin_length."""
+
     def test_16_16(self, reg_mock):
         reg_mock.raise_taps = 16
         reg_mock.lower_taps = 16
@@ -326,23 +330,38 @@ class IndividualTestCase(unittest.TestCase):
         cls.caps = equipment.initialize_capacitors(cap_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
-        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
+        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map,
+                                num_eq=cls.num_eq)
 
     def test_bad_uid(self):
         with self.assertRaisesRegex(TypeError, 'uid should be an integer.'):
-            ga.Individual(uid='1', chrom_len=10, chrom_map=self.map)
+            ga.Individual(uid='1', chrom_len=10, chrom_map=self.map,
+                          num_eq=self.num_eq)
 
     def test_bad_uid_negative(self):
         with self.assertRaisesRegex(ValueError, 'uid must be greater than 0.'):
-            ga.Individual(uid=-2, chrom_len=7, chrom_map=self.map)
+            ga.Individual(uid=-2, chrom_len=7, chrom_map=self.map,
+                          num_eq=self.num_eq)
 
     def test_bad_chrom_len(self):
         with self.assertRaisesRegex(TypeError, 'chrom_len should be an int'):
-            ga.Individual(uid=3, chrom_len='4', chrom_map=self.map)
+            ga.Individual(uid=3, chrom_len='4', chrom_map=self.map,
+                          num_eq=self.num_eq)
 
     def test_bad_chrom_len_negative(self):
         with self.assertRaisesRegex(ValueError, 'chrom_len must be greater'):
-            ga.Individual(uid=999, chrom_len=-5, chrom_map=self.map)
+            ga.Individual(uid=999, chrom_len=-6, chrom_map=self.map,
+                          num_eq=self.num_eq)
+
+    def test_bad_num_eq_type(self):
+        with self.assertRaisesRegex(TypeError, 'num_eq should be an integer'):
+            ga.Individual(uid=3, chrom_len=self.len, chrom_map=self.map,
+                          num_eq={'hi': 'friend'})
+
+    def test_bad_num_eq_negative(self):
+        with self.assertRaisesRegex(ValueError, 'There must be at least one'):
+            ga.Individual(uid=999, chrom_len=self.len, chrom_map=self.map,
+                          num_eq=-33)
 
     def test_chromosome_length(self):
         """Ensure the chromosome matches the given length."""
@@ -363,19 +382,19 @@ class IndividualTestCase(unittest.TestCase):
     def test_chrom_override_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'chromosome must be a np.'):
             ga.Individual(uid=0, chrom_len=10, chrom_override=[1] * 10,
-                          chrom_map=self.map)
+                          chrom_map=self.map, num_eq=self.num_eq)
 
     def test_chrom_override_bad_dtype(self):
         with self.assertRaisesRegex(ValueError, 'chromosome must have dtype'):
             ga.Individual(uid=0, chrom_len=10,
                           chrom_override=np.array([1] * 10, dtype=np.float),
-                          chrom_map=self.map)
+                          chrom_map=self.map, num_eq=self.num_eq)
 
     def test_override_chromosome_bad_length(self):
         with self.assertRaisesRegex(ValueError, 'chromosome shape must match'):
             ga.Individual(uid=0, chrom_len=10,
                           chrom_override=np.array([1] * 9, dtype=np.bool),
-                          chrom_map=self.map)
+                          chrom_map=self.map, num_eq=self.num_eq)
 
     def test_check_and_fix_chromosome(self):
         # Grab a copy of the individual's chromosome.
@@ -406,7 +425,7 @@ class IndividualTestCase(unittest.TestCase):
                    autospec=True) as p:
             ga.Individual(uid=0, chrom_len=self.len,
                           chrom_override=np.ones(self.len, dtype=np.bool),
-                          chrom_map=self.map)
+                          chrom_map=self.map, num_eq=self.num_eq)
 
         p.assert_called_once()
 
@@ -436,8 +455,10 @@ class IndividualTestCase(unittest.TestCase):
         """
 
         # Initialize two individuals.
-        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)
-        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map)
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
 
         # Create an array where the first half is ones/True, and the
         # second half is zeros/False
@@ -481,8 +502,10 @@ class IndividualTestCase(unittest.TestCase):
     def test_crossover_uniform_runs(self):
         """No patching, just run it and ensure we get individuals back."""
         # Initialize two individuals.
-        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)
-        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map)
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
 
         ind3, ind4 = ind1.crossover_uniform(ind2, 2, 3)
 
@@ -492,7 +515,8 @@ class IndividualTestCase(unittest.TestCase):
     def test_mutate(self):
         """Simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
-                             chrom_override=np.zeros(self.len, dtype=np.bool))
+                             chrom_override=np.zeros(self.len, dtype=np.bool),
+                             num_eq=self.num_eq)
 
         patched_array = np.ones(self.len)
         patched_array[7] = 0
@@ -530,6 +554,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
     Additionally, we'll test _update_reg and _update_cap.
     """
+
     @classmethod
     def setUpClass(cls):
         cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
@@ -566,7 +591,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
         with patch('numpy.random.randint', new=patch_randint):
             cls.ind = ga.Individual(uid=0, chrom_len=cls.len,
-                                    chrom_map=cls.map)
+                                    chrom_map=cls.map, num_eq=cls.num_eq)
 
     def setUp(self):
         self.fresh_mgr = deepcopy(self.glm_mgr)
@@ -637,6 +662,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 class IndividualEvaluateTestCase(unittest.TestCase):
     """Test the evaluate method of an Individual.
     """
+
     @classmethod
     def setUpClass(cls):
         # Get capacitor and regulator information.
@@ -647,7 +673,8 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         cls.caps = equipment.initialize_capacitors(cap_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
-        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
+        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map,
+                                num_eq=cls.num_eq)
 
     @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
            return_value={'voltage_high': 1, 'voltage_low': 2,
@@ -772,7 +799,7 @@ class EvaluatorTestCase(unittest.TestCase):
                          [({'db_conn': self.db_conn,
                             'table': self.evaluator.triplex_table},),
                           ({'db_conn': self.db_conn,
-                           'table': self.evaluator.substation_table},)])
+                            'table': self.evaluator.substation_table},)])
 
     def test_init_modifies_glm_tables(self):
         tt = self.glm_fresh.find_object(obj_type='mysql.recorder',
