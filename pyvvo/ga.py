@@ -832,7 +832,7 @@ class _Evaluator:
                                   'table': self.substation_table})
 
     def evaluate(self):
-        """This is the 'main' method of this module. Write + run
+        """This is the 'main' method of this class. Write + run
         a GridLAB-D model and compute costs associated with it.
         """
         # Write the model to file and run it.

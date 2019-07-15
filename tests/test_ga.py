@@ -9,7 +9,7 @@ from pyvvo import ga
 from pyvvo import equipment
 from pyvvo.glm import GLMManager
 from pyvvo.utils import run_gld
-from pyvvo.db import connect_loop
+from pyvvo import db
 
 import numpy as np
 import pandas as pd
@@ -239,10 +239,21 @@ class PrepGLMMGRTestCase(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        # TODO: DROP DATABASE TABLES
-        # Why is PyCharm telling me this attribute isn't defined? It
-        # clearly is!
-        os.remove(cls.out_file)
+        # Get a connection to the database.
+        db_conn = db.connect_loop()
+
+        # Truncate the tables.
+        db.truncate_table(db_conn=db_conn, table=ga.TRIPLEX_TABLE)
+        db.truncate_table(db_conn=db_conn, table=ga.SUBSTATION_TABLE)
+
+        try:
+            # Why is PyCharm telling me this attribute isn't defined? It
+            # clearly is!
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_file)
+        except FileNotFoundError:
+            pass
+
         try:
             os.remove('gridlabd.xml')
         except FileNotFoundError:
@@ -289,6 +300,7 @@ class PrepGLMMGRTestCase(unittest.TestCase):
     def test_swing_recorder_present(self):
         sr = self.glm_mgr.find_object(obj_type='mysql.recorder',
                                       obj_name=ga.SUBSTATION_RECORDER)
+        self.assertIsNotNone(sr)
 
     def test_model_runs(self):
         result = run_gld(self.out_file)
@@ -530,6 +542,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
         # Force the individual to have all capacitors closed and all
         # regulators at their maximum.
+        # noinspection PyUnusedLocal
         def patch_randint(arg1, arg2, arg3):
             return arg2 - 1
 
@@ -601,55 +614,77 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         # times.
         self.assertEqual(9, pc.call_count)
         self.assertEqual(4, pr.call_count)
-        pass
 
 
 class IndividualEvaluateTestCase(unittest.TestCase):
-    """Test the evaluation method for an individual.
-
-    This is a pretty involved test... That's okay I suppose.
+    """Test the evaluate method of an Individual.
     """
     @classmethod
     def setUpClass(cls):
-        cls.glm_mgr = GLMManager(IEEE_8500)
-        # 20 second model runtime.
-        cls.starttime = datetime(2013, 4, 1, 12, 0)
-        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
-
-        # Prep the GLMManager, as required to run an individual's
-        # "evaluate" method.
-        ga.prep_glm_mgr(cls.glm_mgr, starttime=cls.starttime,
-                        stoptime=cls.stoptime)
-
         # Get capacitor and regulator information.
-        reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
+        reg_df = _df.read_pickle(_df.REGULATORS_13)
+        cap_df = _df.read_pickle(_df.CAPACITORS_13)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
 
-        # We need to loop over the capacitors and set their states. Just
-        # do so randomly.
-        for c in cls.caps.values():
-            if isinstance(c, equipment.CapacitorSinglePhase):
-                c.state = np.random.randint(0, 2)
-            else:
-                for cap in c.values():
-                    cap.state = np.random.randint(0, 2)
-
         cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
 
-    def setUp(self):
-        """Get a database connection and a copy of the GLMManager."""
-        self.db_conn = connect_loop()
-        self.glm_fresh = deepcopy(self.glm_mgr)
-        self.individual = ga.Individual(uid=0, chrom_len=self.len,
-                                        chrom_map=self.map)
+    @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
+           return_value={'voltage_high': 1, 'voltage_low': 2,
+                         'power_factor_lead': 3,
+                         'power_factor_lag': 4,
+                         'energy': 5})
+    @patch('pyvvo.ga._Evaluator.__init__', autospec=True, return_value=None)
+    def test_evaluate(self, eval_init_patch, eval_evaluate_patch):
+        """Patch everything, ensure the correct methods are called.
 
-    def test_one(self):
-        # penalties = self.individual.evaluate(glm_mgr=self.glm_fresh,
-        #                                      db_conn=self.db_conn)
-        self.assertTrue(False)
+        The individual functions have been well tested, so no need to
+        actually call them.
+
+        Patching __init__ feels fragile, but it's the only way I could
+        get this thing working.
+
+        https://stackoverflow.com/q/57044593/11052174
+        """
+        # Patch inputs to the Individual's evaluate method.
+        mock_glm = unittest.mock.create_autospec(GLMManager, spec_set=True)
+        mock_db = unittest.mock.create_autospec(MySQLdb.connection,
+                                                set_spec=True)
+
+        # partial_dict is going to be the patched return from
+        # _Evaluator.evaluate. This is hard-coded to match the
+        # return_value in the patch above.
+        partial_dict = {'voltage_high': 1, 'voltage_low': 2,
+                        'power_factor_lead': 3, 'power_factor_lag': 4,
+                        'energy': 5}
+
+        with patch.object(self.ind, '_update_model_compute_costs',
+                          autospec=True, return_value=(6, 7)) as p_update:
+            results = self.ind.evaluate(glm_mgr=mock_glm, db_conn=mock_db)
+
+        # Assertion time.
+        # Ensure _update_model_compute_costs is called and called
+        # correctly.
+        p_update.assert_called_once()
+        p_update.assert_called_with(glm_mgr=mock_glm)
+
+        # Ensure our _Evaluator is constructor appropriately.
+        eval_init_patch.assert_called_once()
+        self.assertDictEqual(eval_init_patch.call_args[1],
+                             {'uid': self.ind.uid, 'glm_mgr': mock_glm,
+                              'db_conn': mock_db})
+
+        # Ensure _Evaluator._evaluate is called.
+        eval_evaluate_patch.assert_called_once()
+
+        # Total fitness is the sum of the values in the penalties dict.
+        self.assertEqual(28, self.ind.fitness)
+
+        # Ensure our penalties dict comes back as expected.
+        expected = {**partial_dict, 'regulator_tap': 6, 'capacitor_switch': 7}
+        self.assertDictEqual(expected, results)
 
 
 class PatchSubprocessResult:
@@ -874,7 +909,7 @@ class EvaluatorTestCase(unittest.TestCase):
     @patch('pyvvo.ga._Evaluator._power_factor_penalty', autospec=True,
            return_value=(3, 4))
     @patch('pyvvo.ga._Evaluator._get_substation_data', autospec=True,
-           return_value=pd.DataFrame([[1, 2, 3],],
+           return_value=pd.DataFrame([[1, 2, 3], ],
                                      columns=[ga.SUBSTATION_REAL_POWER,
                                               ga.SUBSTATION_REACTIVE_POWER,
                                               ga.SUBSTATION_ENERGY]))
@@ -905,7 +940,7 @@ class EvaluatorTestCase(unittest.TestCase):
 
         sub_data_patch.assert_called_once()
 
-        df = pd.DataFrame([[1, 2, 3],],
+        df = pd.DataFrame([[1, 2, 3], ],
                           columns=[ga.SUBSTATION_REAL_POWER,
                                    ga.SUBSTATION_REACTIVE_POWER,
                                    ga.SUBSTATION_ENERGY])
