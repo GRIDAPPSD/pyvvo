@@ -613,6 +613,38 @@ class Individual:
         return self._crossover(mask=mask, other=other, uid1=uid1,
                                uid2=uid2)
 
+    def crossover_by_gene(self, other, uid1, uid2):
+        """Rather than performing a per-bit crossover like in
+        crossover_uniform, instead crossover by gene. In our problem,
+        each gene encodes for a piece of equipment. So, randomly
+        (uniform distribution) determine on a per-equipment basis what
+        each new child will get.
+
+        :param other: ga.Individual
+        :param uid1: uid to give to first child of crossover.
+        :param uid2: uid to give to second child of crossover.
+        """
+        # Initialize a mask for the entire chromosome.
+        chrom_mask = np.empty(self.chrom_len, dtype=np.bool)
+
+        # Our map represents how many pieces of equipment we're coding
+        # for. Randomly draw between zero and one to pick which child
+        # will get which equipment from which parent.
+        gene_mask = np.random.randint(low=0, high=2, size=self.num_eq,
+                                      dtype=np.bool)
+
+        # Loop over the map and fill in the chromosome mask.
+        c = 0  # c for counter
+        for value in self.chrom_map.values():
+            # ed for equipment dictionary
+            for ed in value.values():
+                chrom_mask[ed['idx'][0]:ed['idx'][1]] = gene_mask[c]
+                c += 1
+
+        # Use the _crossover helper to create two individuals.
+        return self._crossover(mask=chrom_mask, other=other, uid1=uid1,
+                               uid2=uid2)
+
     def _crossover(self, mask, other, uid1, uid2):
         """Helper function for performing crossover given a mask for the
         entire chromosome.

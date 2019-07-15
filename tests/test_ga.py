@@ -512,6 +512,40 @@ class IndividualTestCase(unittest.TestCase):
         self.assertIsInstance(ind3, ga.Individual)
         self.assertIsInstance(ind4, ga.Individual)
 
+    def test_crossover_by_gene_runs(self):
+        """No patching, just run it and ensure we get individuals back."""
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+
+        ind3, ind4 = ind1.crossover_by_gene(ind2, 2, 3)
+
+        self.assertIsInstance(ind3, ga.Individual)
+        self.assertIsInstance(ind4, ga.Individual)
+
+    def test_crossover_by_gene_expected_behavior(self):
+        """Patch our random draw, ensure everything is as expected."""
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+
+        # Simplest case: draw only True values.
+        patched_array = np.array([True] * ind1.num_eq, dtype=np.bool)
+
+        with patch('numpy.random.randint', return_value=patched_array):
+            with patch.object(ind1, '_crossover', wraps=ind1._crossover) as p:
+                child1, child2 = \
+                    ind1.crossover_by_gene(other=ind2, uid1=2, uid2=3)
+
+        p.assert_called_once()
+
+        np.testing.assert_array_equal(ind1.chromosome, child1.chromosome)
+        np.testing.assert_array_equal(ind2.chromosome, child2.chromosome)
+
     def test_mutate(self):
         """Simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
