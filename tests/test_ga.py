@@ -33,7 +33,7 @@ class MapChromosomeTestCase(unittest.TestCase):
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.cap_df)
 
-        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
     def test_length(self):
         """4 three phase regs, 9 single phase caps."""
@@ -60,6 +60,10 @@ class MapChromosomeTestCase(unittest.TestCase):
 
         # Ensure our arrays are equal.
         np.testing.assert_array_equal(chrom, expected)
+
+    def test_map_num_eq(self):
+        """4x3 regs, 9 caps"""
+        self.assertEqual(4*3 + 9, self.num_eq)
 
     def test_map_phasing(self):
         """Ensure each element in the map has valid phases under it."""
@@ -321,7 +325,7 @@ class IndividualTestCase(unittest.TestCase):
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
 
-        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
         cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
 
     def test_bad_uid(self):
@@ -534,7 +538,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.caps_df)
 
-        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
         cls.glm_mgr = GLMManager(IEEE_8500)
 
@@ -642,7 +646,7 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
 
-        cls.map, cls.len = ga.map_chromosome(cls.regs, cls.caps)
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
         cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map)
 
     @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,

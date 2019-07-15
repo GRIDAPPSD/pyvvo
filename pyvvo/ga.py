@@ -65,20 +65,28 @@ def map_chromosome(regulators, capacitors):
     :param capacitors: dictionary as returned by
         equipment.initialize_capacitors
 
-    :returns: Dict keyed by equipment name. Each equipment maps to a
-        dictionary keyed by phase (A, B, or C). These phase dictionaries
-        have the following fields:
-        - 'idx': Tuple with a pair of integers, indicating the indices
-            on the chromosome for this particular piece of equipment.
-            These indices can simply be used like so:
-                dict['idx'][0]:dict['idx'][1]
-        - 'eq_obj': The equipment object itself. At the moment, these
-            will be equipment.CapacitorSinglePhase or
-            equipment.RegulatorSinglePhase objects.
-        - 'range': Tuple with a pair of integers, indicating the
-            (low, high) range of states the equipment can take on. This
-            is for convenience, and enables the Individual class to be
-            agnostic about the differences between equipment.
+    :returns: map_out, idx, and num_eq.
+        map_out is a dict keyed by equipment name. Each equipment maps
+            to a dictionary keyed by phase (A, B, or C). These phase
+            dictionaries have the following fields:
+            - 'idx': Tuple with a pair of integers, indicating the
+                indices on the chromosome for this particular piece of
+                equipment. These indices can simply be used like so:
+                    dict['idx'][0]:dict['idx'][1]
+            - 'eq_obj': The equipment object itself. At the moment,
+                these will be equipment.CapacitorSinglePhase or
+                equipment.RegulatorSinglePhase objects.
+            - 'range': Tuple with a pair of integers, indicating the
+                (low, high) range of states the equipment can take on.
+                This is for convenience, and enables the Individual
+                class to be agnostic about the differences between
+                equipment.
+
+        idx is an integer representing the full length of the chromosome
+            needed to represent all the equipment.
+
+        num_eq is an integer indicating the total number of single phase
+            equipment objects.
     """
     if not isinstance(regulators, dict):
         raise TypeError('regulators must be a dictionary.')
@@ -87,7 +95,7 @@ def map_chromosome(regulators, capacitors):
         raise TypeError('capacitors must be a dictionary.')
 
     # Initialize our output
-    out = {}
+    map_out = {}
 
     # Track the current index in our chromosome.
     idx = 0
@@ -97,6 +105,9 @@ def map_chromosome(regulators, capacitors):
         # If the regulator is not controllable, DO NOT MAP.
         if not reg_in.controllable:
             return dict_out, idx_in
+
+        # Increment the counter.
+        map_reg.counter += 1
 
         # Compute how many bits are needed to represent this
         # regulator's tap positions.
@@ -115,11 +126,18 @@ def map_chromosome(regulators, capacitors):
         # Explicitly return the dictionary and the incremented index.
         return dict_out, idx_in + num_bits
 
+    # Give the map_reg method a counter attribute.
+    # https://stackoverflow.com/a/21717084/11052174
+    map_reg.counter = 0
+
     def map_cap(cap_in, dict_out, idx_in):
         """Nested helper to map a capacitor."""
         # DO NOT MAP if not controllable.
         if not cap_in.controllable:
             return dict_out, idx_in
+
+        # Increment the counter.
+        map_cap.counter += 1
 
         # Initialize dictionary for mapping. Capacitors always only get
         # one bit.
@@ -134,30 +152,38 @@ def map_chromosome(regulators, capacitors):
 
         return dict_out, idx_in + 1
 
+    # Give the map_cap method a counter attribute.
+    map_cap.counter = 0
+
     # Loop over the regulators.
     for reg_mrid, reg_or_dict in regulators.items():
 
         if isinstance(reg_or_dict, equipment.RegulatorSinglePhase):
             # Map it!
-            out, idx = map_reg(reg_or_dict, out, idx)
+            map_out, idx = map_reg(reg_or_dict, map_out, idx)
 
         elif isinstance(reg_or_dict, dict):
             # Loop over the phases and map.
             for reg in reg_or_dict.values():
-                out, idx = map_reg(reg, out, idx)
+                map_out, idx = map_reg(reg, map_out, idx)
+        else:
+            raise TypeError('Unexpected type.')
 
     # Loop over the capacitors.
     for cap_mrid, cap_or_dict in capacitors.items():
         if isinstance(cap_or_dict, equipment.CapacitorSinglePhase):
-            out, idx = map_cap(cap_or_dict, out, idx)
+            map_out, idx = map_cap(cap_or_dict, map_out, idx)
         elif isinstance(cap_or_dict, dict):
             # Loop over phases.
             for cap in cap_or_dict.values():
-                out, idx = map_cap(cap, out, idx)
+                map_out, idx = map_cap(cap, map_out, idx)
+        else:
+            raise TypeError('Unexpected type.')
 
     # At this point, our idx represents the total length of the
-    # chromosome.
-    return out, idx
+    # chromosome. By using counters on our map functions, we easily
+    # get the number of equipment.
+    return map_out, idx, map_reg.counter + map_cap.counter
 
 
 def _binary_array_to_scalar(a):
