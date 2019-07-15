@@ -474,6 +474,17 @@ class IndividualTestCase(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'other must be an Individual'):
             self.ind.crossover_uniform(other='spam', uid1=10, uid2=400)
 
+    def test_crossover_uniform_runs(self):
+        """No patching, just run it and ensure we get individuals back."""
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map)
+
+        ind3, ind4 = ind1.crossover_uniform(ind2, 2, 3)
+
+        self.assertIsInstance(ind3, ga.Individual)
+        self.assertIsInstance(ind4, ga.Individual)
+
     def test_mutate(self):
         """Simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,

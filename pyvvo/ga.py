@@ -570,7 +570,8 @@ class Individual:
             raise TypeError('other must be an Individual instance.')
 
         # Draw a random mask.
-        mask = np.random.randint(low=0, high=2, dtype=np.bool)
+        mask = np.random.randint(low=0, high=2, size=self.chrom_len,
+                                 dtype=np.bool)
 
         return self._crossover(mask=mask, other=other, uid1=uid1,
                                uid2=uid2)
@@ -588,6 +589,10 @@ class Individual:
 
         :returns child1, child2, both are Individuals.
         """
+        if mask.shape != (self.chrom_len,):
+            raise ValueError('Bad map shape, {}. Expected ({},).'
+                             .format(mask.shape, self.chrom_len))
+
         # Initialize empty arrays for the children.
         chrom1 = np.empty(self.chrom_len, dtype=np.bool)
         chrom2 = np.empty(self.chrom_len, dtype=np.bool)
