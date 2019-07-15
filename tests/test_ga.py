@@ -426,7 +426,10 @@ class IndividualTestCase(unittest.TestCase):
                     self.assertLessEqual(eq_dict['range'][0], n)
 
     def test_crossover_uniform(self):
-        """Very simple crossover test."""
+        """Very simple crossover test. This test is a little
+        over-loaded, and actually covers both crossover_uniform and
+        _crossover.
+        """
 
         # Initialize two individuals.
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map)

@@ -572,6 +572,22 @@ class Individual:
         # Draw a random mask.
         mask = np.random.randint(low=0, high=2, dtype=np.bool)
 
+        return self._crossover(mask=mask, other=other, uid1=uid1,
+                               uid2=uid2)
+
+    def _crossover(self, mask, other, uid1, uid2):
+        """Helper function for performing crossover given a mask for the
+        entire chromosome.
+
+        :param mask: numpy boolean array the same length as
+            self.chrom_len. This will be used to select traits from
+            parents.
+        :param other: another Individual for crossover.
+        :param uid1: uid of first child.
+        :param uid2: uid of second child.
+
+        :returns child1, child2, both are Individuals.
+        """
         # Initialize empty arrays for the children.
         chrom1 = np.empty(self.chrom_len, dtype=np.bool)
         chrom2 = np.empty(self.chrom_len, dtype=np.bool)
