@@ -6,7 +6,6 @@ TODO: Create some sort of configuration file, like ga_config.json.
 import multiprocessing as mp
 import os
 from queue import Queue
-from datetime import datetime
 import logging
 
 # Third party:
@@ -437,7 +436,7 @@ class Individual:
         if num_eq < 1:
             raise ValueError('There must be at least one piece of equipment.')
 
-        self.num_eq = num_eq
+        self._num_eq = num_eq
 
         if not isinstance(chrom_map, dict):
             raise TypeError('chrom_map must be a dictionary. It should come '
@@ -468,6 +467,10 @@ class Individual:
     @property
     def chrom_len(self):
         return self._chrom_len
+
+    @property
+    def num_eq(self):
+        return self._num_eq
 
     @property
     def chromosome(self):
