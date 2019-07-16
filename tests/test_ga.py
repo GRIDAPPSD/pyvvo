@@ -546,6 +546,74 @@ class IndividualTestCase(unittest.TestCase):
         np.testing.assert_array_equal(ind1.chromosome, child1.chromosome)
         np.testing.assert_array_equal(ind2.chromosome, child2.chromosome)
 
+    def test_crossover_by_gene_expected_behavior_2(self):
+        """Slightly more sophisticated test to ensure we're getting the
+        behavior we want.
+        """
+        # Initialize two individuals.
+        ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+        ind2 = ga.Individual(uid=1, chrom_len=self.len, chrom_map=self.map,
+                             num_eq=self.num_eq)
+
+        # Patch the array in such a way that the first parent gives the
+        # first and last pieces of equipment, and the second parent
+        # gives the rest (to the first child).
+        patched_array = np.array([False] * ind1.num_eq, dtype=np.bool)
+        patched_array[0] = True
+        patched_array[-1] = True
+
+        with patch('numpy.random.randint', return_value=patched_array):
+            with patch.object(ind1, '_crossover', wraps=ind1._crossover) as p:
+                child1, child2 = \
+                    ind1.crossover_by_gene(other=ind2, uid1=2, uid2=3)
+
+        p.assert_called_once()
+
+        # Get the indices of the first and last pieces of equipment.
+        # Recent versions of Python consistently iterate over
+        # dictionaries.
+        all_values = list(ind2.chrom_map.values())
+
+        # Extract indices for equipment 0 and equipment end (e).
+        v0 = all_values[0]
+        v0_p = list(v0.values())
+        v0_idx = v0_p[0]['idx']
+
+        ve = all_values[-1]
+        ve_p = list(ve.values())
+        ve_idx = ve_p[-1]['idx']
+
+        # Ensure the chromosomes match up.
+
+        # Start by testing the beginning and end of child1, ensuring
+        # those stretches are the same as ind1.
+        np.testing.assert_array_equal(child1.chromosome[v0_idx[0]:v0_idx[1]],
+                                      ind1.chromosome[v0_idx[0]:v0_idx[1]])
+
+        np.testing.assert_array_equal(child1.chromosome[ve_idx[0]:ve_idx[1]],
+                                      ind1.chromosome[ve_idx[0]:ve_idx[1]])
+
+        # Ensure the rest of child1 matches ind2.
+        np.testing.assert_array_equal(
+            child1.chromosome[(v0_idx[1] + 1):(ve_idx[0]-1)],
+            ind2.chromosome[(v0_idx[1] + 1):(ve_idx[0] - 1)]
+        )
+
+        # Test the beginning and end of child2, ensuring a match with
+        # ind2
+        np.testing.assert_array_equal(child2.chromosome[v0_idx[0]:v0_idx[1]],
+                                      ind2.chromosome[v0_idx[0]:v0_idx[1]])
+
+        np.testing.assert_array_equal(child2.chromosome[ve_idx[0]:ve_idx[1]],
+                                      ind2.chromosome[ve_idx[0]:ve_idx[1]])
+
+        # Ensure the rest of child2 matches ind1.
+        np.testing.assert_array_equal(
+            child2.chromosome[(v0_idx[1] + 1):(ve_idx[0] - 1)],
+            ind1.chromosome[(v0_idx[1] + 1):(ve_idx[0] - 1)]
+        )
+
     def test_mutate(self):
         """Simple mutation test."""
         ind1 = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
