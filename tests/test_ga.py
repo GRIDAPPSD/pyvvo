@@ -99,6 +99,18 @@ class MapChromosomeTestCase(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'capacitors must be a dict'):
             ga.map_chromosome(regulators=self.regs, capacitors=self.cap_df)
 
+    def test_map_current_state(self):
+        for eq_name, phase_dict in self.map.items():
+            for sd in phase_dict.values():
+                if isinstance(sd['eq_obj'], equipment.CapacitorSinglePhase):
+                    self.assertEqual(sd['eq_obj'].state, sd['current_state'])
+                elif isinstance(sd['eq_obj'], equipment.RegulatorSinglePhase):
+                    self.assertEqual(
+                        sd['eq_obj'].tap_pos + sd['eq_obj'].lower_taps,
+                        sd['current_state'])
+                else:
+                    raise TypeError('Bad equipment type!')
+
 
 class BinaryArrayToScalarTestCase(unittest.TestCase):
     """Test _binary_array_to_scalar"""
@@ -328,6 +340,18 @@ class IndividualTestCase(unittest.TestCase):
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
+
+        # It seems we don't have a way of getting capacitor state from
+        # the CIM (which is where those DataFrames originate from). So,
+        # let's randomly command each capacitor.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = np.random.randint(low=0, high=2, size=None,
+                                            dtype=int)
+            elif isinstance(c, dict):
+                for cc in c.values():
+                    cc.state = np.random.randint(low=0, high=2, size=None,
+                                                 dtype=int)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
         cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map,
@@ -650,6 +674,106 @@ class IndividualTestCase(unittest.TestCase):
     def test_mutate_too_low(self):
         with self.assertRaisesRegex(ValueError, 'mut_prob must be on the'):
             self.ind.mutate(mut_prob=-0.00001)
+
+    def test_special_init_bad_value(self):
+        with self.assertRaisesRegex(ValueError, 'special_init must be one of'):
+            ga.Individual(uid=0, chrom_len=self.len, chrom_override=None,
+                          chrom_map=self.map, num_eq=self.num_eq,
+                          special_init='MAX')
+
+    def test_special_init_and_chrom_override_warns(self):
+        with self.assertLogs(level='WARN') as log:
+            ga.Individual(uid=0, chrom_len=self.len,
+                          chrom_override=np.array([False] * self.len,
+                                                  dtype=np.bool),
+                          chrom_map=self.map, num_eq=self.num_eq,
+                          special_init='max')
+
+        self.assertIn('The given value of special_init, max, is being ignored',
+                      log.output[0])
+
+    def test_special_init_none(self):
+        """Ensure np.random.randint is called once for each piece of
+        equipment."""
+
+        with patch('numpy.random.randint', wraps=np.random.randint) as p:
+            ga.Individual(uid=0, chrom_len=self.len,
+                          chrom_override=None,
+                          chrom_map=self.map, num_eq=self.num_eq,
+                          special_init=None)
+
+        # 4 three phase regs, 9 single phase caps.
+        self.assertEqual(4*3 + 9, p.call_count)
+
+    def test_special_init_max(self):
+        """Ensure each piece of equipment is at its max."""
+        ind = ga.Individual(uid=0, chrom_len=self.len,
+                            chrom_override=None,
+                            chrom_map=self.map, num_eq=self.num_eq,
+                            special_init='max')
+
+        c = ind.chromosome
+
+        for phase_dict in self.map.values():
+            for eq_dict in phase_dict.values():
+                i = eq_dict['idx']
+                c_i = c[i[0]:i[1]]
+                if isinstance(eq_dict['eq_obj'],
+                              equipment.RegulatorSinglePhase):
+                    self.assertEqual(ga._binary_array_to_scalar(c_i),
+                                     abs(eq_dict['eq_obj'].high_step
+                                         - eq_dict['eq_obj'].low_step))
+                elif isinstance(eq_dict['eq_obj'],
+                                equipment.CapacitorSinglePhase):
+                    self.assertEqual(c_i[0], 1)
+                else:
+                    raise ValueError('Unexpected equipment type.')
+
+    def test_special_init_min(self):
+        """Ensure each piece of equipment is at its min."""
+        ind = ga.Individual(uid=0, chrom_len=self.len,
+                            chrom_override=None,
+                            chrom_map=self.map, num_eq=self.num_eq,
+                            special_init='min')
+
+        c = ind.chromosome
+
+        for phase_dict in self.map.values():
+            for eq_dict in phase_dict.values():
+                i = eq_dict['idx']
+                c_i = c[i[0]:i[1]]
+                # Regs and caps will ALWAYS have a minimum of zero.
+                self.assertEqual(ga._binary_array_to_scalar(c_i), 0)
+
+    def test_special_init_current_state(self):
+        """Ensure each piece of equipment respects the current state."""
+        ind = ga.Individual(uid=0, chrom_len=self.len,
+                            chrom_override=None,
+                            chrom_map=self.map, num_eq=self.num_eq,
+                            special_init='current_state')
+
+        c = ind.chromosome
+
+        for phase_dict in self.map.values():
+            for eq_dict in phase_dict.values():
+                i = eq_dict['idx']
+                c_i = c[i[0]:i[1]]
+
+                if isinstance(eq_dict['eq_obj'],
+                              equipment.CapacitorSinglePhase):
+                    self.assertEqual(ga._binary_array_to_scalar(c_i),
+                                     eq_dict['eq_obj'].state)
+                elif isinstance(eq_dict['eq_obj'],
+                                equipment.RegulatorSinglePhase):
+                    # Note that we must shift the interval. Also, it's
+                    # important that in this test we use the GridLAB-D
+                    # regulator attributes, as that's what the
+                    # map_chromosome method uses.
+                    self.assertEqual(ga._binary_array_to_scalar(c_i),
+                                     (eq_dict['eq_obj'].tap_pos
+                                      + eq_dict['eq_obj'].lower_taps))
+                else:
+                    raise ValueError('Unexpected type!')
 
 
 class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):

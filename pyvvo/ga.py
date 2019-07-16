@@ -112,9 +112,15 @@ def map_chromosome(regulators, capacitors):
         # regulator's tap positions.
         num_bits = _reg_bin_length(reg_in)
 
-        # Initialize dictionary for mapping.
+        # Initialize dictionary for mapping. Note the current_state
+        # is computed using the tap_pos and lower_taps since GridLAB-D's
+        # tap range is always [-lower_taps, raise_taps]. Adding the
+        # lower_taps to the current tap_pos shifts the interval to
+        # [0, raise_taps + lower_taps], which we want for encoding
+        # positive integers on the chromosome.
         m = {'idx': (idx_in, idx_in + num_bits), 'eq_obj': reg_in,
-             'range': (0, reg_in.raise_taps + reg_in.lower_taps)}
+             'range': (0, reg_in.raise_taps + reg_in.lower_taps),
+             'current_state': reg_in.tap_pos + reg_in.lower_taps}
         # Map.
         try:
             dict_out[reg_in.name][reg_in.phase] = m
@@ -139,9 +145,10 @@ def map_chromosome(regulators, capacitors):
         map_cap.counter += 1
 
         # Initialize dictionary for mapping. Capacitors always only get
-        # one bit.
+        # one bit. The state is simpler for capacitors as compared to
+        # regulators - just grab the state.
         m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in,
-             'range': (0, 1)}
+             'range': (0, 1), 'current_state': cap_in.state}
 
         try:
             dict_out[cap_in.name][cap_in.phase] = m
@@ -388,7 +395,11 @@ def prep_glm_mgr(glm_mgr, starttime, stoptime):
 class Individual:
     """Class for representing an individual in the genetic algorithm."""
 
-    def __init__(self, uid, chrom_len, num_eq, chrom_map, chrom_override=None):
+    # Possible values for the special_init input to __init__
+    SPECIAL_INIT_OPTIONS = (None, 'max', 'min', 'current_state')
+
+    def __init__(self, uid, chrom_len, num_eq, chrom_map, chrom_override=None,
+                 special_init=None):
         """Initialize an individual for the genetic algorithm.
 
         :param uid: Unique identifier for this individual. Integer.
@@ -402,9 +413,27 @@ class Individual:
         :param chrom_override: If provided (not None), this chromosome
             is used instead of randomly generating one. Must be a
             numpy.ndarray with dtype np.bool and shape (chrom_len,).
+        :param special_init: String or None (default). Flag for special
+            initialization. The options are:
+            - None: Default. Randomly initialize the chromosome to
+                values within each equipment's valid range.
+            - 'max': All equipment will be initialized to the maximum of
+                their range. For regulators, this means top tap, and for
+                capacitors this means closed.
+            - 'min': All equipment will be initialized to the minimum of
+                their range. For regulators, this means bottom tap, and
+                for capacitors this means open.
+            - 'current_state': All equipment will be initialized via
+                their 'current_state' attribute within the chrom_map.
+                Note that the current state is taken at the time of
+                mapping, and could possibly change over time without
+                being reflected in the map's 'current_state' attribute.
 
-        NOTE: It is expected that chrom_len and chrom_map come from the
-            same call to map_chromosome. Thus, there will be no
+            NOTE: special_init will be ignored if chrom_override is not
+                None.
+
+        NOTE: It is expected that chrom_len, num_eq, and chrom_map come
+            from the same call to map_chromosome. Thus, there will be no
             integrity checks to ensure they align.
         """
         # Input checking.
@@ -444,6 +473,13 @@ class Individual:
 
         self._chrom_map = chrom_map
 
+        # Lazily raise a ValueError if special_init is not valid.
+        if special_init not in self.SPECIAL_INIT_OPTIONS:
+            raise ValueError('special_init must be one of {}.'
+                             .format(self.SPECIAL_INIT_OPTIONS))
+
+        self._special_init = special_init
+
         # Either randomly initialize a chromosome, or use the given
         # chromosome.
         if chrom_override is None:
@@ -451,6 +487,13 @@ class Individual:
             # map and drawing random valid states.
             self._chromosome = self._initialize_chromosome()
         else:
+            # Warn if incompatible inputs are given, which could lead to
+            # unexpected behavior.
+            if special_init is not None:
+                self.log.warning('The given value of special_init, {}, '
+                                 'is being ignored because chrom_override '
+                                 'is not None.'.format(self.special_init))
+
             # Check the chromosome, alter if necessary.
             self._chromosome = self._check_and_fix_chromosome(chrom_override)
 
@@ -488,12 +531,17 @@ class Individual:
     def penalties(self):
         return self._penalties
 
+    @property
+    def special_init(self):
+        return self._special_init
+
     def _initialize_chromosome(self):
-        """Helper to randomly initialize a chromosome.
+        """Helper to initialize a chromosome.
 
         The chromosome is initialized by looping over the chromosome
-        map, and randomly generating a valid state for each piece of
-        equipment.
+        map, and selecting a valid state for each piece of equipment.
+        This state will be chosen based on the value of
+        self.special_init. See __init__ for full documentation.
 
         The simpler method, generating a purely random array of the
         correct length of the entire chromosome, can bias regulators
@@ -518,11 +566,31 @@ class Individual:
         for phase_dict in self.chrom_map.values():
             # Loop over the dictionary for each equipment phase.
             for eq_dict in phase_dict.values():
-                # Draw a random number in the given range. Note that
-                # the interval for np.random.randint is [low, high)
-                n = np.random.randint(eq_dict['range'][0],
-                                      eq_dict['range'][1] + 1,
-                                      None)
+                # Select a valid number based on special_init.
+                if self.special_init is None:
+                    # Draw a random number in the given range. Note that
+                    # the interval for np.random.randint is [low, high)
+                    n = np.random.randint(eq_dict['range'][0],
+                                          eq_dict['range'][1] + 1,
+                                          None)
+                elif self.special_init == 'max':
+                    n = eq_dict['range'][1]
+                elif self.special_init == 'min':
+                    n = eq_dict['range'][0]
+                elif self.special_init == 'current_state':
+                    n = eq_dict['current_state']
+                    # The capacitors from the CIM triplestore query
+                    # don't have any state information, so we need to
+                    # ensure the state is not None here.
+                    if n is None:
+                        raise ValueError('Equipment {} has an associated '
+                                         'current_state of None.'
+                                         .format(eq_dict['eq_obj']))
+                else:
+                    raise ValueError('Some bad programming is afoot. '
+                                     'The value of self.special_init '
+                                     'is not in the if/else block of '
+                                     '_initialize_chromosome.')
 
                 # Place the binary representation into the chromosome.
                 c[eq_dict['idx'][0]:eq_dict['idx'][1]] = \
