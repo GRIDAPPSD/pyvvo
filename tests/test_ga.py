@@ -323,8 +323,8 @@ class IndividualTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get capacitor and regulator information.
-        reg_df = _df.read_pickle(_df.REGULATORS_123)
-        cap_df = _df.read_pickle(_df.CAPACITORS_123)
+        reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -400,16 +400,17 @@ class IndividualTestCase(unittest.TestCase):
         # Grab a copy of the individual's chromosome.
         c = self.ind.chromosome.copy()
 
-        # Splice in values for reg2 and reg3.
-        idx2 = self.ind._chrom_map['reg2']['A']['idx']
-        idx3 = self.ind._chrom_map['reg3']['C']['idx']
+        # Splice in values for VREG2 and VREG3.
+        idx2 = self.ind._chrom_map['VREG2']['A']['idx']
+        idx3 = self.ind._chrom_map['VREG3']['C']['idx']
         # The call below looks wrong, but it's fine, I promise :)
         # the 'm' argument is just used for the width formatting.
         c[idx2[0]:idx2[1]] = ga._int_to_binary_list(50, m=32)
         c[idx3[0]:idx3[1]] = ga._int_to_binary_list(25, m=32)
 
-        # Patch the 'reg2' and 'reg3' ranges and run the check.
-        with patch.dict(self.ind._chrom_map['reg3']['C'], {'range': (31, 32)}):
+        # Patch the 'VREG3' range and run the check. No need to patch
+        # the 'VREG2' range since it's above the maximum.
+        with patch.dict(self.ind._chrom_map['VREG3']['C'], {'range': (31, 32)}):
             c_new = self.ind._check_and_fix_chromosome(c)
 
         # Violations above should be cut down to the top of the range.
