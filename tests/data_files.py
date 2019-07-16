@@ -104,9 +104,7 @@ def gen_expected_results():
         (s1.query_load_measurements, LOAD_MEAS_8500),
         (s1.query_substation_source, SUBSTATION_8500),
         (s1.query_switches, SWITCHES_8500),
-        # The v2019.06.0 version of the platform does not have discrete
-        # position measurements.
-        # (s1.query_switch_measurements, SWITCH_MEAS)
+        (s1.query_switch_measurements, SWITCH_MEAS_8500)
     ]
 
     s2 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID_13)
@@ -118,9 +116,7 @@ def gen_expected_results():
         (s2.query_load_measurements, LOAD_MEAS_13),
         (s2.query_substation_source, SUBSTATION_13),
         (s2.query_switches, SWITCHES_13),
-        # The v2019.06.0 version of the platform does not have discrete
-        # position measurements.
-        # (s2.query_switch_measurements, SWITCH_MEAS_13)
+        (s2.query_switch_measurements, SWITCH_MEAS_13)
     ]
 
     s3 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID_123)
@@ -132,9 +128,7 @@ def gen_expected_results():
         (s3.query_load_measurements, LOAD_MEAS_123),
         (s3.query_substation_source, SUBSTATION_123),
         (s3.query_switches, SWITCHES_123),
-        # The v2019.06.0 version of the platform does not have discrete
-        # position measurements.
-        # (s3.query_switch_measurements, SWITCH_MEAS_123)
+        (s3.query_switch_measurements, SWITCH_MEAS_123)
     ]
 
     for a in [a1, a2, a3]:
