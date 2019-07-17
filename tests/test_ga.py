@@ -1,8 +1,9 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, create_autospec, Mock
 import os
 from datetime import datetime
 from copy import deepcopy
+import multiprocessing as mp
 
 import tests.data_files as _df
 from tests.models import IEEE_8500, IEEE_9500, IEEE_13
@@ -1223,6 +1224,66 @@ class EvaluatorTestCase(unittest.TestCase):
                               'power_factor_lead': 3, 'power_factor_lag': 4,
                               'energy': 5},
                              penalties)
+
+
+class MockIndividual:
+    """Mock objects don't like being pickled.
+
+    https://github.com/testing-cabal/mock/issues/139
+    https://bugs.python.org/issue14577
+    https://code.google.com/archive/p/mock/issues/139
+    """
+    def __init__(self):
+        self.fitness = None
+
+    def evaluate(self, *args, **kwargs):
+        self.fitness = 1
+
+
+class EvaluateWorkerTestCase(unittest.TestCase):
+
+    def test_bad_input_queue(self):
+        with self.assertRaisesRegex(TypeError, 'input_queue must be '):
+            ga.evaluate_worker(input_queue=['hi'],
+                               output_queue=[], glm_mgr=None)
+
+    def test_expected_behavior(self):
+        """Mock up an individual and glm_mgr. IMPORTANT NOTE: Since
+        Mock objects don't seem to be pickleable, we need to use the
+        pretty meh class, MockIndividual.
+
+        TODO: This test could cause tests to hang indefinitely if
+            something gets broken. The .join() call should probably
+            be wrapped with some sort of timeout.
+        """
+        input_queue = mp.JoinableQueue()
+        output_queue = mp.Queue()
+        glm_mgr = create_autospec(GLMManager)
+        ind_in = MockIndividual()
+
+        p = mp.Process(target=ga.evaluate_worker,
+                       kwargs={'input_queue': input_queue,
+                               'output_queue': output_queue,
+                               'glm_mgr': glm_mgr})
+
+        p.start()
+
+        input_queue.put(ind_in)
+
+        input_queue.join()
+
+        ind_out = output_queue.get_nowait()
+
+        self.assertEqual(ind_out.fitness, 1)
+
+
+class MainTestCase(unittest.TestCase):
+    # @classmethod
+    # def setUpClass(cls):
+    #
+
+    def test_one(self):
+        self.assertTrue(False)
 
 
 if __name__ == '__main__':

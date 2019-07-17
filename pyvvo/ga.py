@@ -5,8 +5,9 @@ TODO: Create some sort of configuration file, like ga_config.json.
 # Standard library:
 import multiprocessing as mp
 import os
-from queue import Queue
+import queue
 import logging
+from copy import deepcopy
 
 # Third party:
 import numpy as np
@@ -1007,6 +1008,7 @@ class _Evaluator:
 
         # TODO: Best way to handle failed runs? Maybe make costs
         #  infinite? Make sure to add logging.
+        # TODO:
         assert result.returncode == 0
 
         # Initialize our return.
@@ -1191,20 +1193,140 @@ class _Evaluator:
                 * TO_KW_FACTOR * CONFIG['costs']['energy'])
 
 
-def main(weight_dict, glm_mgr):
+def evaluate_worker(input_queue, output_queue, glm_mgr):
+    """'Worker' function for evaluating individuals in parallel.
+
+    This method is designed to be used in a multi-threaded or
+    multi-processing environment.
+
+    :param input_queue: Multiprocessing.JoinableQueue instance. The
+        objects in this queue are expected to only be of type
+        ga.Individual. Note that we can't do an explicit type check
+        on this object, so we'll instead check for the task_done
+        attribute. You're asking for trouble if this is a simple
+        queue.Queue object (which is multi-threading safe, but not
+        multi-processing safe).
+    :param output_queue: Same as input_queue, except we'll be putting
+        the input Individuals into the output queue after they've been
+        evaluated.
+    :param glm_mgr: glm.GLMManager instance which will be passed along
+        to the ga.Individual's evaluate method. So, read the comment
+        there for more details on requirements.
+
+    IMPORTANT NOTE ON THE glm_mgr: The glm_mgr will be re-used for each
+        subsequent individual. At the time of writing (2019-07-16), this
+        is just fine, because none of the updates that happen care about
+        the previous value. HOWEVER, if you go and change this to use
+        multi-threading instead of multi-processing, you're going to
+        enter a special kind of hell. The work-around is to create a
+        deepcopy for each individual.
+    """
+    # Ensure our input_queue is joinable.
+    try:
+        input_queue.task_done
+    except AttributeError:
+        raise TypeError('input_queue must be multiprocessing.JoinableQueue')
+
+    # Loop forever.
+    while True:
+        # Grab an individual from the queue. Wait forever.
+        ind = input_queue.get(block=True, timeout=None)
+
+        # So, we now have an individual. Evaluate.
+        ind.evaluate(glm_mgr=glm_mgr,
+                     db_conn=db.connect_loop(timeout=10, retry_interval=0.1))
+
+        # Put the now fully evaluated individual in the output queue.
+        output_queue.put(ind)
+
+        # Mark this task as complete.
+        input_queue.task_done()
+
+
+def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     """Function to run the GA in its entirety.
 
-    :param weight_dict: Dictionary of weights for determining an
-        individual's overall fitness.
-    :param glm_mgr: glm.GLMManager object. Should have a run-able model.
+    :param regulators: dictionary as returned by
+        equipment.initialize_regulators
+    :param capacitors: dictionary as returned by
+        equipment.initialize_capacitors
+    :param glm_mgr: glm.GLMManager object. Should have a run-able model,
+        which is made possible by the object's add_run_components
+        method.
+    :param starttime: Python datetime object for simulation start. For
+        more details, see the docstring for prep_glm_mgr.
+    :param stoptime: Python datetime object for simulation end. See
+        prep_glm_mgr.
     """
-    # Create a queue containing ID's for individuals.
-    # Note that the only parallelized operation is the evaluation of
-    # an individual's fitness, so we'll use a standard Queue object.
-    id_q = Queue()
-    for k in range(CONFIG['ga']['individuals']):
-        id_q.put_nowait(k)
+    # Get a mapping of the chromosome for use by individuals.
+    chrom_map, chrom_len, num_eq = map_chromosome(regulators=regulators,
+                                                  capacitors=capacitors)
 
+    # Add the prerequisite elements to the glm_mgr.
+    prep_glm_mgr(glm_mgr=glm_mgr, starttime=starttime, stoptime=stoptime)
 
-if __name__ == '__main__':
-    main(weight_dict={'one': -1, 'two': -2, 'three': -3}, glm_mgr=None)
+    # Initialize uid integer (to be incremented and passed to
+    # individuals)
+    uid = 0
+
+    # Initialize queue for passing individuals to different processes.
+    input_queue = mp.JoinableQueue()
+
+    # Initialize queue for retrieving individuals after they've been
+    # evaluated in a separate process.
+    output_queue = mp.Queue()
+
+    # For now, use all but one core.
+    # TODO: We'll want to make this configurable in the future.
+    n_jobs = mp.cpu_count() - 1
+
+    # Initialize processes.
+    processes = []
+    for n in range(n_jobs):
+        # Initialize this process, attaching it to the evaluate_worker
+        # method.
+        p = mp.Process(target=evaluate_worker, name=str(n),
+                       kwargs={'input_queue': input_queue,
+                               'output_queue': output_queue,
+                               'glm_mgr': glm_mgr})
+        # Add this process to the list.
+        processes.append(p)
+        # Start this process.
+        p.start()
+
+    # For convenience, create a dictionary with inputs for initializing
+    # individuals. These inputs won't change from individual to
+    # individual.
+    ind_init = {'chrom_len': chrom_len, 'num_eq': num_eq,
+                'chrom_map': chrom_map, 'chrom_override': None}
+
+    # Track how many individuals we need to create.
+    remaining_individuals = CONFIG['ga']['individuals']
+
+    def put(special_init):
+        """Helper to put an individual in the input queue."""
+        # We'll be modifying variables outside of the scope.
+        nonlocal uid
+        nonlocal remaining_individuals
+
+        # Initialize and individual and put them in the queue.
+        input_queue.put(Individual(**ind_init, uid=uid,
+                                   special_init=special_init))
+
+        # Increment our uid, decrement our remaining individuals.
+        uid += 1
+        remaining_individuals -= 1
+
+    # Start by seeding the population.
+    put(special_init='max')
+    put(special_init='min')
+    put(special_init='current_state')
+
+    # Fill up the input_queue with individuals.
+    while remaining_individuals > 1:
+        put(special_init=None)
+
+    # Wait for the evaluation to complete.
+    input_queue.join()
+
+    pass
