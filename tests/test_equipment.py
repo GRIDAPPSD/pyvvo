@@ -468,12 +468,12 @@ class InitializeRegulatorsTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.df = _df.read_pickle(_df.REGULATORS_8500)
+        cls.df = _df.read_pickle(_df.REGULATORS_9500)
         cls.regs = equipment.initialize_regulators(cls.df)
 
-    def test_twelve_tap_changers(self):
-        """There should be 12 single phase regulators (4 x 3 phase)"""
-        self.assertEqual(len(self.regs), 12)
+    def test_eighteen_tap_changers(self):
+        """There should be 18 single phase regulators (6 x 3 phase)"""
+        self.assertEqual(len(self.regs), 18)
 
     def test_all_regs(self):
         """Every item should be a RegulatorSinglePhase"""
@@ -851,7 +851,7 @@ class InitializeCapacitorsTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.df = _df.read_pickle(_df.CAPACITORS_9500)
         cls.caps = equipment.initialize_capacitors(cls.df)
 
     def test_length(self):
@@ -880,6 +880,23 @@ class InitializeCapacitorsTestCase(unittest.TestCase):
         self.assertEqual(cap_count, 9)
         self.assertEqual(dict_count, 1)
         self.assertEqual(dict_cap_count, 3)
+
+    def test_controllable_capacitors(self):
+        """We should be able to control 9 of the 10 capacitor objects.
+        """
+        control_count = 0
+        for _, cap in self.caps.items():
+            if isinstance(cap, dict):
+                for c in cap.values():
+                    if c.controllable:
+                        control_count += 1
+            elif isinstance(cap, equipment.CapacitorSinglePhase):
+                if cap.controllable:
+                    control_count += 1
+            else:
+                raise TypeError('Unexpected type!')
+
+        self.assertEqual(9, control_count)
 
 
 class InitializeCapacitors13TestCase(unittest.TestCase):
@@ -947,12 +964,12 @@ class InitializeSwitchesTestCase(unittest.TestCase):
     """Test initialize_switches"""
     @classmethod
     def setUpClass(cls):
-        cls.df = _df.read_pickle(_df.SWITCHES_8500)
+        cls.df = _df.read_pickle(_df.SWITCHES_9500)
         cls.switches = equipment.initialize_switches(cls.df)
 
     def test_length(self):
         """Hard-code number of expected switches."""
-        self.assertEqual(len(self.switches), 38)
+        self.assertEqual(len(self.switches), 93)
 
     def test_switch_or_dict_of_switches(self):
         """Ensure all objects are the correct type."""

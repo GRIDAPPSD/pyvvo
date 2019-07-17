@@ -35,7 +35,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Attempt to connect to the platform."""
         try:
-            cls.sparql = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_8500)
+            cls.sparql = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_9500)
         except ConnectFailedException:
             # We cannot connect to the platform.
             raise unittest.SkipTest('Failed to connect to GridAPPS-D.')
@@ -166,21 +166,25 @@ class SPARQLManagerTestCase(unittest.TestCase):
                           bindings=[{'name': 10}])
 
     def test_sparql_manager_query_simple_query(self):
-        """Hard-coded MRID for 8500 node capacitor (first line of
-        query_capacitors_8500.csv)
+        """Get first MRID from query_capacitors_9500.csv and look up
+        the item.
         """
+        df = pd.read_csv(_df.CAPACITORS_9500)
+        mrid = df.iloc[0]['mrid']
+        name = df.iloc[0]['name']
+
         query = (self.sparql.PREFIX +
                  "SELECT ?name "
-                 "WHERE { "
+                 "WHERE {{ "
                  '?s c:IdentifiedObject.mRID'
-                 '  "_2199D08B-9352-2085-102F-6B207E0BEBA3". '
+                 '  "{}". '
                  "?s c:IdentifiedObject.name ?name. "
-                 "} "
+                 "}} "
                  "ORDER BY ?name "
-                 )
+                 ).format(mrid)
 
         actual = self.sparql._query(query, to_numeric=False)
-        expected = pd.DataFrame({'name': ['capbank0a']})
+        expected = pd.DataFrame({'name': [name]})
         _df.ensure_frame_equal_except_mrid(actual, expected)
 
     def test_sparql_manager_query_calls_query_platform(self):
@@ -259,8 +263,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_load_nominal_voltage_expected_return(self):
         """Check one of the elements from query_load_nominal_voltage."""
-        expected = pd.Series({'name': '2127146b0', 'bus': 'sx3160864b',
-                              'basev': 208, 'conn': 'Y', 'phases': 's2,s1'})
+        # NOTE: before switching from the 8500 node to 9500 node model,
+        # the 'phases' field below was working with 's2,s1'
+        expected = pd.Series({'name': '2127146b0a', 'bus': 'sx3160864b',
+                              'basev': 208, 'conn': 'Y', 'phases': 's1'})
 
         full_actual = self.sparql.query_load_nominal_voltage()
 
@@ -289,10 +295,11 @@ class SPARQLManagerTestCase(unittest.TestCase):
                         to_numeric=False)
 
     def test_sparql_manager_query_rtc_measurements_expected(self):
-        """The 8500 node system has 4 regulators, all with measurements.
+        """The 9500 node system has 18 single phase regulators, all
+        with measurements.
 
-        Ensure performing the actual query returns 12 unique
-            measurements mapped to 12 unique tap changers.
+        Ensure performing the actual query returns 18 unique
+            measurements mapped to 18 unique tap changers.
         """
         actual = self.sparql.query_rtc_measurements()
 
@@ -308,7 +315,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
             query='CAPACITOR_STATUS_MEASUREMENT_QUERY', to_numeric=False)
 
     def test_sparql_manager_query_capacitor_measurements_expected(self):
-        """The 8500 node system has a weird capacitor setup:
+        """The 9500 node system has a weird capacitor setup:
 
         3 3 phase units, but each phase counted as an individual.
         1 uncontrollable 3 phase unit, counted as a group.
@@ -316,7 +323,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         actual = self.sparql.query_capacitor_measurements()
 
         # Read expected value.
-        expected = _df.read_pickle(_df.CAP_MEAS_8500)
+        expected = _df.read_pickle(_df.CAP_MEAS_9500)
 
         _df.ensure_frame_equal_except_mrid(actual, expected)
 
@@ -346,7 +353,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_measurements_for_bus_not_empty(self):
         # Grab the substation source bus.
-        sub = _df.read_pickle(_df.SUBSTATION_8500)
+        sub = _df.read_pickle(_df.SUBSTATION_9500)
         bus_mrid = sub.iloc[0]['bus_mrid']
 
         # Query to get measurements.
@@ -372,9 +379,7 @@ class ExpectedResults13TestCase(unittest.TestCase):
             (cls.s.query_load_measurements, _df.LOAD_MEAS_13),
             (cls.s.query_substation_source, _df.SUBSTATION_13),
             (cls.s.query_switches, _df.SWITCHES_13),
-            # The v2019.06.0 version of the platform does not have discrete
-            # position measurements.
-            # (cls.s.query_switch_measurements, SWITCH_MEAS_13)
+            (cls.s.query_switch_measurements, _df.SWITCH_MEAS_13)
         ]
 
     def test_all(self):
@@ -387,7 +392,7 @@ class ExpectedResults13TestCase(unittest.TestCase):
 
 
 class ExpectedResults123TestCase(unittest.TestCase):
-    """Check expected results for the 13 bus model."""
+    """Check expected results for the 123 bus model."""
     @classmethod
     def setUpClass(cls):
         cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_123)
@@ -401,9 +406,7 @@ class ExpectedResults123TestCase(unittest.TestCase):
             (cls.s.query_load_measurements, _df.LOAD_MEAS_123),
             (cls.s.query_substation_source, _df.SUBSTATION_123),
             (cls.s.query_switches, _df.SWITCHES_123),
-            # The v2019.06.0 version of the platform does not have discrete
-            # position measurements.
-            # (cls.s.query_switch_measurements, SWITCH_MEAS_123)
+            (cls.s.query_switch_measurements, _df.SWITCH_MEAS_123)
         ]
 
     def test_all(self):
@@ -415,24 +418,22 @@ class ExpectedResults123TestCase(unittest.TestCase):
                 _df.ensure_frame_equal_except_mrid(actual, expected)
 
 
-class ExpectedResults8500TestCase(unittest.TestCase):
-    """Check expected results for the 13 bus model."""
+class ExpectedResults9500TestCase(unittest.TestCase):
+    """Check expected results for the 9500 node model."""
     @classmethod
     def setUpClass(cls):
-        cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_8500)
+        cls.s = sparql.SPARQLManager(feeder_mrid=_df.FEEDER_MRID_9500)
 
         cls.a = [
-            (cls.s.query_capacitors, _df.CAPACITORS_8500),
-            (cls.s.query_regulators, _df.REGULATORS_8500),
-            (cls.s.query_rtc_measurements, _df.REG_MEAS_8500),
-            (cls.s.query_capacitor_measurements, _df.CAP_MEAS_8500),
+            (cls.s.query_capacitors, _df.CAPACITORS_9500),
+            (cls.s.query_regulators, _df.REGULATORS_9500),
+            (cls.s.query_rtc_measurements, _df.REG_MEAS_9500),
+            (cls.s.query_capacitor_measurements, _df.CAP_MEAS_9500),
             # Node naming is screwing up dtypes here.
-            (cls.s.query_load_measurements, _df.LOAD_MEAS_8500),
-            (cls.s.query_substation_source, _df.SUBSTATION_8500),
-            (cls.s.query_switches, _df.SWITCHES_8500),
-            # The v2019.06.0 version of the platform does not have discrete
-            # position measurements.
-            # (cls.s.query_switch_measurements, SWITCH_MEAS_8500)
+            (cls.s.query_load_measurements, _df.LOAD_MEAS_9500),
+            (cls.s.query_substation_source, _df.SUBSTATION_9500),
+            (cls.s.query_switches, _df.SWITCHES_9500),
+            (cls.s.query_switch_measurements, _df.SWITCH_MEAS_9500)
         ]
 
     def test_all(self):

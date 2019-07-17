@@ -963,12 +963,12 @@ class AddSubstationMeter13TestCase(unittest.TestCase):
         self.assertEqual(x['from'], self.meter)
 
 
-class AddSubstationMeter8500TestCase(unittest.TestCase):
-    """Primitive test case for add_substation_meter with IEEE 8500 node.
+class AddSubstationMeter9500TestCase(unittest.TestCase):
+    """Primitive test case for add_substation_meter with IEEE 9500 node.
     """
     @classmethod
     def setUpClass(cls):
-        cls.mgr = glm.GLMManager(IEEE_8500, model_is_path=True)
+        cls.mgr = glm.GLMManager(IEEE_9500, model_is_path=True)
         cls.meter = cls.mgr.add_substation_meter()
 
     def test_meter_object(self):

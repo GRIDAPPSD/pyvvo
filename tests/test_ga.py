@@ -24,8 +24,8 @@ class MapChromosomeTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Get capacitors and regulators."""
-        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cls.cap_df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_9500)
+        cls.cap_df = _df.read_pickle(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.cap_df)
@@ -33,12 +33,12 @@ class MapChromosomeTestCase(unittest.TestCase):
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
     def test_length(self):
-        """4 three phase regs, 9 single phase caps."""
-        self.assertEqual(4 * 3 * 6 + 9, self.len)
+        """6 three phase regs, 9 single phase caps."""
+        self.assertEqual(6 * 3 * 6 + 9, self.len)
 
     def test_map_length(self):
-        """4 regs, 9 caps."""
-        self.assertEqual(4 + 9, len(self.map))
+        """6 * 3 individual phase regs, 9 caps."""
+        self.assertEqual(6 * 3 + 9, len(self.map))
 
     def test_map_idx(self):
         """Ensure we have purely non-overlapping indices that cover
@@ -59,8 +59,8 @@ class MapChromosomeTestCase(unittest.TestCase):
         np.testing.assert_array_equal(chrom, expected)
 
     def test_map_num_eq(self):
-        """4x3 regs, 9 caps"""
-        self.assertEqual(4 * 3 + 9, self.num_eq)
+        """6x3 regs, 9 caps"""
+        self.assertEqual(6 * 3 + 9, self.num_eq)
 
     def test_map_phasing(self):
         """Ensure each element in the map has valid phases under it."""
@@ -332,8 +332,8 @@ class IndividualTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Get capacitor and regulator information.
-        reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cap_df = _df.read_pickle(_df.CAPACITORS_8500)
+        reg_df = _df.read_pickle(_df.REGULATORS_9500)
+        cap_df = _df.read_pickle(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -422,8 +422,8 @@ class IndividualTestCase(unittest.TestCase):
         c = self.ind.chromosome.copy()
 
         # Splice in values for VREG2 and VREG3.
-        idx2 = self.ind._chrom_map['VREG2']['A']['idx']
-        idx3 = self.ind._chrom_map['VREG3']['C']['idx']
+        idx2 = self.ind._chrom_map['vreg2_a']['A']['idx']
+        idx3 = self.ind._chrom_map['vreg3_c']['C']['idx']
         # The call below looks wrong, but it's fine, I promise :)
         # the 'm' argument is just used for the width formatting.
         c[idx2[0]:idx2[1]] = ga._int_to_binary_list(50, m=32)
@@ -431,7 +431,7 @@ class IndividualTestCase(unittest.TestCase):
 
         # Patch the 'VREG3' range and run the check. No need to patch
         # the 'VREG2' range since it's above the maximum.
-        with patch.dict(self.ind._chrom_map['VREG3']['C'], {'range': (31, 32)}):
+        with patch.dict(self.ind._chrom_map['vreg3_c']['C'], {'range': (31, 32)}):
             c_new = self.ind._check_and_fix_chromosome(c)
 
         # Violations above should be cut down to the top of the range.
@@ -699,8 +699,8 @@ class IndividualTestCase(unittest.TestCase):
                           chrom_map=self.map, num_eq=self.num_eq,
                           special_init=None)
 
-        # 4 three phase regs, 9 single phase caps.
-        self.assertEqual(4*3 + 9, p.call_count)
+        # 6 three phase regs, 9 single phase caps.
+        self.assertEqual(6*3 + 9, p.call_count)
 
     def test_special_init_max(self):
         """Ensure each piece of equipment is at its max."""
@@ -781,15 +781,15 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cls.caps_df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_9500)
+        cls.caps_df = _df.read_pickle(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.caps_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
 
         # Force all the capacitors to be open.
         for c in cls.caps.values():
@@ -822,12 +822,15 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
     def test_update_reg(self):
         """Test _update_reg"""
-        phase_dict = self.map['FEEDER_REG']
+        penalty = 0
+        phase_dicts = [self.map['feeder_reg1a'], self.map['feeder_reg1b'],
+                       self.map['feeder_reg1c']]
         with patch.dict(ga.CONFIG, {'costs': {'regulator_tap': 10}}):
             with patch.object(self.fresh_mgr, 'update_reg_taps',
                               wraps=self.fresh_mgr.update_reg_taps) as p:
-                penalty = self.ind._update_reg(phase_dict=phase_dict,
-                                               glm_mgr=self.fresh_mgr)
+                for phase_dict in phase_dicts:
+                    penalty += self.ind._update_reg(phase_dict=phase_dict,
+                                                   glm_mgr=self.fresh_mgr)
 
         # 3 phases, each phase moved 32 positions with a cost of 10 per
         # position.
@@ -836,7 +839,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         # Ensure the taps are being updated properly in the model.
         # The actual 'update_reg_taps' method is tested elsewhere, so
         # no need to actually look up the objects and confirm.
-        p.assert_called_once()
+        self.assertEqual(3, p.call_count)
         p.assert_called_with(ga._cim_to_glm_name(prefix=ga.REG_PREFIX,
                                                  cim_name='FEEDER_REG'),
                              {'A': 16, 'B': 16, 'C': 16})
