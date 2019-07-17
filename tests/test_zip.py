@@ -8,12 +8,12 @@ import os
 
 # BAD PRACTICE: file dependencies across tests.
 from tests.test_utils import TEST_ZIP1
+# Get model directory.
+from tests.models import MODEL_DIR
 
 # Determine if GridLAB-D is at our disposal
 GLD_PRESENT = utils.gld_installed()
 
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(THIS_DIR, 'models')
 TEST_FILE = os.path.join(MODEL_DIR, 'test_zip.glm')
 
 # Define tolerances for using numpy's isclose function. Use different

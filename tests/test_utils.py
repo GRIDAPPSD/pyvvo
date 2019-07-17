@@ -8,8 +8,7 @@ import os
 import numpy as np
 
 # Handle pathing.
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(THIS_DIR, 'models')
+from tests.models import MODEL_DIR
 TEST_ZIP1 = os.path.join(MODEL_DIR, 'test_zip_1.csv')
 TEST_GLM2 = os.path.join(MODEL_DIR, 'test2.glm')
 

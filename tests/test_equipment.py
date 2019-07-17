@@ -10,6 +10,7 @@ from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
     CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL
 import tests.data_files as _df
 
+
 class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     """Test EquipmentManager with regulator data."""
 

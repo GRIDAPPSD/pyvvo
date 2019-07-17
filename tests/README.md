@@ -12,6 +12,12 @@ the README there.
 
 ## Files
 
+### data_files.py
+Used to create + update the files in the `data` directory.
+
+### models.py
+Used to create + update some of the files in the `models` directory.
+
 ### README.md
 This file.
 

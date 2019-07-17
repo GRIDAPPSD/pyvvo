@@ -5,6 +5,7 @@ from datetime import datetime
 from copy import deepcopy
 
 import tests.data_files as _df
+from tests.models import IEEE_8500, IEEE_9500, IEEE_13
 from pyvvo import ga
 from pyvvo import equipment
 from pyvvo.glm import GLMManager
@@ -16,11 +17,6 @@ import pandas as pd
 import MySQLdb
 
 np.random.seed(42)
-
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(THIS_DIR, 'models')
-IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
-IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
 
 
 class MapChromosomeTestCase(unittest.TestCase):

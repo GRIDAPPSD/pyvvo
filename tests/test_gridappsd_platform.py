@@ -9,6 +9,7 @@ from pyvvo import gridappsd_platform
 from gridappsd import GridAPPSD
 from pyvvo.timeseries import parse_weather
 import tests.data_files as _df
+from tests.models import IEEE_8500, IEEE_13
 
 # Third-party
 from stomp.exception import ConnectFailedException
@@ -23,12 +24,6 @@ else:
     PLATFORM_RUNNING = True
 
 NO_CONNECTION = 'Could not connect to the GridAPPS-D platform.'
-
-# Handle pathing.
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(THIS_DIR, 'models')
-IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
-IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
 
 
 class GetGADAddressTestCase(unittest.TestCase):
@@ -268,10 +263,6 @@ class PlatformManagerTestCase(unittest.TestCase):
         # IEEE 13 bus model.
         model_id = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
         glm = self.platform.get_glm(model_id=model_id)
-
-        # Uncomment to recreate the expected return.
-        # with open(IEEE_13, 'w') as f:
-        #     f.write(glm)
 
         # Get expected.
         with open(IEEE_13, 'r') as f:
