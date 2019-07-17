@@ -8,7 +8,7 @@ import logging
 # Import module to test
 from pyvvo import glm, db
 from pyvvo.utils import gld_installed, run_gld
-from tests.models import MODEL_DIR, IEEE_13, IEEE_8500
+from tests.models import MODEL_DIR, IEEE_13, IEEE_8500, IEEE_9500
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -1083,6 +1083,33 @@ class UpdateCapSwitchesTestCase(unittest.TestCase):
 
         for phase, status in d.items():
             self.assertEqual(status, cap['switch' + phase])
+
+
+class IEEE9500Runs(unittest.TestCase):
+    """Use add_run_components with the 9500 model and ensure it actually
+    runs.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.mgr = glm.GLMManager(IEEE_9500, model_is_path=True)
+        cls.mgr.add_run_components(starttime=datetime(2012, 1, 1),
+                                   stoptime=datetime(2012, 1, 1, 0, 15),
+                                   timezone='UTC0', v_source=None,
+                                   profiler=0, minimum_timestep=60)
+
+        cls.out_file = 'test_9500.glm'
+        cls.mgr.write_model(cls.out_file)
+
+    @classmethod
+    def tearDownClass(cls):
+        # noinspection PyUnresolvedReferences
+        os.remove(cls.out_file)
+
+    @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+    def test_add_run_components_model_runs(self):
+        result = run_gld(model_path=self.out_file)
+
+        self.assertEqual(0, result.returncode)
 
 
 if __name__ == '__main__':
