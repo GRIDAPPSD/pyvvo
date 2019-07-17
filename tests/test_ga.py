@@ -324,6 +324,50 @@ class PrepGLMMGRTestCase(unittest.TestCase):
         self.assertEqual(0, result.returncode)
 
 
+class PrepGLMMGR9500TestCase(unittest.TestCase):
+    """Test running the 9500 node model. We may need to skip this in
+    general, as it's going to be really slow.
+    """
+    @classmethod
+    def setUpClass(cls):
+        cls.glm_mgr = GLMManager(IEEE_9500)
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 5)
+        cls.out_file = 'tmp.glm'
+
+        # Run the prep function.
+        ga.prep_glm_mgr(cls.glm_mgr, cls.starttime, cls.stoptime)
+
+        # Write file.
+        cls.glm_mgr.write_model(cls.out_file)
+
+    @classmethod
+    def tearDownClass(cls):
+        # Get a connection to the database.
+        db_conn = db.connect_loop()
+
+        # Truncate the tables.
+        db.truncate_table(db_conn=db_conn, table=ga.TRIPLEX_TABLE)
+        db.truncate_table(db_conn=db_conn, table=ga.SUBSTATION_TABLE)
+
+        try:
+            # Why is PyCharm telling me this attribute isn't defined? It
+            # clearly is!
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_file)
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.remove('gridlabd.xml')
+        except FileNotFoundError:
+            pass
+
+    def test_model_runs(self):
+        result = run_gld(self.out_file)
+        self.assertEqual(0, result.returncode)
+
+
 class IndividualTestCase(unittest.TestCase):
     """Test everything that doesn't involve a glm.GLMManager. Those
     tests are more involved and will be done elsewhere.
