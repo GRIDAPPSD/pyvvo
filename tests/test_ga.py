@@ -328,6 +328,7 @@ class PrepGLMMGR9500TestCase(unittest.TestCase):
     """Test running the 9500 node model. We may need to skip this in
     general, as it's going to be really slow.
     """
+
     @classmethod
     def setUpClass(cls):
         cls.glm_mgr = GLMManager(IEEE_9500)
@@ -475,7 +476,8 @@ class IndividualTestCase(unittest.TestCase):
 
         # Patch the 'VREG3' range and run the check. No need to patch
         # the 'VREG2' range since it's above the maximum.
-        with patch.dict(self.ind._chrom_map['vreg3_c']['C'], {'range': (31, 32)}):
+        with patch.dict(self.ind._chrom_map['vreg3_c']['C'],
+                        {'range': (31, 32)}):
             c_new = self.ind._check_and_fix_chromosome(c)
 
         # Violations above should be cut down to the top of the range.
@@ -662,7 +664,7 @@ class IndividualTestCase(unittest.TestCase):
 
         # Ensure the rest of child1 matches ind2.
         np.testing.assert_array_equal(
-            child1.chromosome[(v0_idx[1] + 1):(ve_idx[0]-1)],
+            child1.chromosome[(v0_idx[1] + 1):(ve_idx[0] - 1)],
             ind2.chromosome[(v0_idx[1] + 1):(ve_idx[0] - 1)]
         )
 
@@ -744,7 +746,7 @@ class IndividualTestCase(unittest.TestCase):
                           special_init=None)
 
         # 6 three phase regs, 9 single phase caps.
-        self.assertEqual(6*3 + 9, p.call_count)
+        self.assertEqual(6 * 3 + 9, p.call_count)
 
     def test_special_init_max(self):
         """Ensure each piece of equipment is at its max."""
@@ -874,7 +876,7 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
                               wraps=self.fresh_mgr.update_reg_taps) as p:
                 for phase_dict in phase_dicts:
                     penalty += self.ind._update_reg(phase_dict=phase_dict,
-                                                   glm_mgr=self.fresh_mgr)
+                                                    glm_mgr=self.fresh_mgr)
 
         # 3 phases, each phase moved 32 positions with a cost of 10 per
         # position.
@@ -1142,7 +1144,7 @@ class EvaluatorTestCase(unittest.TestCase):
                              "t > '2013-04-01 12:00:00')"))
 
     def test_get_substation_data_query(self):
-        r = pd.DataFrame([[1, 2, 3], [4, 5, 6]],
+        r = pd.DataFrame([[1, 2, 3, 9], [4, 5, 6, 10]],
                          columns=list(ga.SUBSTATION_COLUMNS))
         with patch('pandas.read_sql_query', autospec=True,
                    return_value=r) as p:
@@ -1280,6 +1282,7 @@ class MockIndividual:
     https://bugs.python.org/issue14577
     https://code.google.com/archive/p/mock/issues/139
     """
+
     def __init__(self):
         self.fitness = None
 

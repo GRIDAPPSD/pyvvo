@@ -29,6 +29,9 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 #   can change the config in between runs.
 with open(os.path.join(THIS_DIR, 'pyvvo_config.json'), 'r') as f:
     CONFIG = json.load(f)
+# By default, GridLAB-D creates a time column 't' and ID column 'id'
+TIME_COL = 't'
+ID_COL = 'id'
 # We're using the V12. This won't change, and it's way overkill to use
 # the triplestore database to determine triplex voltage levels.
 TRIPLEX_NOMINAL_VOLTAGE = 240
@@ -43,7 +46,7 @@ SUBSTATION_ENERGY = 'measured_real_energy'
 SUBSTATION_REAL_POWER = 'measured_real_power'
 SUBSTATION_REACTIVE_POWER = 'measured_reactive_power'
 SUBSTATION_COLUMNS = {SUBSTATION_ENERGY, SUBSTATION_REAL_POWER,
-                      SUBSTATION_REACTIVE_POWER}
+                      SUBSTATION_REACTIVE_POWER, TIME_COL}
 # The GridLAB-D models from the platform have prefixes on object names,
 # and thus don't precisely line up with the names from the CIM.
 # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.06.beta/services/fncsgossbridge/service/fncs_goss_bridge.py
@@ -1063,19 +1066,17 @@ class _Evaluator:
         'evaluate'.
 
         NOTES:
-            - 'id' and 't' columns are GridLAB-D defaults, and are
-                hard-coded.
             - The first time step is skipped as it's unreliable -
                 GridLAB-D hasn't "settled" yet.
         """
         # Create the query.
         q_low = "SELECT SUM(({nom_v} - {mag_col}) * {penalty}) as penalty" \
                 " FROM {table} WHERE ({mag_col} < {low_v} " \
-                "AND t > '{starttime}')".format(
+                "AND {time_col} > '{starttime}')".format(
                     nom_v=TRIPLEX_NOMINAL_VOLTAGE, mag_col=TRIPLEX_PROPERTY_DB,
                     penalty=CONFIG['costs']['voltage_violation_low'],
                     table=self.triplex_table, low_v=TRIPLEX_LOW_VOLTAGE,
-                    starttime=self.starttime
+                    starttime=self.starttime, time_col=TIME_COL
                     )
 
         # Use the helper to execute and extract the penalty.
@@ -1086,18 +1087,16 @@ class _Evaluator:
         'evaluate'.
 
         NOTES:
-            - 'id' and 't' columns are GridLAB-D defaults, and are
-                hard-coded.
             - The first time step is skipped as it's unreliable -
                 GridLAB-D hasn't "settled" yet.
         """
         q_high = "SELECT SUM(({mag_col} - {nom_v}) * {penalty}) as penalty" \
                  " FROM {table} WHERE ({mag_col} > {high_v} " \
-                 "AND t > '{starttime}')".format(
+                 "AND {time_col} > '{starttime}')".format(
                     nom_v=TRIPLEX_NOMINAL_VOLTAGE, mag_col=TRIPLEX_PROPERTY_DB,
                     penalty=CONFIG['costs']['voltage_violation_high'],
                     table=self.triplex_table, high_v=TRIPLEX_HIGH_VOLTAGE,
-                    starttime=self.starttime
+                    starttime=self.starttime, time_col=TIME_COL
                     )
 
         # Use the helper to execute and extract the penalty.
@@ -1107,11 +1106,11 @@ class _Evaluator:
         """Helper to grab substation data, and ensure not empty.
         """
 
-        # Grab all the substation data. Hard-code the 'id' column.
+        # Grab all the substation data.
         sub_data = \
-            pd.read_sql_query(sql="SELECT * FROM {} WHERE t > '{}';".format(
-                self.substation_table, self.starttime), con=self.db_conn,
-                index_col='id')
+            pd.read_sql_query(sql="SELECT * FROM {} WHERE {} > '{}';".format(
+                self.substation_table, TIME_COL, self.starttime),
+                con=self.db_conn, index_col=ID_COL)
 
         # We'll be using sub_data as a sort of safety check - it cannot
         # be empty.
