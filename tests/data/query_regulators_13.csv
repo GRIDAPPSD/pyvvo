@@ -1,4 +1,3 @@
-control_mode,enabled,high_step,low_step,ltc_flag,mrid,name,neutral_step,phase,step,step_voltage_increment,tap_changer_mrid
-voltage,True,16,-16,True,_1D752D73-C6A4-1599-28C6-CB82AD27966B,Reg,0,C,11,0.625,_D118825D-B3C6-61E5-E814-8C7FEE5610A4
-voltage,True,16,-16,True,_1D752D73-C6A4-1599-28C6-CB82AD27966B,Reg,0,B,8,0.625,_581A1998-914D-1064-EF0B-C586F8DCA7FD
-voltage,True,16,-16,True,_1D752D73-C6A4-1599-28C6-CB82AD27966B,Reg,0,A,10,0.625,_59B7B539-D04D-4D6A-03ED-8D87FF81D76C
+version https://git-lfs.github.com/spec/v1
+oid sha256:1a88d10989f79666798af0780e9de7e1e6b9dfa01bd45deb47064880a6578ec9
+size 476

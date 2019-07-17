@@ -23,6 +23,9 @@ FEEDER_MRID_13 = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
 # 123 node:
 FEEDER_MRID_123 = '_C1C3E687-6FFD-C753-582B-632A27E28507'
 
+# Modified 8500 node.
+FEEDER_MRID_9500 = '_AAE94E4A-2465-6F5E-37B1-3E72183A4E44'
+
 # We'll be mocking some query returns.
 MOCK_RETURN = pd.DataFrame({'name': ['thing1', 'thing2'],
                             'prop': ['prop1', 'prop2']})
@@ -58,6 +61,16 @@ LOAD_MEAS_123 = os.path.join(DATA_DIR, 'query_load_measurements_123.csv')
 SUBSTATION_123 = os.path.join(DATA_DIR, 'query_substation_source_123.csv')
 SWITCHES_123 = os.path.join(DATA_DIR, 'query_switches_123.csv')
 SWITCH_MEAS_123 = os.path.join(DATA_DIR, 'query_switch_meas_123.csv')
+
+# New model.
+CAPACITORS_9500 = os.path.join(DATA_DIR, 'query_capacitors_9500.csv')
+REGULATORS_9500 = os.path.join(DATA_DIR, 'query_regulators_9500.csv')
+REG_MEAS_9500 = os.path.join(DATA_DIR, 'query_reg_meas_9500.csv')
+CAP_MEAS_9500 = os.path.join(DATA_DIR, 'query_cap_meas_9500.csv')
+LOAD_MEAS_9500 = os.path.join(DATA_DIR, 'query_load_measurements_9500.csv')
+SUBSTATION_9500 = os.path.join(DATA_DIR, 'query_substation_source_9500.csv')
+SWITCHES_9500 = os.path.join(DATA_DIR, 'query_switches_9500.csv')
+SWITCH_MEAS_9500 = os.path.join(DATA_DIR, 'query_switch_meas_9500.csv')
 
 # Misc json files.
 REG_MEAS_MSG_8500 = os.path.join(DATA_DIR, 'reg_meas_message_8500.json')
@@ -131,7 +144,19 @@ def gen_expected_results():
         (s3.query_switch_measurements, SWITCH_MEAS_123)
     ]
 
-    for a in [a1, a2, a3]:
+    s4 = sparql.SPARQLManager(feeder_mrid=FEEDER_MRID_9500)
+    a4 = [
+        (s4.query_capacitors, CAPACITORS_9500),
+        (s4.query_regulators, REGULATORS_9500),
+        (s4.query_rtc_measurements, REG_MEAS_9500),
+        (s4.query_capacitor_measurements, CAP_MEAS_9500),
+        (s4.query_load_measurements, LOAD_MEAS_9500),
+        (s4.query_substation_source, SUBSTATION_9500),
+        (s4.query_switches, SWITCHES_9500),
+        (s4.query_switch_measurements, SWITCH_MEAS_9500)
+    ]
+
+    for a in [a1, a2, a3, a4]:
         for b in a:
             # Run function.
             actual_full = b[0]()

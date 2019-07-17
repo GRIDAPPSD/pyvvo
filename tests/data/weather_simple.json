@@ -1,1 +1,3 @@
-{"data": {"measurements": [{"name": "weather", "points": [{"row": {"entry": [{"key": "Diffuse", "value": "-0.006386875"}, {"key": "AvgWindSpeed", "value": "0.0"}, {"key": "TowerRH", "value": "86.8"}, {"key": "long", "value": "105.18 W"}, {"key": "MST", "value": "00:00"}, {"key": "TowerDryBulbTemp", "value": "13.316"}, {"key": "DATE", "value": "1/1/2013"}, {"key": "DirectCH1", "value": "-0.0402521765"}, {"key": "GlobalCM22", "value": "-0.037676152399999996"}, {"key": "AvgWindDirection", "value": "0.0"}, {"key": "time", "value": "1357020000"}, {"key": "place", "value": "Solar Radiation Research Laboratory"}, {"key": "lat", "value": "39.74 N"}]}}]}]}, "responseComplete": true, "id": "188893424"}
+version https://git-lfs.github.com/spec/v1
+oid sha256:17c2c4a6773516a8675e9a6c08d13707a4341cd3af3dc0747756eeb5ea9557fc
+size 701
