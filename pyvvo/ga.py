@@ -11,6 +11,7 @@ import logging
 import time
 import operator
 import math
+import itertools
 
 # Third party:
 import numpy as np
@@ -1216,7 +1217,7 @@ class _Evaluator:
                 * TO_KW_FACTOR * CONFIG['costs']['energy'])
 
 
-def evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
+def _evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
     """'Worker' function for evaluating individuals in parallel.
 
     This method is designed to be used in a multi-threaded or
@@ -1236,7 +1237,7 @@ def evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
         been evaluated.
     :param logging_queue: Multiprocessing.Queue instance for which
         dictionaries with logging information will be placed. See the
-        logging_thread function for further reference.
+        _logging_thread function for further reference.
     :param glm_mgr: glm.GLMManager instance which will be passed along
         to the ga.Individual's evaluate method. So, read the comment
         there for more details on requirements.
@@ -1282,7 +1283,7 @@ def evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
         input_queue.task_done()
 
 
-def logging_thread(logging_queue):
+def _logging_thread(logging_queue):
     """Function intended to be the target of a thread, used to log
     the progress of genetic algorithm fitness evaluation.
 
@@ -1310,6 +1311,35 @@ def logging_thread(logging_queue):
         LOG.debug("Individual {}'s penalties:\n{}"
                   .format(log_dict['uid'],
                           json.dumps(log_dict['penalties'], indent=4)))
+
+
+def _tournament(population, tournament_size, n):
+    """Helper for performing tournament selection.
+
+    :param population: List of Individuals comprising the population.
+    :param tournament_size: Integer indicating how many individuals
+        participate in each tournament.
+    :param n: Integer. Top n individuals from the tournament will be
+        returned.
+
+    :returns: list of individuals of length n which have the highest
+        fitness for the given tournament.
+    """
+    # Randomly draw 'tournament_size' individuals.
+    challenger_indices = np.random.choice(a=np.arange(len(population)),
+                                          size=tournament_size,
+                                          replace=False)
+
+    # Get the subset of the population corresponding to these
+    # individuals.
+    sub_pop = [population[i] for i in challenger_indices]
+
+    # Sort by fitness.
+    sub_pop.sort(key=operator.attrgetter('fitness'))
+
+    # Sort sorts in ascending order, and we want the lowest fitnesses
+    # since we're minimizing.
+    return [sub_pop[i] for i in range(n)]
 
 
 def main(regulators, capacitors, glm_mgr, starttime, stoptime):

@@ -1326,12 +1326,12 @@ class MockIndividual:
 
 
 class EvaluateWorkerTestCase(unittest.TestCase):
-    """Test evaluate_worker function."""
+    """Test _evaluate_worker function."""
 
     def test_bad_input_queue(self):
         with self.assertRaisesRegex(TypeError, 'input_queue must be '):
-            ga.evaluate_worker(input_queue=['hi'], logging_queue=[],
-                               output_queue=[], glm_mgr=None)
+            ga._evaluate_worker(input_queue=['hi'], logging_queue=[],
+                                output_queue=[], glm_mgr=None)
 
     def test_expected_behavior(self):
         """Mock up an individual and glm_mgr. IMPORTANT NOTE: Since
@@ -1348,7 +1348,7 @@ class EvaluateWorkerTestCase(unittest.TestCase):
         glm_mgr = create_autospec(GLMManager)
         ind_in = MockIndividual()
 
-        p = mp.Process(target=ga.evaluate_worker,
+        p = mp.Process(target=ga._evaluate_worker,
                        kwargs={'input_queue': input_queue,
                                'output_queue': output_queue,
                                'logging_queue': logging_queue,
@@ -1376,7 +1376,7 @@ class EvaluateWorkerTestCase(unittest.TestCase):
 
 
 class LoggingThreadTestCase(unittest.TestCase):
-    """Test logging_thread function."""
+    """Test _logging_thread function."""
 
     def test_expected_behavior(self):
         """NOTE: Couldn't get assertLogs to work here, so this test is
@@ -1385,7 +1385,7 @@ class LoggingThreadTestCase(unittest.TestCase):
         """
         q = mp.Queue()
 
-        t = threading.Thread(target=ga.logging_thread,
+        t = threading.Thread(target=ga._logging_thread,
                              kwargs={'logging_queue': q})
 
         t.start()
@@ -1407,6 +1407,54 @@ class LoggingThreadTestCase(unittest.TestCase):
 
         # Ensure the thread is dead.
         self.assertFalse(t.is_alive())
+
+
+class TournamentTestCase(unittest.TestCase):
+    """Test _tournament"""
+    @classmethod
+    def setUpClass(cls):
+        # Initialize a population of mock individuals.
+        cls.population = [create_autospec(ga.Individual) for _ in range(5)]
+
+        # Set their fitnesses.
+        cls.population[0].fitness = 5
+        cls.population[1].fitness = 3
+        cls.population[2].fitness = 7
+        cls.population[3].fitness = 2
+        cls.population[4].fitness = 17
+
+    def test_correct_return(self):
+        best = ga._tournament(population=self.population, tournament_size=5,
+                              n=2)
+
+        self.assertEqual(2, len(best))
+        self.assertEqual(2, best[0].fitness)
+        self.assertEqual(3, best[1].fitness)
+
+    def test_sort(self):
+        with patch('numpy.random.choice', return_value=[4, 1]) as p:
+            best = ga._tournament(population=self.population,
+                                  tournament_size=2, n=2)
+
+        p.assert_called_once()
+
+        self.assertEqual(2, len(best))
+        self.assertEqual(3, best[0].fitness)
+        self.assertEqual(17, best[1].fitness)
+
+    def test_choice(self):
+        with patch('numpy.random.choice', wraps=np.random.choice) as p:
+            best = ga._tournament(population=self.population,
+                                  tournament_size=4, n=3)
+
+        p.assert_called_once()
+
+        np.testing.assert_array_equal(np.array([0, 1, 2, 3, 4]),
+                                      p.call_args[1]['a'])
+        self.assertEqual(4, p.call_args[1]['size'])
+        self.assertFalse(p.call_args[1]['replace'])
+
+        self.assertEqual(3, len(best))
 
 
 class MainTestCase(unittest.TestCase):
