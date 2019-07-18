@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from copy import deepcopy
 import multiprocessing as mp
+import threading
+from time import sleep
 
 import tests.data_files as _df
 from tests.models import IEEE_8500, IEEE_9500, IEEE_13
@@ -1285,16 +1287,20 @@ class MockIndividual:
 
     def __init__(self):
         self.fitness = None
+        self.uid = 1
+        self.penalties = None
 
     def evaluate(self, *args, **kwargs):
         self.fitness = 1
+        self.penalties = {'p1': 10, 'p2': 30, 'p3': 0.1}
 
 
 class EvaluateWorkerTestCase(unittest.TestCase):
+    """Test evaluate_worker function."""
 
     def test_bad_input_queue(self):
         with self.assertRaisesRegex(TypeError, 'input_queue must be '):
-            ga.evaluate_worker(input_queue=['hi'],
+            ga.evaluate_worker(input_queue=['hi'], logging_queue=[],
                                output_queue=[], glm_mgr=None)
 
     def test_expected_behavior(self):
@@ -1308,12 +1314,14 @@ class EvaluateWorkerTestCase(unittest.TestCase):
         """
         input_queue = mp.JoinableQueue()
         output_queue = mp.Queue()
+        logging_queue = mp.Queue()
         glm_mgr = create_autospec(GLMManager)
         ind_in = MockIndividual()
 
         p = mp.Process(target=ga.evaluate_worker,
                        kwargs={'input_queue': input_queue,
                                'output_queue': output_queue,
+                               'logging_queue': logging_queue,
                                'glm_mgr': glm_mgr})
 
         p.start()
@@ -1322,9 +1330,53 @@ class EvaluateWorkerTestCase(unittest.TestCase):
 
         input_queue.join()
 
+        log_out = logging_queue.get()
+
         ind_out = output_queue.get_nowait()
 
         self.assertEqual(ind_out.fitness, 1)
+        self.assertDictEqual({'uid': 1, 'fitness': 1,
+                              'penalties': {'p1': 10, 'p2': 30, 'p3': 0.1}},
+                             log_out)
+
+        input_queue.put(None)
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.1)
+        self.assertFalse(p.is_alive())
+
+
+class LoggingThreadTestCase(unittest.TestCase):
+    """Test logging_thread function."""
+
+    def test_expected_behavior(self):
+        """NOTE: Couldn't get assertLogs to work here, so this test is
+        close to useless. I guess it makes sure things don't error out,
+        which is something.
+        """
+        q = mp.Queue()
+
+        t = threading.Thread(target=ga.logging_thread,
+                             kwargs={'logging_queue': q})
+
+        t.start()
+
+        self.assertTrue(t.is_alive())
+
+        # Why won't this work?! Oh well...
+        # with self.assertLogs(level='INFO', logger=ga.LOG):
+        #     with self.assertLogs(level='DEBUG', logger=ga.LOG):
+        q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16}})
+
+        self.assertTrue(t.is_alive())
+
+        # Kill the thread.
+        q.put(None)
+
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.1)
+
+        # Ensure the thread is dead.
+        self.assertFalse(t.is_alive())
 
 
 class MainTestCase(unittest.TestCase):

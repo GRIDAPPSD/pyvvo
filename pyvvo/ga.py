@@ -4,6 +4,7 @@ TODO: Create some sort of configuration file, like ga_config.json.
 """
 # Standard library:
 import multiprocessing as mp
+import threading
 import os
 import queue
 import logging
@@ -58,6 +59,8 @@ CAP_PREFIX = 'cap'
 TO_KW_FACTOR = 1/1000
 # Map capacitor states to GridLAB-D strings.
 CAP_STATE_MAP = {0: "OPEN", 1: "CLOSED"}
+
+LOG = logging.getLogger(__name__)
 
 
 def map_chromosome(regulators, capacitors):
@@ -1192,7 +1195,7 @@ class _Evaluator:
                 * TO_KW_FACTOR * CONFIG['costs']['energy'])
 
 
-def evaluate_worker(input_queue, output_queue, glm_mgr):
+def evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
     """'Worker' function for evaluating individuals in parallel.
 
     This method is designed to be used in a multi-threaded or
@@ -1205,9 +1208,14 @@ def evaluate_worker(input_queue, output_queue, glm_mgr):
         attribute. You're asking for trouble if this is a simple
         queue.Queue object (which is multi-threading safe, but not
         multi-processing safe).
-    :param output_queue: Same as input_queue, except we'll be putting
-        the input Individuals into the output queue after they've been
-        evaluated.
+
+        If None is received in the queue, the process will terminate.
+    :param output_queue: Multiprocessing.Queue instance. The input
+        Individuals will be placed into the output queue after they've
+        been evaluated.
+    :param logging_queue: Multiprocessing.Queue instance for which
+        dictionaries with logging information will be placed. See the
+        logging_thread function for further reference.
     :param glm_mgr: glm.GLMManager instance which will be passed along
         to the ga.Individual's evaluate method. So, read the comment
         there for more details on requirements.
@@ -1231,15 +1239,52 @@ def evaluate_worker(input_queue, output_queue, glm_mgr):
         # Grab an individual from the queue. Wait forever.
         ind = input_queue.get(block=True, timeout=None)
 
+        # Terminate if None is received.
+        if ind is None:
+            return
+
         # So, we now have an individual. Evaluate.
         ind.evaluate(glm_mgr=glm_mgr,
                      db_conn=db.connect_loop(timeout=10, retry_interval=0.1))
+
+        # Dump information into the logging queue.
+        logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
+                           'penalties': ind.penalties})
 
         # Put the now fully evaluated individual in the output queue.
         output_queue.put(ind)
 
         # Mark this task as complete.
         input_queue.task_done()
+
+
+def logging_thread(logging_queue):
+    """Function intended to be the target of a thread, used to log
+    the progress of genetic algorithm fitness evaluation.
+
+    :param logging_queue: Multiprocessing.Queue object, which will have
+        dictionaries of the following format placed in it:
+        {'uid': <uid, integer>, 'fitness': <fitness, float>,
+        'penalties': <penalties, dictionary>}.
+
+        If None is received in the queue, the thread will terminate.
+    """
+    # Loop forever
+    while True:
+        # Get dictionary from the queue.
+        log_dict = logging_queue.get(block=True, timeout=None)
+
+        # Terminate on receiving None.
+        if log_dict is None:
+            return
+
+        # Log the individual completion.
+        LOG.info('Individual {} evaluated. Fitness: {:.2f}.'
+                 .format(log_dict['uid'], log_dict['fitness']))
+
+        LOG.debug("Individual {}'s penalties:\n{}"
+                  .format(log_dict['uid'],
+                          json.dumps(log_dict['penalties'], indent=4)))
 
 
 def main(regulators, capacitors, glm_mgr, starttime, stoptime):
