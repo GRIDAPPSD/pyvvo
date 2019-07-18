@@ -1457,6 +1457,30 @@ class TournamentTestCase(unittest.TestCase):
         self.assertEqual(3, len(best))
 
 
+class DumpQueueTestCase(unittest.TestCase):
+    """Test _dump_queue"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.i_orig = [1, 2, 3]
+
+    def setUp(self):
+        self.i = [*self.i_orig]
+        self.q = mp.Queue()
+
+        for n in range(4, 7):
+            self.q.put(n)
+
+    def test_correct(self):
+        # Need to sleep due to the small delay for the background thread
+        # which stuff things into the queue.
+        sleep(0.05)
+        i2 = ga._dump_queue(q=self.q, i=self.i)
+
+        self.assertIs(i2, self.i)
+        self.assertListEqual([1, 2, 3, 4, 5, 6], self.i)
+
+
 class MainTestCase(unittest.TestCase):
     # @classmethod
     # def setUpClass(cls):

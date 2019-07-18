@@ -1342,6 +1342,22 @@ def _tournament(population, tournament_size, n):
     return [sub_pop[i] for i in range(n)]
 
 
+def _dump_queue(q, i):
+    """Helper to empty a queue into a list.
+
+    :param q: A queue.Queue like object (e.g.
+        multiprocessing.JoinableQueue)
+    :param i: A list object, for which items from q will be appended to.
+
+    :returns i. While this isn't necessary, it's explicit.
+    """
+    while True:
+        try:
+            i.append(q.get_nowait())
+        except queue.Empty:
+            return i
+
+
 def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     """Function to run the GA in its entirety.
 
