@@ -157,6 +157,12 @@ def map_chromosome(regulators, capacitors):
         m = {'idx': (idx_in, idx_in + 1), 'eq_obj': cap_in,
              'range': (0, 1), 'current_state': cap_in.state}
 
+        if cap_in.state not in equipment.CapacitorSinglePhase.STATES:
+            LOG.warning('Capacitor {} has state {}, which is invalid. '
+                        'This is almost certainly going to lead to '
+                        'errors down the line.'
+                        .format(cap_in, cap_in.state))
+
         try:
             dict_out[cap_in.name][cap_in.phase] = m
         except KeyError:
@@ -510,6 +516,10 @@ class Individual:
         # Initialize penalties to None.
         self._penalties = None
 
+    def __repr__(self):
+        return 'ga.Individual, UID: {}, Fitness: {:.2f}'.format(self.uid,
+                                                                self.fitness)
+
     @property
     def uid(self):
         return self._uid
@@ -816,7 +826,7 @@ class Individual:
         for p in penalties.values():
             self._fitness += p
 
-        return penalties
+        self._penalties = penalties
 
     def _update_model_compute_costs(self, glm_mgr):
         """Helper to update a glm.GLMManager's model via this
@@ -907,6 +917,15 @@ class Individual:
 
         # Loop over the phases. 'sp' for 'single phase'
         for phase, sp_dict in phase_dict.items():
+
+            # Ensure this state is valid. This check really shouldn't
+            # need to be here, but more checks more better.
+            if sp_dict['eq_obj'].state not in \
+                    equipment.CapacitorSinglePhase.STATES:
+                raise ValueError('Equipment {} has invalid state attribute, '
+                                 '{}.'
+                                 .format(sp_dict['eq_obj'],
+                                         sp_dict['eq_obj'].state))
 
             # Extract the relevant chromosome bit. Note this relies
             # on the fact that each capacitor only has a single bit.

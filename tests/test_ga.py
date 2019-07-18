@@ -934,6 +934,36 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         self.assertEqual(4, pr.call_count)
 
 
+class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        # TODO: Change from 8500 to 9500
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
+        cls.caps_df = _df.read_pickle(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(cls.reg_df)
+        cls.caps = equipment.initialize_capacitors(cls.caps_df)
+
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
+
+        cls.glm_mgr = GLMManager(IEEE_8500)
+
+        cls.ind = ga.Individual(uid=0, chrom_len=cls.len,
+                                chrom_map=cls.map, num_eq=cls.num_eq)
+
+    def setUp(self):
+        self.fresh_mgr = deepcopy(self.glm_mgr)
+
+    def test_update_cap_bad_state(self):
+        """If we screw up and get capacitors straight from the CIM, they
+        don't have state information. Ensure this blows up.
+        """
+        with self.assertRaisesRegex(ValueError, 'Equipment .* has invali'):
+            self.ind._update_cap(self.map['capbank0a'],
+                                 glm_mgr=self.fresh_mgr)
+
+
 class IndividualEvaluateTestCase(unittest.TestCase):
     """Test the evaluate method of an Individual.
     """
@@ -982,7 +1012,7 @@ class IndividualEvaluateTestCase(unittest.TestCase):
 
         with patch.object(self.ind, '_update_model_compute_costs',
                           autospec=True, return_value=(6, 7)) as p_update:
-            results = self.ind.evaluate(glm_mgr=mock_glm, db_conn=mock_db)
+            self.ind.evaluate(glm_mgr=mock_glm, db_conn=mock_db)
 
         # Assertion time.
         # Ensure _update_model_compute_costs is called and called
@@ -1004,7 +1034,7 @@ class IndividualEvaluateTestCase(unittest.TestCase):
 
         # Ensure our penalties dict comes back as expected.
         expected = {**partial_dict, 'regulator_tap': 6, 'capacitor_switch': 7}
-        self.assertDictEqual(expected, results)
+        self.assertDictEqual(expected, self.ind.penalties)
 
 
 class PatchSubprocessResult:
