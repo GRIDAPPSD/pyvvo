@@ -8,7 +8,9 @@ import threading
 import os
 import queue
 import logging
-from copy import deepcopy
+import time
+import operator
+import math
 
 # Third party:
 import numpy as np
@@ -1262,13 +1264,16 @@ def evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
         if ind is None:
             return
 
+        t0 = time.time()
         # So, we now have an individual. Evaluate.
         ind.evaluate(glm_mgr=glm_mgr,
                      db_conn=db.connect_loop(timeout=10, retry_interval=0.1))
+        t1 = time.time()
 
         # Dump information into the logging queue.
         logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
-                           'penalties': ind.penalties})
+                           'penalties': ind.penalties,
+                           'time': t1 - t0})
 
         # Put the now fully evaluated individual in the output queue.
         output_queue.put(ind)
@@ -1298,8 +1303,9 @@ def logging_thread(logging_queue):
             return
 
         # Log the individual completion.
-        LOG.info('Individual {} evaluated. Fitness: {:.2f}.'
-                 .format(log_dict['uid'], log_dict['fitness']))
+        LOG.info('Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
+                 .format(log_dict['uid'], log_dict['time'],
+                         log_dict['fitness']))
 
         LOG.debug("Individual {}'s penalties:\n{}"
                   .format(log_dict['uid'],
