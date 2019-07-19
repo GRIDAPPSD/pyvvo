@@ -1534,11 +1534,14 @@ class PopulationTestCase(unittest.TestCase):
 
     # noinspection PyUnresolvedReferences
     @classmethod
-    def helper_create_pop_obj(cls):
+    def helper_create_pop_obj(cls, ga_dict=None):
         """Helper to create a population object if we're concerned about
         altering state.
         """
-        with patch.dict(ga.CONFIG['ga'], cls.ga_config):
+        if ga_dict is None:
+            ga_dict = cls.ga_config
+
+        with patch.dict(ga.CONFIG['ga'], ga_dict):
             pop_obj = ga.Population(regulators=cls.regs,
                                     capacitors=cls.caps,
                                     glm_mgr=deepcopy(cls.glm_mgr),
@@ -1775,6 +1778,65 @@ class PopulationTestCase(unittest.TestCase):
     def test_evaluate_population_error(self):
         with self.assertRaisesRegex(ValueError, 'evaluate_population should '):
             self.pop_obj.evaluate_population()
+
+    def test_natural_selection(self):
+        # Get a new population object to avoid state contamination.
+        n = 10
+        # noinspection PyDictCreation
+        d = {**self.ga_config}
+        d['population_size'] = n
+
+        # Get a Population object.
+        pop_obj = self.helper_create_pop_obj(ga_dict=d)
+
+        # Add mocked individuals to the population.
+        for _ in range(n):
+            pop_obj._population.append(MockIndividual())
+
+        # Manually assign fitnesses.
+        pop_obj._population[0].fitness = 7
+        pop_obj._population[1].fitness = 3  # 1
+        pop_obj._population[2].fitness = 5  # 3
+        pop_obj._population[3].fitness = 10
+        pop_obj._population[4].fitness = 1  # 0
+        pop_obj._population[5].fitness = 8
+        pop_obj._population[6].fitness = 4  # 2
+        pop_obj._population[7].fitness = 35
+        pop_obj._population[8].fitness = 15
+        pop_obj._population[9].fitness = 9
+
+        # Run the selection.
+        with patch('pyvvo.ga._tournament', wraps=ga._tournament) as p:
+            pop_obj.natural_selection()
+
+        # Ensure our population has the number of individuals we expect.
+        self.assertEqual(pop_obj.total_keep, len(pop_obj.population))
+
+        # Ensure the individual in the first position has the expected
+        # fitness.
+        self.assertEqual(1, pop_obj.population[0].fitness)
+
+        # In this case, we should be keeping one individual via
+        # elitism.
+        self.assertEqual(1, pop_obj.top_keep)
+
+        # Ensure _tournament was called four times.
+        self.assertEqual(4, p.call_count)
+
+        # Ensure the call args to _tournament are as expected.
+        for idx in range(4):
+            # In this case, all 4 calls should have a tournament size of 2.
+            self.assertEqual(2, p.call_args_list[idx][1]['tournament_size'])
+            # We're always just asking for a single individual.
+            self.assertEqual(1, p.call_args_list[idx][1]['n'])
+            # The population should be shrinking as we go.
+            # Unfortunately this test doesn't work, as the mock points
+            # to the object which was passed in, and doesn't make a
+            # copy. So, it just sees the current population. However,
+            # I manually verified the population is shrinking as we go.
+            # self.assertEqual(9 - idx,
+            #                  len(p.call_args_list[idx][1]['population']))
+            #
 
 
 class MainTestCase(unittest.TestCase):

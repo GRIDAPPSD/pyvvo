@@ -1767,7 +1767,33 @@ class Population:
         # Dump the output queue into population.
         _dump_queue(q=self.output_queue, i=self.population)
 
+    def natural_selection(self):
+        """Trim the population via both elitism and tournaments."""
+        # Sort the population in place.
+        self._population.sort(key=operator.attrgetter('fitness'))
+        # Perform natural selection. Start by keeping the top fraction.
+        new_population = self.population[0:self.top_keep]
+        self._population = self._population[self.top_keep:]
 
+        # Now, use tournament selection to fill in the rest.
+        while len(new_population) < self.total_keep:
+            # Note that I'm intentionally not using self.tournament_size
+            # since that's fixed for a full population.
+            winner_idx = \
+                _tournament(population=self._population,
+                            tournament_size=
+                            math.ceil(self.tournament_fraction
+                                      * len(self._population)),
+                            n=1)[0]
+
+            # Put the winner into the new population.
+            new_population.append(self._population.pop(winner_idx))
+
+        # At this point, we can ditch this "new_population" variable -
+        # we're done selecting individuals.
+        self._population = new_population
+
+        # Done.
 
 
 class ChromosomeAlreadyExistedError(Exception):
