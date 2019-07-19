@@ -1666,7 +1666,51 @@ class PopulationTestCase(unittest.TestCase):
     def test_population(self):
         self.assertIsInstance(self.pop_obj.population, list)
 
+    def test_chrom_already_existed(self):
+        # Create a list to patch our population object's all_chromosomes
+        # attribute.
+        all_chrom = [np.array([1, 2, 3, 4]),
+                     np.array([1., 2., 5., 6.]),
+                     np.array([23, 23, 89, 42, 78])]
 
+        with patch.object(self.pop_obj, '_all_chromosomes', all_chrom):
+            self.assertFalse(
+                self.pop_obj._chrom_already_existed(np.array([1, 2, 3, 5])))
+
+            self.assertFalse(
+                self.pop_obj._chrom_already_existed(np.array([1.01, 2, 3, 4])))
+
+            self.assertTrue(
+                self.pop_obj._chrom_already_existed(
+                    np.array([1, 2, 5, 6])))
+
+    def test_init_individual(self):
+        # Entering this test, there should be no chromosomes in
+        # all_chromosomes.
+        self.assertEqual(0, len(self.pop_obj.all_chromosomes))
+
+        # Initialize one.
+        ind = self.pop_obj._init_individual(special_init='max')
+        self.assertIsInstance(ind, ga.Individual)
+        for key, value in self.pop_obj.ind_init.items():
+            self.assertEqual(value, getattr(ind, key))
+
+        # The length of all_chromosomes should now be one.
+        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+
+        # Initialize another, ensuring we get an exception.
+        with self.assertRaises(ga.ChromosomeAlreadyExistedError):
+            self.pop_obj._init_individual(special_init='max')
+
+        # The length of all_chromosomes should still be one.
+        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+
+        # Initialize another, ensuring we get an exception.
+        with self.assertRaises(ga.ChromosomeAlreadyExistedError):
+            self.pop_obj._init_individual(chrom_override=ind.chromosome.copy())
+
+        # The length of all_chromosomes should still be one.
+        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
 
 
 class MainTestCase(unittest.TestCase):

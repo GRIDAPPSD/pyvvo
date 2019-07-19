@@ -1641,31 +1641,40 @@ class Population:
     ####################################################################
 
     def _init_individual(self, chrom_override=None, special_init=None):
-        """Helper method to initialize an individual."""
-        # Initialize the individual.
-        ind = Individual(uid=next(self.uid_counter),
-                         chrom_override=chrom_override,
-                         special_init=special_init,
-                         **self.ind_init)
+        """Helper method to initialize an individual.
 
+        :param chrom_override: chrom_override input for Individual
+            class.
+        :param special_init: special_init input for Individual class.
+        """
+        # Initialize the individual.
+        uid = next(self.uid_counter)
+        ind = Individual(uid=uid, chrom_override=chrom_override,
+                         special_init=special_init, **self.ind_init)
+
+        # Evaluating our individuals will almost always be more
+        # expensive than checking if they existed. If this becomes a
+        # serious burden, we should consider refactoring to put this in
+        # the parallel workers.
         while self._chrom_already_existed(ind.chromosome):
             # If we were given an override or a special initialization,
             # we have a problem.
+            if (chrom_override is not None) or (special_init is not None):
+                raise ChromosomeAlreadyExistedError(
+                    'While trying to initialize an individual with chrom_'
+                    'override={} and special_init={}, it was discovered that '
+                    'an individual with an identical chromosome has already '
+                    'existed.')
 
             # Initialize the individual.
-            ind = Individual(uid=next(self.uid_counter),
-                             chrom_override=chrom_override,
-                             special_init=special_init,
-                             **self.ind_init)
+            ind = Individual(uid=uid, chrom_override=chrom_override,
+                             special_init=special_init, **self.ind_init)
 
         # Track its chromosome.
         self.all_chromosomes.append(ind.chromosome.copy())
 
         # Return.
-        return Individual(uid=next(self.uid_counter),
-                          chrom_override=chrom_override,
-                          special_init=special_init,
-                          **self.ind_init)
+        return ind
 
     def _chrom_already_existed(self, c):
         """Helper to check if a given chromosome has ever been present
@@ -1677,14 +1686,17 @@ class Population:
         # a hit for more recent individuals, though I don't have the
         # maths to prove it.
         for chrom in reversed(self.all_chromosomes):
-            # Loop over the chromosome element by element.
+            # Loop over the chromosomes element by element.
+            all_match = True
             for i in range(len(c)):
                 if chrom[i] != c[i]:
-                    # These chromosome aren't equal.
-                    continue
+                    # These chromosome aren't equal. Break to outer
+                    # loop.
+                    all_match = False
+                    break
 
-            # If we made it here, all the elements are equal.
-            return True
+            if all_match:
+                return True
 
         # If we're here, we didn't have any hits.
         return False
@@ -1708,6 +1720,7 @@ class Population:
 class ChromosomeAlreadyExistedError(Exception):
     """Raised if a chromosome has already been existed.
     """
+
 
 def _tournament(population, tournament_size, n):
     """Helper for performing tournament selection.
