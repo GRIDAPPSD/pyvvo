@@ -1784,8 +1784,9 @@ def _tournament(population, tournament_size, n):
     :param n: Integer. Top n individuals from the tournament will be
         returned.
 
-    :returns: list of individuals of length n which have the highest
-        fitness for the given tournament.
+    :returns: List of indices into the population in order of fitness.
+        e.g. [7, 2, 10, 0, 4]. In this example, population[7] would be
+        the individual with the lowest fitness.
     """
     # Randomly draw 'tournament_size' individuals.
     challenger_indices = np.random.choice(a=np.arange(len(population)),
@@ -1798,9 +1799,8 @@ def _tournament(population, tournament_size, n):
     # Get the indices for sorting fit.
     sort_idx = np.argsort(fit)
 
-    # Sort sorts in ascending order, and we want the lowest fitnesses
-    # since we're minimizing.
-    return [population[challenger_indices[sort_idx[i]]] for i in range(n)]
+    # Return the correct number and ordering of challenger_indices.
+    return [challenger_indices[sort_idx[i]] for i in range(n)]
 
 
 def _dump_queue(q, i):

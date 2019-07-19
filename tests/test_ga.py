@@ -1432,8 +1432,8 @@ class TournamentTestCase(unittest.TestCase):
                               n=2)
 
         self.assertEqual(2, len(best))
-        self.assertEqual(2, best[0].fitness)
-        self.assertEqual(3, best[1].fitness)
+        self.assertEqual(2, self.population[best[0]].fitness)
+        self.assertEqual(3, self.population[best[1]].fitness)
 
     def test_sort(self):
         with patch('numpy.random.choice', return_value=[4, 1]) as p:
@@ -1443,8 +1443,8 @@ class TournamentTestCase(unittest.TestCase):
         p.assert_called_once()
 
         self.assertEqual(2, len(best))
-        self.assertEqual(3, best[0].fitness)
-        self.assertEqual(17, best[1].fitness)
+        self.assertEqual(3, self.population[best[0]].fitness)
+        self.assertEqual(17, self.population[best[1]].fitness)
 
     def test_choice(self):
         with patch('numpy.random.choice', wraps=np.random.choice) as p:
