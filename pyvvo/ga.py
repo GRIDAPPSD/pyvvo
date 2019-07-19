@@ -1792,16 +1792,15 @@ def _tournament(population, tournament_size, n):
                                           size=tournament_size,
                                           replace=False)
 
-    # Get the subset of the population corresponding to these
-    # individuals.
-    sub_pop = [population[i] for i in challenger_indices]
+    # Extract their fitnesses into an array.
+    fit = np.array([population[i].fitness for i in challenger_indices])
 
-    # Sort by fitness.
-    sub_pop.sort(key=operator.attrgetter('fitness'))
+    # Get the indices for sorting fit.
+    sort_idx = np.argsort(fit)
 
     # Sort sorts in ascending order, and we want the lowest fitnesses
     # since we're minimizing.
-    return [sub_pop[i] for i in range(n)]
+    return [population[challenger_indices[sort_idx[i]]] for i in range(n)]
 
 
 def _dump_queue(q, i):
