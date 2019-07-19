@@ -1313,6 +1313,402 @@ def _logging_thread(logging_queue):
                           json.dumps(log_dict['penalties'], indent=4)))
 
 
+class Population:
+    """Class for managing a population of individuals for the GA."""
+
+    def __init__(self, regulators, capacitors, glm_mgr, starttime, stoptime):
+        """
+        TODO: Document params.
+        """
+        ################################################################
+        # Setup logging.
+        self.log = logging.getLogger(self.__class__.__name__)
+
+        ################################################################
+        # Set inputs as class params.
+        self._regulators = regulators
+        self._capacitors = capacitors
+        self._glm_mgr = glm_mgr
+        self._starttime = starttime
+        self._stoptime = stoptime
+
+        ################################################################
+        # Map the chromosome, update the model.
+        self._chrom_map, self._chrom_len, self._num_eq = \
+            map_chromosome(regulators=regulators, capacitors=capacitors)
+
+        prep_glm_mgr(glm_mgr=self.glm_mgr, starttime=self.starttime,
+                     stoptime=self.stoptime)
+
+        ################################################################
+        # Initialize uid integer (to be incremented and passed to
+        # individuals)
+        self._uid_counter = itertools.count()
+
+        ################################################################
+        # Setup queues.
+        # Queue for individual evaluation.
+        self._input_queue = mp.JoinableQueue()
+
+        # Queue for retrieving individuals after evaluation.
+        self._output_queue = mp.Queue()
+
+        # Queue for logging evaluation as it proceeds.
+        self._logging_queue = mp.Queue()
+
+        ################################################################
+        # Threads and processes.
+
+        # Start the logging thread.
+        self._logging_thread = \
+            threading.Thread(target=_logging_thread,
+                             kwargs={'logging_queue': self.logging_queue})
+
+        self.logging_thread.start()
+
+        # On to processes. For now, use all but one core.
+        # TODO: We'll want to make this configurable in the future.
+        n_jobs = mp.cpu_count() - 1
+
+        # Initialize processes.
+        self._processes = []
+        for n in range(n_jobs):
+            # Initialize process, attaching it to the _evaluate_worker
+            # method.
+            p = mp.Process(target=_evaluate_worker, name=str(n),
+                           kwargs={'input_queue': self.input_queue,
+                                   'output_queue': self.output_queue,
+                                   'logging_queue': self.logging_queue,
+                                   'glm_mgr': self.glm_mgr})
+
+            # Add this process to the list.
+            self.processes.append(p)
+            # Start this process.
+            p.start()
+
+        ################################################################
+        # For convenience, create a dictionary with inputs for
+        # initializing individuals. These inputs won't change from
+        # individual to individual.
+        self._ind_init = {'chrom_len': self.chrom_len, 'num_eq': self.num_eq,
+                          'chrom_map': self.chrom_map}
+
+        ################################################################
+        # Track all chromosomes we've ever encountered.
+        self._all_chromosomes = []
+
+        # Initialize the population.
+        self._population = []
+
+        ################################################################
+        # Extract constants up front for convenience.
+        # Probabilities:
+        self._prob_mutate_individual = CONFIG['ga']['probabilities'][
+            'mutate_individual']
+        self._prob_mutate_bit = CONFIG['ga']['probabilities']['mutate_bit']
+        self._prob_crossover = CONFIG['ga']['probabilities']['crossover']
+
+        # Misc.
+        self._population_size = CONFIG['ga']['population_size']
+        self._generations = CONFIG['ga']['generations']
+        # How many of the best/elite individuals to absolutely keep for
+        # each generation.
+        self._top_fraction = CONFIG['ga']['top_fraction']
+        # Including the best/elite individuals, fraction of total
+        # population to carry over from generation to generation.
+        self._total_fraction = CONFIG['ga']['total_fraction']
+        self._tournament_fraction = CONFIG['ga']['tournament_fraction']
+
+        # Compute the number of individuals to keep via elitism.
+        self._top_keep = math.ceil(CONFIG['ga']['top_fraction']
+                                   * self._population_size)
+
+        # Total number of individuals to keep between generations.
+        self._total_keep = math.ceil(
+            CONFIG['ga']['total_fraction'] * self._population_size)
+
+        # Compute the number of individuals to participate in each
+        # tournament.
+        self._tournament_size = math.ceil(self._tournament_fraction
+                                          * self._population_size)
+
+        ################################################################
+
+    ####################################################################
+    # Property definitions.
+    ####################################################################
+    # Convenience numbers.
+
+    @property
+    def prob_mutate_individual(self):
+        """Probability an individual enters the mutation phase. Does not
+        guarantee an individual is actually mutated, as mutation is
+        performed bit by bit and depends on prob_mutate_bit.
+        """
+        return self._prob_mutate_individual
+
+    @property
+    def prob_mutate_bit(self):
+        """Per bit bit-flip probability for an individual in the
+        mutation phase.
+        """
+        return self._prob_mutate_bit
+
+    @property
+    def prob_crossover(self):
+        """Given two parents, probability that they 'mate' (crossover).
+        If the random draw dictates there will be no crossover,
+        offspring will be mutated versions of their parents.
+        """
+        return self._prob_crossover
+
+    @property
+    def population_size(self):
+        """Number of individuals in the population."""
+        return self._population_size
+
+    @property
+    def generations(self):
+        """Number of generations of the genetic algorithm to run."""
+        return self._generations
+
+    @property
+    def top_fraction(self):
+        """Fraction of the most fit individuals that are guaranteed to
+         survive to the next generation.
+         """
+        return self._top_fraction
+
+    @property
+    def total_fraction(self):
+        """Total fraction of individuals that survive to the next
+        generation, and will be considered for crossover + mutation.
+        Note this fraction includes top_fraction.
+        """
+        return self._total_fraction
+
+    @property
+    def tournament_fraction(self):
+        """Fraction of the population to draw for each round of
+        tournament selection."""
+        return self._tournament_fraction
+
+    @property
+    def top_keep(self):
+        """Number of individuals to keep. ceil(population_size
+                                               * top_fraction)
+        """
+        return self._top_keep
+
+    @property
+    def total_keep(self):
+        """Total number of individuals to keep. ceil(population_size
+                                                     * total_fraction)
+        """
+        return self._total_keep
+
+    @property
+    def tournament_size(self):
+        """Number of individuals per tournament.
+        ceil(population_size * tournament_fraction)
+        """
+        return self._tournament_size
+
+    ####################################################################
+    # Initializer inputs.
+
+    @property
+    def regulators(self):
+        """Regulator input from equipment.initialize_regulators."""
+        return self._regulators
+
+    @property
+    def capacitors(self):
+        """Capacitor input from equipment.initialize_capacitors."""
+        return self._capacitors
+
+    @property
+    def glm_mgr(self):
+        """Initialized glm.GLMManager. Will be prepped via the
+        prep_glm_mgr function.
+        """
+        return self._glm_mgr
+
+    @property
+    def starttime(self):
+        """Python datetime representing simulation start."""
+        return self._starttime
+
+    @property
+    def stoptime(self):
+        """Python datetime representing simulation stop."""
+        return self._stoptime
+
+    ####################################################################
+    # Derived inputs.
+
+    @property
+    def chrom_map(self):
+        """Dictionary output from map_chromosome."""
+        return self._chrom_map
+
+    @property
+    def chrom_len(self):
+        """Integer representing the length of each Individual's
+        chromosome. Output from map_chromosome.
+        """
+        return self._chrom_len
+
+    @property
+    def num_eq(self):
+        """Total number of equipment in the chrom_map. Output from
+        map_chromosome.
+        """
+        return self._num_eq
+
+    ####################################################################
+    # Increment UIDs.
+
+    @property
+    def uid_counter(self):
+        """Simple iterator for incrementing UIDs to assign to
+        individuals.
+        """
+        return self._uid_counter
+
+    ####################################################################
+    # Queues.
+
+    @property
+    def input_queue(self):
+        """Queue which initialized individuals are put into for
+        evaluation in a separate process.
+        """
+        return self._input_queue
+
+    @property
+    def output_queue(self):
+        """Queue which individuals are placed in after evaluation is
+        complete.
+        """
+        return self._output_queue
+
+    @property
+    def logging_queue(self):
+        """Queue used for logging when individuals complete their
+        evaluation.
+        """
+        return self._logging_queue
+
+    ####################################################################
+    # Threads and processes
+
+    @property
+    def logging_thread(self):
+        """Thread for loggin individual evaluation."""
+        return self._logging_thread
+
+    @property
+    def processes(self):
+        """List of processes for performing individual evaluation."""
+        return self._processes
+    ####################################################################
+
+    @property
+    def ind_init(self):
+        """Helper dictionary for initializing individuals."""
+        return self._ind_init
+
+    ####################################################################
+
+    @property
+    def all_chromosomes(self):
+        """List of all chromosomes which have occurred over the course
+        of the genetic algorithm. For the 8500 node model, evaluation
+        takes on the order of 20 or so seconds for a 20 second
+        simulation (lots of overhead to start simulation), so it's
+        almost certainly faster to ensure we never have duplicates.
+        """
+        return self._all_chromosomes
+
+    @property
+    def population(self):
+        """List of all current individuals."""
+        return self._population
+
+    ####################################################################
+    # Private methods
+    ####################################################################
+
+    def _init_individual(self, chrom_override=None, special_init=None):
+        """Helper method to initialize an individual."""
+        # Initialize the individual.
+        ind = Individual(uid=next(self.uid_counter),
+                         chrom_override=chrom_override,
+                         special_init=special_init,
+                         **self.ind_init)
+
+        while self._chrom_already_existed(ind.chromosome):
+            # If we were given an override or a special initialization,
+            # we have a problem.
+
+            # Initialize the individual.
+            ind = Individual(uid=next(self.uid_counter),
+                             chrom_override=chrom_override,
+                             special_init=special_init,
+                             **self.ind_init)
+
+        # Track its chromosome.
+        self.all_chromosomes.append(ind.chromosome.copy())
+
+        # Return.
+        return Individual(uid=next(self.uid_counter),
+                          chrom_override=chrom_override,
+                          special_init=special_init,
+                          **self.ind_init)
+
+    def _chrom_already_existed(self, c):
+        """Helper to check if a given chromosome has ever been present
+        in the population.
+
+        :param c: chromosome from an individual.
+        """
+        # Loop over all the chromosomes. We may be more likely to get
+        # a hit for more recent individuals, though I don't have the
+        # maths to prove it.
+        for chrom in reversed(self.all_chromosomes):
+            # Loop over the chromosome element by element.
+            for i in range(len(c)):
+                if chrom[i] != c[i]:
+                    # These chromosome aren't equal.
+                    continue
+
+            # If we made it here, all the elements are equal.
+            return True
+
+        # If we're here, we didn't have any hits.
+        return False
+
+    ####################################################################
+    # Public methods
+    ####################################################################
+
+    def initialize_population(self):
+        """Initialize and evaluate the first generation. Note this
+        method will not return until the entire population has
+        completed evaluation.
+
+        The population will be seeded with three individuals.
+        """
+        i = 0
+        # Seed the population.
+        self.input_queue.put(self._init_individual(special_init='max'))
+
+
+class ChromosomeAlreadyExistedError(Exception):
+    """Raised if a chromosome has already been existed.
+    """
+
 def _tournament(population, tournament_size, n):
     """Helper for performing tournament selection.
 

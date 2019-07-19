@@ -1481,6 +1481,194 @@ class DumpQueueTestCase(unittest.TestCase):
         self.assertListEqual([1, 2, 3, 4, 5, 6], self.i)
 
 
+class PopulationTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # TODO: Change from 8500 node model to 9500 node model.
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        # 20 second model runtime.
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
+
+        # Get regulators and capacitors.
+        # TODO: update to 9500 node
+        reg_df = pd.read_csv(_df.REGULATORS_8500)
+        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
+
+        # It seems we don't have a way of getting capacitor state from
+        # the CIM (which is where those DataFrames originate from). So,
+        # let's randomly command each capacitor.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = np.random.randint(low=0, high=2, size=None,
+                                            dtype=int)
+            elif isinstance(c, dict):
+                for cc in c.values():
+                    cc.state = np.random.randint(low=0, high=2, size=None,
+                                                 dtype=int)
+
+        cls.ga_config = {
+            "probabilities": {
+                "mutate_individual": 0.2,
+                "mutate_bit": 0.05,
+                "crossover": 0.7
+            },
+            "intervals": {
+                "sample": 5,
+                "minimum_timestep": 1
+            },
+            "population_size": 14,
+            "generations": 3,
+            "top_fraction": 0.1,
+            "total_fraction": 0.5,
+            "tournament_fraction": 0.2}
+
+        with patch.dict(ga.CONFIG['ga'], cls.ga_config):
+            cls.pop_obj = ga.Population(regulators=cls.regs,
+                                        capacitors=cls.caps,
+                                        glm_mgr=deepcopy(cls.glm_mgr),
+                                        starttime=cls.starttime,
+                                        stoptime=cls.stoptime)
+
+    def test_prob_mutate_individual(self):
+        self.assertEqual(0.2, self.pop_obj.prob_mutate_individual)
+
+    def test_prob_mutate_bit(self):
+        self.assertEqual(0.05, self.pop_obj.prob_mutate_bit)
+
+    def test_prob_crossover(self):
+        self.assertEqual(0.7, self.pop_obj.prob_crossover)
+
+    def test_population_size(self):
+        self.assertEqual(14, self.pop_obj.population_size)
+
+    def test_generations(self):
+        self.assertEqual(3, self.pop_obj.generations)
+
+    def test_top_fraction(self):
+        self.assertEqual(0.1, self.pop_obj.top_fraction)
+
+    def test_total_fraction(self):
+        self.assertEqual(0.5, self.pop_obj.total_fraction)
+
+    def test_tournament_fraction(self):
+        self.assertEqual(0.2, self.pop_obj.tournament_fraction)
+
+    def test_top_keep(self):
+        self.assertEqual(2, self.pop_obj.top_keep)
+
+    def test_total_keep(self):
+        self.assertEqual(7, self.pop_obj.total_keep)
+
+    def test_tournament_size(self):
+        self.assertEqual(3, self.pop_obj.tournament_size)
+
+    def test_regulators(self):
+        self.assertIs(self.regs, self.pop_obj.regulators)
+
+    def test_capacitors(self):
+        self.assertIs(self.caps, self.pop_obj.capacitors)
+
+    def test_glm_mgr(self):
+        self.assertIsInstance(self.pop_obj.glm_mgr, GLMManager)
+
+    def test_starttime(self):
+        self.assertIs(self.starttime, self.pop_obj.starttime)
+
+    def test_stoptime(self):
+        self.assertIs(self.stoptime, self.pop_obj.stoptime)
+
+    def test_map_chromosome_called(self):
+        fresh_mgr = deepcopy(self.glm_mgr)
+        with patch('pyvvo.ga.map_chromosome', wraps=ga.map_chromosome) as p:
+            pop_obj = ga.Population(regulators=self.regs,
+                                    capacitors=self.caps,
+                                    glm_mgr=fresh_mgr,
+                                    starttime=self.starttime,
+                                    stoptime=self.stoptime)
+
+        p.assert_called_once()
+        p.assert_called_with(regulators=self.regs, capacitors=self.caps)
+
+    def test_map_chromosome_outputs(self):
+        self.assertIsInstance(self.pop_obj.chrom_map, dict)
+        self.assertIsInstance(self.pop_obj.chrom_len, int)
+        self.assertIsInstance(self.pop_obj.num_eq, int)
+
+    def test_prep_glm_mgr_called(self):
+        fresh_mgr = deepcopy(self.glm_mgr)
+        with patch('pyvvo.ga.prep_glm_mgr', wraps=ga.prep_glm_mgr) as p:
+            pop_obj = ga.Population(regulators=self.regs,
+                                    capacitors=self.caps,
+                                    glm_mgr=fresh_mgr,
+                                    starttime=self.starttime,
+                                    stoptime=self.stoptime)
+
+        p.assert_called_once()
+        p.assert_called_with(glm_mgr=pop_obj.glm_mgr,
+                             starttime=pop_obj.starttime,
+                             stoptime=pop_obj.stoptime)
+
+    def test_uid_counter(self):
+        self.assertTrue(hasattr(self.pop_obj.uid_counter, '__next__'))
+
+    def test_input_queue(self):
+        """Haven't found a good way to type check, so check attributes.
+        """
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'put'))
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'put_nowait'))
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'get'))
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'get_nowait'))
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'join'))
+        self.assertTrue(hasattr(self.pop_obj.input_queue, 'task_done'))
+
+    def test_output_queue(self):
+        """Haven't found a good way to type check, so check attributes.
+        """
+        self.assertTrue(hasattr(self.pop_obj.output_queue, 'put'))
+        self.assertTrue(hasattr(self.pop_obj.output_queue, 'put_nowait'))
+        self.assertTrue(hasattr(self.pop_obj.output_queue, 'get'))
+        self.assertTrue(hasattr(self.pop_obj.output_queue, 'get_nowait'))
+
+    def test_logging_queue(self):
+        """Haven't found a good way to type check, so check attributes.
+        """
+        self.assertTrue(hasattr(self.pop_obj.logging_queue, 'put'))
+        self.assertTrue(hasattr(self.pop_obj.logging_queue, 'put_nowait'))
+        self.assertTrue(hasattr(self.pop_obj.logging_queue, 'get'))
+        self.assertTrue(hasattr(self.pop_obj.logging_queue, 'get_nowait'))
+
+    def test_logging_thread(self):
+        self.assertIsInstance(self.pop_obj.logging_thread, threading.Thread)
+        self.assertTrue(self.pop_obj.logging_thread.is_alive())
+        self.assertIs(self.pop_obj.logging_queue,
+                      self.pop_obj.logging_thread._kwargs['logging_queue'])
+
+    def test_processes(self):
+        self.assertIsInstance(self.pop_obj.processes, list)
+
+        for p in self.pop_obj.processes:
+            self.assertIsInstance(p, mp.Process)
+            self.assertTrue(p.is_alive())
+
+    def test_ind_init(self):
+        self.assertDictEqual(self.pop_obj.ind_init,
+                             {'chrom_len': self.pop_obj.chrom_len,
+                              'num_eq': self.pop_obj.num_eq,
+                              'chrom_map': self.pop_obj.chrom_map})
+
+    def test_all_chromosomes(self):
+        self.assertIsInstance(self.pop_obj.all_chromosomes, list)
+
+    def test_population(self):
+        self.assertIsInstance(self.pop_obj.population, list)
+
+
+
+
 class MainTestCase(unittest.TestCase):
     # @classmethod
     # def setUpClass(cls):
