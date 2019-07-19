@@ -1738,6 +1738,37 @@ class Population:
 
         # All done.
 
+    def evaluate_population(self):
+        """Evaluate all individuals in the population who haven't yet
+        been evaluated. NOTE: This can take a while, depending on the
+        model, etcl.
+        """
+        # Throw an error if we're trying to evaluate when we can't.
+        if len(self.population) != self.population_size:
+            raise ValueError('evaluate_population should only be '
+                             'called when the population is full.')
+
+        # Put all eligible individuals in the queue.
+        for i in self.population:
+            if i.fitness is not None:
+                self.input_queue.put(i)
+
+        # For multiprocessing queues, there can be a slight delay. Avoid
+        # it by sleeping.
+        time.sleep(0.1)
+
+        # Wait for processing to finish.
+        self.input_queue.join()
+
+        # Clear our population - we'll be retrieving the individuals
+        # from the output queue.
+        self._population = []
+
+        # Dump the output queue into population.
+        _dump_queue(q=self.output_queue, i=self.population)
+
+
+
 
 class ChromosomeAlreadyExistedError(Exception):
     """Raised if a chromosome has already been existed.

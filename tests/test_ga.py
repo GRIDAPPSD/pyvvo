@@ -1313,12 +1313,16 @@ class MockIndividual:
     https://github.com/testing-cabal/mock/issues/139
     https://bugs.python.org/issue14577
     https://code.google.com/archive/p/mock/issues/139
+
+    This is unfortunate, because this hard-coded mock is going to make
+    testing more fragile.
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self.fitness = None
         self.uid = 1
         self.penalties = None
+        # self.chromosome = np.random.randint(0, 2, 100, dtype=np.bool)
 
     def evaluate(self, *args, **kwargs):
         self.fitness = 1
@@ -1752,6 +1756,25 @@ class PopulationTestCase(unittest.TestCase):
                              {'special_init': 'min'})
         self.assertDictEqual(p.call_args_list[2][1],
                              {'special_init': 'current_state'})
+
+    def test_evaluate_population(self):
+        # Get a new population object to avoid state contamination.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Initialize the population with mocked individuals.
+        for _ in range(pop_obj.population_size):
+            pop_obj.population.append(MockIndividual())
+
+        pop_obj.evaluate_population()
+
+        # Ensure all the inidivuals now have a fitness which is not
+        # None.
+        for i in pop_obj.population:
+            self.assertIsNotNone(i.fitness)
+
+    def test_evaluate_population_error(self):
+        with self.assertRaisesRegex(ValueError, 'evaluate_population should '):
+            self.pop_obj.evaluate_population()
 
 
 class MainTestCase(unittest.TestCase):
