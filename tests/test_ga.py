@@ -1770,7 +1770,11 @@ class PopulationTestCase(unittest.TestCase):
 
         pop_obj.evaluate_population()
 
-        # Ensure all the inidivuals now have a fitness which is not
+        # evaluate_population overrides the population, so make sure
+        # we get the same number of individuals back.
+        self.assertEqual(pop_obj.population_size, len(pop_obj.population))
+
+        # Ensure all the individuals now have a fitness which is not
         # None.
         for i in pop_obj.population:
             self.assertIsNotNone(i.fitness)
@@ -1839,6 +1843,7 @@ class PopulationTestCase(unittest.TestCase):
             #
 
     def test_mutate(self):
+        """Test _mutate."""
         # Get a fresh population object.
         pop_obj = self.helper_create_pop_obj()
 

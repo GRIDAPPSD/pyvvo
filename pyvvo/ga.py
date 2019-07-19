@@ -1777,7 +1777,7 @@ class Population:
 
         # Put all eligible individuals in the queue.
         for i in self.population:
-            if i.fitness is not None:
+            if i.fitness is None:
                 self.input_queue.put(i)
 
         # For multiprocessing queues, there can be a slight delay. Avoid
