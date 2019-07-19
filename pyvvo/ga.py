@@ -1704,6 +1704,33 @@ class Population:
         # If we're here, we didn't have any hits.
         return False
 
+    def _mutate(self, ind):
+        """Helper to mutate an individual. If the mutation results in
+        an individual with a chromosome which has already existed,
+        keep mutating.
+
+        :param ind: Individual object to mutate.
+
+        :returns None. The individual is mutated in place.
+        :raises ChromosomeAlreadyExistedError if 100 mutation attempts
+            don't get us an individual which hasn't already existed.
+        """
+        ind.mutate(mut_prob=self.prob_mutate_bit)
+
+        c = 0
+        while self._chrom_already_existed(ind.chromosome) and c < 99:
+            ind.mutate(mut_prob=self.prob_mutate_bit)
+            c += 1
+
+        if c >= 99:
+            raise ChromosomeAlreadyExistedError(
+                'After {} attempted mutations, the individual with uid {} '
+                'failed to create a chromosome which has not yet already '
+                'existed.'.format(c + 1, ind.uid)
+            )
+
+        # All done.
+
     ####################################################################
     # Public methods
     ####################################################################

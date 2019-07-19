@@ -1838,6 +1838,43 @@ class PopulationTestCase(unittest.TestCase):
             #                  len(p.call_args_list[idx][1]['population']))
             #
 
+    def test_mutate(self):
+        # Get a fresh population object.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Create a chromosome.
+        c = np.array([1, 2, 3, 4])
+
+        # Create mock individual.
+        mock_ind = create_autospec(ga.Individual)
+        mock_ind.chromosome = c
+        mock_ind.uid = 0
+
+        # Call mutation.
+        with patch.object(pop_obj, '_chrom_already_existed',
+                          wraps=pop_obj._chrom_already_existed) as p:
+            pop_obj._mutate(mock_ind)
+
+        p.assert_called_once()
+
+        # Now add the chromosome to the record of chromosomes.
+        pop_obj._all_chromosomes = [c.copy()]
+
+        # Since the mock mutate method won't actually do anything, we'll
+        # get an error here.
+        with self.assertRaisesRegex(ga.ChromosomeAlreadyExistedError,
+                                    'attempted mutations, the individual'):
+            pop_obj._mutate(mock_ind)
+
+        # Ensure mutate was called 101 times. Once on the first call to
+        # _mutate, and then 100 times on the second.
+        c = 0
+        for call in mock_ind.mock_calls:
+            if call[0] == 'mutate':
+                c += 1
+
+        self.assertEqual(101, c)
+
 
 class MainTestCase(unittest.TestCase):
     # @classmethod
