@@ -1661,10 +1661,13 @@ class Population:
             # we have a problem.
             if (chrom_override is not None) or (special_init is not None):
                 raise ChromosomeAlreadyExistedError(
-                    'While trying to initialize an individual with chrom_'
-                    'override={} and special_init={}, it was discovered that '
+                    'While trying to initialize an individual with\nchrom_'
+                    'override={} and special_init={},\nit was discovered that '
                     'an individual with an identical chromosome has already '
-                    'existed.')
+                    'existed.'.format(chrom_override, special_init))
+
+            self.log.debug('The chromosome for individual {} had already '
+                           'existed, trying again.'.format(uid))
 
             # Initialize the individual.
             ind = Individual(uid=uid, chrom_override=chrom_override,
@@ -1706,15 +1709,34 @@ class Population:
     ####################################################################
 
     def initialize_population(self):
-        """Initialize and evaluate the first generation. Note this
-        method will not return until the entire population has
-        completed evaluation.
+        """Initialize and the first generation. To keep methods simple
+        and modular, evaluation will not occur.
 
         The population will be seeded with three individuals.
         """
+        if len(self.population) > 0:
+            raise ValueError('initialize_population should only be '
+                             'called when the population is emtpy.')
+
+        # Counter for individuals in the population.
         i = 0
+
         # Seed the population.
-        self.input_queue.put(self._init_individual(special_init='max'))
+        self.population.append(self._init_individual(special_init='max'))
+        self.population.append(self._init_individual(special_init='min'))
+        self.population.append(self._init_individual(
+            special_init='current_state'))
+
+        # We just added three individuals.
+        i += 3
+
+        # Fill the rest of the population with randomly initialized
+        # individuals.
+        while i < self.population_size:
+            self.population.append(self._init_individual())
+            i += 1
+
+        # All done.
 
 
 class ChromosomeAlreadyExistedError(Exception):

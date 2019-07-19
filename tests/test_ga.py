@@ -1526,12 +1526,22 @@ class PopulationTestCase(unittest.TestCase):
             "total_fraction": 0.5,
             "tournament_fraction": 0.2}
 
+        cls.pop_obj = cls.helper_create_pop_obj()
+
+    # noinspection PyUnresolvedReferences
+    @classmethod
+    def helper_create_pop_obj(cls):
+        """Helper to create a population object if we're concerned about
+        altering state.
+        """
         with patch.dict(ga.CONFIG['ga'], cls.ga_config):
-            cls.pop_obj = ga.Population(regulators=cls.regs,
-                                        capacitors=cls.caps,
-                                        glm_mgr=deepcopy(cls.glm_mgr),
-                                        starttime=cls.starttime,
-                                        stoptime=cls.stoptime)
+            pop_obj = ga.Population(regulators=cls.regs,
+                                    capacitors=cls.caps,
+                                    glm_mgr=deepcopy(cls.glm_mgr),
+                                    starttime=cls.starttime,
+                                    stoptime=cls.stoptime)
+
+        return pop_obj
 
     def test_prob_mutate_individual(self):
         self.assertEqual(0.2, self.pop_obj.prob_mutate_individual)
@@ -1667,6 +1677,7 @@ class PopulationTestCase(unittest.TestCase):
         self.assertIsInstance(self.pop_obj.population, list)
 
     def test_chrom_already_existed(self):
+        """Test _chrom_already_existed"""
         # Create a list to patch our population object's all_chromosomes
         # attribute.
         all_chrom = [np.array([1, 2, 3, 4]),
@@ -1685,6 +1696,7 @@ class PopulationTestCase(unittest.TestCase):
                     np.array([1, 2, 5, 6])))
 
     def test_init_individual(self):
+        """Test _init_individual"""
         # Entering this test, there should be no chromosomes in
         # all_chromosomes.
         self.assertEqual(0, len(self.pop_obj.all_chromosomes))
@@ -1711,6 +1723,35 @@ class PopulationTestCase(unittest.TestCase):
 
         # The length of all_chromosomes should still be one.
         self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+
+    def test_initialize_population_error(self):
+        with patch.object(self.pop_obj, '_population', [1, 2, 3]):
+            with self.assertRaisesRegex(ValueError, 'initialize_population'):
+                self.pop_obj.initialize_population()
+
+    def test_initialize_population(self):
+
+        # Get a fresh Population object so we don't mess up state for
+        # other tests.
+        pop_obj = self.helper_create_pop_obj()
+
+        with patch.object(pop_obj, '_init_individual',
+                          wraps=pop_obj._init_individual) as p:
+            pop_obj.initialize_population()
+
+        self.assertEqual(pop_obj.population_size, p.call_count)
+        self.assertEqual(pop_obj.population_size, len(pop_obj.population))
+
+        for i in pop_obj.population:
+            self.assertIsInstance(i, ga.Individual)
+
+        # Check the seeding.
+        self.assertDictEqual(p.call_args_list[0][1],
+                             {'special_init': 'max'})
+        self.assertDictEqual(p.call_args_list[1][1],
+                             {'special_init': 'min'})
+        self.assertDictEqual(p.call_args_list[2][1],
+                             {'special_init': 'current_state'})
 
 
 class MainTestCase(unittest.TestCase):
