@@ -2155,6 +2155,38 @@ class PopulationTestCase(unittest.TestCase):
         p_rand.assert_called_once()
         self.assertEqual(2, p_mutate.call_count)
 
+    def test_asexual_reproduction(self):
+        """Test _asexual_reproduction. This function is quite simple,
+        so really we just need to ensure the right functions are called
+        in the right order.
+        """
+        p1 = create_autospec(ga.Individual)
+        p2 = create_autospec(ga.Individual)
+
+        with patch.object(self.pop_obj, '_init_individual') as p_init:
+            with patch.object(self.pop_obj, '_mutate') as p_mutate:
+                children = self.pop_obj._asexual_reproduction(p1, p2)
+
+        # Start with simple call counts.
+        self.assertEqual(2, p_init.call_count)
+        self.assertEqual(2, p_mutate.call_count)
+
+        # Ensure the first call to _init_individual used p1, and the
+        # second used p2. Start with the chrom_override.
+        self.assertIs(p1.chromosome.copy(),
+                      p_init.call_args_list[0][1]['chrom_override'])
+        self.assertIs(p2.chromosome.copy(),
+                      p_init.call_args_list[1][1]['chrom_override'])
+        # On to special_init.
+        self.assertIsNone(p_init.call_args_list[0][1]['special_init'])
+        self.assertIsNone(p_init.call_args_list[1][1]['special_init'])
+
+        # Two parents in, two children out.
+        self.assertEqual(2, len(children))
+
+        # _mutate should first be called with child1, then child2.
+        self.assertIs(children[0], p_mutate.call_args_list[0][0][0])
+        self.assertIs(children[1], p_mutate.call_args_list[1][0][0])
 
 
 class MainTestCase(unittest.TestCase):

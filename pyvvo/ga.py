@@ -1829,6 +1829,28 @@ class Population:
 
         return children
 
+    def _asexual_reproduction(self, parent1, parent2):
+        """Helper to perform asexual reproduction. Children are mutated
+        versions of their respective parent.
+
+        :param parent1: ga.Individual which will be used to create the
+            first child.
+        :param parent2: ga.Individual which will be used to create the
+            second child.
+        """
+        children = []
+        for p in [parent1, parent2]:
+            # Produce a clone of the parent.
+            child = self._init_individual(chrom_override=p.chromosome.copy(),
+                                          special_init=None)
+            # Mutate the child so that it isn't identical to the parent.
+            self._mutate(child)
+            # Add it to the list.
+            children.append(child)
+
+        # Done.
+        return tuple(children)
+
     ####################################################################
     # Public methods
     ####################################################################
