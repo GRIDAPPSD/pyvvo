@@ -2089,6 +2089,73 @@ class PopulationTestCase(unittest.TestCase):
         self.assertIsInstance(parent2, MockIndividual)
         self.assertIn(parent2, pop_obj.population)
 
+    def test__crossover_and_mutate(self):
+        """Massive test of _crossover_and_mutate."""
+        # Get the initialization configuration so we can override
+        # part of it.
+        # noinspection PyDictCreation
+        config = {**self.ga_config}
+        # Use a population size of 3 so we don't get an error in
+        # initialize_population.
+        config['population_size'] = 3
+        # noinspection PyUnresolvedReferences
+        config['probabilities']['mutate_individual'] = 0.3
+
+        # Create a population object.
+        pop_obj = self.helper_create_pop_obj(ga_dict=config)
+
+        # Initialize the population with real individuals.
+        pop_obj.initialize_population()
+
+        # Grab parents.
+        p1 = pop_obj.population[0]
+        p2 = pop_obj.population[1]
+
+        # Patch the random call, and call _crossover_and_mutate
+        with patch('numpy.random.rand', return_value=np.array([0.2, 0.4])) \
+                as p_rand:
+            # Patch calls to _mutate so we can count how many times it's
+            # called.
+            with patch.object(pop_obj, '_mutate', wraps=pop_obj._mutate) \
+                    as p_mutate:
+                children = pop_obj._crossover_and_mutate(p1, p2)
+
+        # We only do one random draw here.
+        p_rand.assert_called_once()
+
+        # _mutate should only have been called once. Note that this is
+        # a little on the fragile side, as there is a chance it gets
+        # called twice if the crossover resulted in a non-unique
+        # individual. If this starts failing, consider changing the
+        # random seed.
+        p_mutate.assert_called_once()
+
+        # Ensure we're getting individuals back and that they are
+        # different than their parents.
+        for c in children:
+            self.assertIsInstance(c, ga.Individual)
+            np.testing.assert_raises(AssertionError,
+                                     np.testing.assert_array_equal,
+                                     p1.chromosome,
+                                     c.chromosome)
+            np.testing.assert_raises(AssertionError,
+                                     np.testing.assert_array_equal,
+                                     p2.chromosome,
+                                     c.chromosome)
+
+        # Incest should result in forced mutations, as the children
+        # would otherwise be identical to the parents. Genetic algorithm
+        # jokes/irony, nice.
+        with patch('numpy.random.rand', return_value=np.array([0.4, 0.4])) \
+                as p_rand:
+            with patch.object(pop_obj, '_mutate', wraps=pop_obj._mutate) \
+                    as p_mutate:
+                pop_obj._crossover_and_mutate(p1, p1)
+
+        p_rand.assert_called_once()
+        self.assertEqual(2, p_mutate.call_count)
+
+
 
 class MainTestCase(unittest.TestCase):
     """Test the 'main' method in ga.py."""

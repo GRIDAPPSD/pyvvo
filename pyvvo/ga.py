@@ -1792,6 +1792,43 @@ class Population:
 
         # All done.
 
+    def _crossover_and_mutate(self, parent1, parent2):
+        """Given two parents, perform crossover to create children, and
+        possibly mutate them. This is a helper for part of the
+        crossover_and_mutate method.
+
+        :returns child1, child2: Resultant children from the crossover
+            and possible mutation.
+        """
+        # Create children via crossover.
+        children = \
+            parent1.crossover_by_gene(other=parent2,
+                                      uid1=next(self.uid_counter),
+                                      uid2=next(self.uid_counter))
+
+        # Draw two random numbers and compare to the mutation
+        # probability to see if each of the children will be mutated.
+        m = np.random.rand(2) < self.prob_mutate_individual
+
+        # Possibly mutate each child. If we're not mutating but their
+        # chromosome has already existed, force mutation.
+        for tf, ind in zip(m, children):
+            # While it may look like this if/else should be one
+            # if statement with an "or," the way it's written
+            # now avoids an extra call to _chrom_already_existed
+            # in some cases, which is good, because that can be
+            # expensive.
+            if tf:
+                # Perform the mutation.
+                self._mutate(ind=ind)
+            elif self._chrom_already_existed(ind.chromosome):
+                # Force mutation if this individual isn't unique.
+                # This keeps the logic simpler than excluding the
+                # child.
+                self._mutate(ind=ind)
+
+        return children
+
     ####################################################################
     # Public methods
     ####################################################################
