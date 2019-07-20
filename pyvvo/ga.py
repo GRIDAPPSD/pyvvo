@@ -1806,6 +1806,11 @@ class Population:
             raise ValueError('initialize_population should only be '
                              'called when the population is emtpy.')
 
+        if self.population_size < 3:
+            raise ValueError('initialize_population seeds the population '
+                             'with 3 individuals, thus we must always have '
+                             'a population_size of at least 3.')
+
         # Counter for individuals in the population.
         i = 0
 

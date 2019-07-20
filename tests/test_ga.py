@@ -1802,10 +1802,23 @@ class PopulationTestCase(unittest.TestCase):
         # However, it should be a copy.
         self.assertIsNot(mock_ind.chromosome, pop_obj.all_chromosomes[0])
 
-    def test_initialize_population_error(self):
+    def test_initialize_population_error_1(self):
         with patch.object(self.pop_obj, '_population', [1, 2, 3]):
             with self.assertRaisesRegex(ValueError, 'initialize_population'):
                 self.pop_obj.initialize_population()
+
+    def test_initialize_population_error_2(self):
+        # Get the initialization configuration so we can override
+        # part of it.
+        # noinspection PyDictCreation
+        config = {**self.ga_config}
+        config['population_size'] = 2
+
+        # Get population object.
+        pop_obj = self.helper_create_pop_obj(ga_dict=config)
+
+        with self.assertRaisesRegex(ValueError, 'seeds the population with 3'):
+            pop_obj.initialize_population()
 
     def test_initialize_population(self):
 
