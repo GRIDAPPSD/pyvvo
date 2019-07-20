@@ -1039,7 +1039,15 @@ class _Evaluator:
         result = utils.run_gld(model)
 
         # Clean up the model file - it's no longer needed.
-        os.remove(model)
+        try:
+            os.remove(model)
+        except FileNotFoundError:
+            # We don't want everything to come crashing down if we
+            # can't find the model. This happens in testing when we
+            # patch things. The testing case can be worked around, but
+            # it's compelling to add this safety net for a non-critical
+            # procedure.
+            pass
 
         # TODO: Best way to handle failed runs? Maybe make costs
         #  infinite? Make sure to add logging.
