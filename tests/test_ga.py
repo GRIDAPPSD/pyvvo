@@ -1766,9 +1766,10 @@ class PopulationTestCase(unittest.TestCase):
         self.assertDictEqual(p.call_args_list[2][1],
                              {'special_init': 'current_state'})
 
-    def test_evaluate_population(self):
-        self.assertTrue(False, 'Need to make this test better or add another!')
-
+    def test_evaluate_population_simple(self):
+        """Given a population with no evaluated individuals, ensure
+        successful evaluation.
+        """
         # Get a new population object to avoid state contamination.
         pop_obj = self.helper_create_pop_obj()
 
@@ -1778,12 +1779,58 @@ class PopulationTestCase(unittest.TestCase):
 
         pop_obj.evaluate_population()
 
-        # evaluate_population overrides the population, so make sure
-        # we get the same number of individuals back.
+        # evaluate_population overrides the part of the population which
+        # has not yet been evaluated, so make sure we get the same
+        # number of individuals back.
         self.assertEqual(pop_obj.population_size, len(pop_obj.population))
 
         # Ensure all the individuals now have a fitness which is not
         # None.
+        for i in pop_obj.population:
+            self.assertIsNotNone(i.fitness)
+
+    def test_evaluate_population_partial_evaluation(self):
+        """Given a population with some evaluated individuals and some
+        not evaluated individuals, ensure the function behaves
+        correctly.
+        """
+        # Get a new population object to avoid state contamination.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Override the population size.
+        pop_obj._population_size = 5
+
+        # Hand make 5 mock individuals.
+        ind0 = MockIndividual()
+        ind1 = MockIndividual()
+        ind2 = MockIndividual()
+        ind3 = MockIndividual()
+        ind4 = MockIndividual()
+
+        # Set fitness values for ind1 and ind3, leaving the rest None.
+        ind1.fitness = 7
+        ind3.fitness = 2
+
+        # Put all these individuals in the population.
+        pop_obj._population = [ind0, ind1, ind2, ind3, ind4]
+
+        # Run the evaluation.
+        pop_obj.evaluate_population()
+
+        # We should have 5 members still.
+        self.assertEqual(5, len(pop_obj.population))
+
+        # ind1 and ind3 should not have been evaluated. Thus they
+        # should be in positions 0 and 1.
+        self.assertIs(ind1, pop_obj.population[0])
+        self.assertIs(ind3, pop_obj.population[1])
+
+        # Due to the pickling that occurs in multiprocessing, the rest
+        # of the individuals should not be present.
+        for i in [ind0, ind2, ind4]:
+            self.assertNotIn(i, pop_obj.population)
+
+        # All the individuals should have a fitness which is not None.
         for i in pop_obj.population:
             self.assertIsNotNone(i.fitness)
 
