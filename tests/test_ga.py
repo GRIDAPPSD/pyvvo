@@ -1,11 +1,12 @@
 import unittest
-from unittest.mock import patch, create_autospec, MagicMock
+from unittest.mock import patch, create_autospec
 import os
 from datetime import datetime
 from copy import deepcopy
 import multiprocessing as mp
 import threading
 from time import sleep
+import itertools
 
 import tests.data_files as _df
 from tests.models import IEEE_8500, IEEE_9500, IEEE_13
@@ -2014,7 +2015,59 @@ class PopulationTestCase(unittest.TestCase):
         self.assertEqual(101, c)
 
     def test_crossover_and_mutate(self):
-        self.assertTrue(False)
+        """Test crossover_and_mutate. The pieces of this function have
+        been factored to use helper functions, so get ready for plenty
+        of mocking.
+        """
+        # Get the initialization configuration so we can override
+        # part of it.
+        # noinspection PyDictCreation
+        config = {**self.ga_config}
+        # Use a population size of 10.
+        config['population_size'] = 10
+        # Patch the probaility of crossover.
+        # noinspection PyUnresolvedReferences
+        config['probabilities']['crossover'] = 0.2
+
+        # Get a population object.
+        pop_obj = self.helper_create_pop_obj(ga_dict=config)
+
+        # Give us a half-full population. Just use numbers for
+        # simplicity.
+        pop_obj._population = [1, 2, 3, 4, 5]
+
+        # We'll be patching np.random.rand with a simple counter.
+        counter = itertools.count(start=0.1, step=0.1)
+
+        # Begin the patching bonanza!
+        with patch('numpy.random.rand', wraps=counter.__next__) as p_rand:
+            with patch.object(pop_obj, '_get_two_parents',
+                              return_value=[8, 9]) as p_parents:
+                with patch.object(pop_obj, '_crossover_and_mutate',
+                                  return_value=[1, 2]) as p_cm:
+                    with patch.object(pop_obj, '_asexual_reproduction',
+                                      return_value=[3, 4]) as p_ar:
+                        pop_obj.crossover_and_mutate()
+
+        # Assertion time.
+        # For starters, the random function should be called three times
+        # since we need to replace 5 individuals and each loop creates
+        # two.
+        self.assertEqual(3, p_rand.call_count)
+        # Same goes for _get_two_parents.
+        self.assertEqual(3, p_parents.call_count)
+
+        # Since we made the crossover probability 0.2 and we patched the
+        # random call with a counter with a step of 0.1, we can expect
+        # _crossover_and_mutate to be called once, and
+        # _asexual_reproduction to be called twice.
+        self.assertEqual(1, p_cm.call_count)
+        self.assertEqual(2, p_ar.call_count)
+
+        # Finally, ensure the truncation worked correctly. Three loops
+        # would result in 6 individuals, but we only want to keep 5 so
+        # that the population is the correct size.
+        self.assertEqual(10, len(pop_obj.population))
 
     def test_sort_population_simple(self):
         """Test sort_population."""

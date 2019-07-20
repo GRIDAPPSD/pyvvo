@@ -1974,51 +1974,18 @@ class Population:
 
         while len(self.population) + len(offspring) < self.population_size:
             # Get two parents from a tournament.
-            winners = _tournament(population=self.population,
-                                  tournament_size=self.tournament_size, n=2)
-            parent1 = self.population[winners[0]]
-            parent2 = self.population[winners[1]]
+            parent1, parent2 = self._get_two_parents()
 
             # Perform crossover with some probability.
             if np.random.rand() < self.prob_crossover:
-                child1, child2 = \
-                    parent1.crossover_by_gene(other=parent2,
-                                              uid1=next(self.uid_counter),
-                                              uid2=next(self.uid_counter))
-
-                # Possibly mutate these individuals.
-                m = np.random.rand(2) < self.prob_mutate_individual
-
-                for tf, ind in [(m[0], child1), (m[1], child2)]:
-                    # While it may look like this if/else should be one
-                    # if statement with an "or," the way it's written
-                    # now avoids an extra call to _chrom_already_existed
-                    # in some cases, which is good, because that can be
-                    # expensive.
-                    if tf:
-                        self._mutate(ind=ind)
-                    elif self._chrom_already_existed(ind.chromosome):
-                        # Force mutation if this individual isn't unique.
-                        # This keeps the logic simpler than excluding the
-                        # child.
-                        self._mutate(ind=ind)
-
+                # Call the _crossover_and_mutate helper.
+                children = self._crossover_and_mutate(parent1, parent2)
             else:
-                children = []
-                for p in [parent1, parent2]:
-                    children.append(self._init_individual(
-                        chrom_override=p.chromosome.copy(),
-                        special_init=None))
-
-                # Unpack the list of children.
-                child1, child2 = children
-
-                # Mutate.
-                self._mutate(child1)
-                self._mutate(child2)
+                # Get mutated versions of the parents.
+                children = self._asexual_reproduction(parent1, parent2)
 
             # Add the children to the list of offspring.
-            offspring.extend([child1, child2])
+            offspring.extend(children)
 
         # While this could waste some effort, we want to keep our
         # population at the correct size to avoid any surprises. Call
@@ -2026,11 +1993,8 @@ class Population:
         if len(self.population) + len(offspring) > self.population_size:
             offspring = offspring[0:-1]
 
-        # Merge the population into the population.
+        # Merge the offspring into the population.
         self._population.extend(offspring)
-
-        # TODO: Remove this assert statement when test is in place.
-        assert len(self.population) == self.population_size
 
         # All done.
 
