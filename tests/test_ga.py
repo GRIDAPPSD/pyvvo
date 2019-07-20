@@ -1708,34 +1708,99 @@ class PopulationTestCase(unittest.TestCase):
                     np.array([1, 2, 5, 6])))
 
     def test_init_individual(self):
-        """Test _init_individual"""
-        self.assertTrue(False, "Need to upgrade this test or add a new one!")
+        """Large, relatively comprehensive test of _init_individual"""
+        # Get fresh population object so we don't contaminate state.
+        pop_obj = self.helper_create_pop_obj()
+
         # Entering this test, there should be no chromosomes in
         # all_chromosomes.
-        self.assertEqual(0, len(self.pop_obj.all_chromosomes))
+        self.assertEqual(0, len(pop_obj.all_chromosomes))
 
         # Initialize one.
-        ind = self.pop_obj._init_individual(special_init='max')
+        ind = pop_obj._init_individual(special_init='max')
         self.assertIsInstance(ind, ga.Individual)
-        for key, value in self.pop_obj.ind_init.items():
+        for key, value in pop_obj.ind_init.items():
             self.assertEqual(value, getattr(ind, key))
 
         # The length of all_chromosomes should now be one.
-        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+        self.assertEqual(1, len(pop_obj.all_chromosomes))
+
+        # The chromosome should be the same as that of our ind.
+        np.testing.assert_array_equal(ind.chromosome,
+                                      pop_obj.all_chromosomes[0])
+
+        # However, it should be a copy.
+        self.assertIsNot(ind.chromosome, pop_obj.all_chromosomes[0])
 
         # Initialize another, ensuring we get an exception.
         with self.assertRaises(ga.ChromosomeAlreadyExistedError):
-            self.pop_obj._init_individual(special_init='max')
+            pop_obj._init_individual(special_init='max')
 
         # The length of all_chromosomes should still be one.
-        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+        self.assertEqual(1, len(pop_obj.all_chromosomes))
 
-        # Initialize another, ensuring we get an exception.
-        with self.assertRaises(ga.ChromosomeAlreadyExistedError):
-            self.pop_obj._init_individual(chrom_override=ind.chromosome.copy())
+        # Now, we should be able to alternatively initialize an
+        # individual with a chrom_override even if it's chromosome is
+        # already in the master list.
+
+        new_ind = pop_obj._init_individual(
+            chrom_override=ind.chromosome.copy())
 
         # The length of all_chromosomes should still be one.
-        self.assertEqual(1, len(self.pop_obj.all_chromosomes))
+        self.assertEqual(1, len(pop_obj.all_chromosomes))
+
+        # This individual should have an identical chromosome to our
+        # original.
+        np.testing.assert_array_equal(ind.chromosome, new_ind.chromosome)
+
+        # Finally, we should be able to create a new individual with a
+        # chromosome override and have it tracked.
+        c = ind.chromosome.copy()
+        # Flip the first bit.
+        c[0] = 1 - c[0]
+        pop_obj._init_individual(chrom_override=c)
+
+        self.assertEqual(2, len(pop_obj.all_chromosomes))
+
+        np.testing.assert_array_equal(c, pop_obj.all_chromosomes[1])
+
+    def test_init_individual_loop_limit(self):
+        """Ensure we don't loop forever in _init_individual."""
+        # Get fresh population object so we don't contaminate state.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Mock up an individual.
+        mock_ind = create_autospec(ga.Individual)
+        mock_ind.chromosome = np.array([0, 1, 0, 1], dtype=np.bool)
+
+        # Ensure everytime we ask for an individual we get the same
+        # one.
+        with patch('pyvvo.ga.Individual', return_value=mock_ind) as p:
+            # First creation should be successful.
+            i1 = pop_obj._init_individual()
+
+            # Second should fail.
+            with self.assertRaisesRegex(ga.ChromosomeAlreadyExistedError,
+                                        'After 100 attempts, we failed to'):
+                pop_obj._init_individual()
+
+        # Including our first initialization, we should have attempted
+        # to create 101 individuals.
+        self.assertEqual(101, p.call_count)
+
+        # Really just a safety net to ensure our patch worked.
+        self.assertIs(mock_ind, i1)
+
+        # There should be a single chromosome in the tracker.
+        self.assertEqual(1, len(pop_obj.all_chromosomes))
+
+        # The first element should be equal to our mock_ind's
+        # chromosome.
+        np.testing.assert_array_equal(mock_ind.chromosome,
+                                      pop_obj.all_chromosomes[0])
+
+        # However, it should be a copy.
+        self.assertIsNot(mock_ind.chromosome, pop_obj.all_chromosomes[0])
 
     def test_initialize_population_error(self):
         with patch.object(self.pop_obj, '_population', [1, 2, 3]):

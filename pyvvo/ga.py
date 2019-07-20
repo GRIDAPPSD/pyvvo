@@ -1658,61 +1658,72 @@ class Population:
     def _init_individual(self, chrom_override=None, special_init=None):
         """Helper method to initialize an individual.
 
-        :param chrom_override: chrom_override input for Individual
-            class.
-        :param special_init: special_init input for Individual class.
+        :param chrom_override: chrom_override input for Individual.
+        :param special_init: special_init input for Individual.
 
         :raises ChromosomeAlreadyExistedError if special_init is not
             None but the resulting individual's chromosome is identical
             to one which has already existed. IMPORTANT NOTE: This
             behavior is not true for chrom_override. It is assumed that
             if the caller is overriding the chromosome they know what
-            they're doing. At the time of writing, this case is only
-            used by crossover_and_mutate.
+            they're doing. At the time of writing, this case of using
+            chrom_override is only used by crossover_and_mutate.
         """
         # Initialize the individual.
         uid = next(self.uid_counter)
         ind = Individual(uid=uid, chrom_override=chrom_override,
                          special_init=special_init, **self.ind_init)
 
-        # Evaluating our individuals will almost always be more
-        # expensive than checking if they existed. If this becomes a
-        # serious burden, we should consider refactoring to put this in
-        # the parallel workers.
-        c = 0
-        while (chrom_override is None) \
-                and self._chrom_already_existed(ind.chromosome):
-            # If we were given special initialization, we have a
-            # problem.
-            if special_init is not None:
-                raise ChromosomeAlreadyExistedError(
-                    'While trying to initialize an individual with\nchrom_'
-                    'override={} and special_init={},\nit was discovered that '
-                    'an individual with an identical chromosome has already '
-                    'existed.'.format(chrom_override, special_init))
+        # If not given a chrom_override, we need to ensure this
+        # Individual does not have a chromosome which has already been
+        # present in the past.
+        if chrom_override is None:
+            # Evaluating our individuals will almost always be more
+            # expensive than checking if they existed. If this becomes a
+            # serious burden, we should consider refactoring to put this in
+            # the parallel workers.
+            c = 0
+            while self._chrom_already_existed(ind.chromosome):
+                # If we were given special initialization, we have a
+                # problem.
+                if special_init is not None:
+                    raise ChromosomeAlreadyExistedError(
+                        'While trying to initialize an individual with\nchrom_'
+                        'override={} and special_init={},\nit was discovered '
+                        'that an individual with an identical chromosome has '
+                        'already existed.'.format(chrom_override,
+                                                  special_init))
 
-            # Raise a ValueError if we've tried too many times. Putting
-            # this in the loop as it'll get checked less in the long
-            # run than if it were outside the loop.
-            if c == 99:
-                raise ChromosomeAlreadyExistedError(
-                    'After 100 attempts, we failed to initialize an individual'
-                    ' with a chromosome that had not already existed. UID : {}'
-                    .format(uid))
+                # Raise a ValueError if we've tried too many times. Putting
+                # this in the loop as it'll get checked less in the long
+                # run than if it were outside the loop.
+                if c >= 99:
+                    raise ChromosomeAlreadyExistedError(
+                        'After 100 attempts, we failed to initialize an '
+                        'individual with a chromosome that had not already '
+                        'existed. UID : {}'.format(uid))
 
-            self.log.debug('The chromosome for individual {} had already '
-                           'existed, trying again.'.format(uid))
+                self.log.debug('The chromosome for individual {} had already '
+                               'existed, trying again.'.format(uid))
 
-            # Initialize the individual.
-            ind = Individual(uid=uid, chrom_override=chrom_override,
-                             special_init=special_init, **self.ind_init)
+                # Initialize the individual.
+                ind = Individual(uid=uid, chrom_override=chrom_override,
+                                 special_init=special_init, **self.ind_init)
 
-            c += 1
+                c += 1
 
-        # Track its chromosome.
-        self.all_chromosomes.append(ind.chromosome.copy())
+            # At this point, we've successfully initialized a unique
+            # individual. Track its chromosome.
+            self._all_chromosomes.append(ind.chromosome.copy())
+        else:
+            # In the case of a non-None chrom_override, only track the
+            # chromosome if it's unique. Since it's expensive to search
+            # through the all_chromosomes list, we don't want
+            # duplicates.
+            if not self._chrom_already_existed(ind.chromosome):
+                self._all_chromosomes.append(ind.chromosome.copy())
 
-        # Return.
+        # All done - return our new individual.
         return ind
 
     def _chrom_already_existed(self, c):
