@@ -888,9 +888,12 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         # The actual 'update_reg_taps' method is tested elsewhere, so
         # no need to actually look up the objects and confirm.
         self.assertEqual(3, p.call_count)
-        p.assert_called_with(ga._cim_to_glm_name(prefix=ga.REG_PREFIX,
-                                                 cim_name='FEEDER_REG'),
-                             {'A': 16, 'B': 16, 'C': 16})
+        self.assertEqual(('"reg_feeder_reg1a"', {'A': 16}),
+                         p.call_args_list[0][0])
+        self.assertEqual(('"reg_feeder_reg1b"', {'B': 16}),
+                         p.call_args_list[1][0])
+        self.assertEqual(('"reg_feeder_reg1c"', {'C': 16}),
+                         p.call_args_list[2][0])
 
     def test_update_cap(self):
         """Test _update_cap"""
@@ -1369,6 +1372,8 @@ class EvaluateWorkerTestCase(unittest.TestCase):
         ind_out = output_queue.get_nowait()
 
         self.assertEqual(ind_out.fitness, 1)
+        self.assertIn('time', log_out)
+        log_out.pop('time')
         self.assertDictEqual({'uid': 1, 'fitness': 1,
                               'penalties': {'p1': 10, 'p2': 30, 'p3': 0.1}},
                              log_out)
