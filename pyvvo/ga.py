@@ -1961,7 +1961,14 @@ class Population:
         is called, the individual with the lowest fitness (the best)
         will be in position 0.
         """
-        self._population.sort(key=operator.attrgetter('fitness'))
+        try:
+            self._population.sort(key=operator.attrgetter('fitness'))
+        except TypeError:
+            s = ('While attempting to sort the population, a TypeError '
+                 'occurred. This likely means there is an individual '
+                 'with a fitness of None, which cannot be sorted. Ensure '
+                 'all individuals have been evaluated, and try again.')
+            raise TypeError(s) from None
 
 
 class ChromosomeAlreadyExistedError(Exception):

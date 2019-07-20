@@ -2003,8 +2003,49 @@ class PopulationTestCase(unittest.TestCase):
     def test_crossover_and_mutate(self):
         self.assertTrue(False)
 
-    def test_sort_population(self):
-        self.assertTrue(False)
+    def test_sort_population_simple(self):
+        """Test sort_population."""
+        # Get a population object to which we can add individuals to
+        # without messing up state for other tests.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Create a few mock individuals.
+        ind1 = MockIndividual()
+        ind2 = MockIndividual()
+        ind3 = MockIndividual()
+        ind4 = MockIndividual()
+
+        # Set their fitnesses.
+        ind1.fitness = 10
+        ind2.fitness = 7
+        ind3.fitness = np.inf
+        ind4.fitness = 2
+
+        # Put them in the population.
+        pop_obj._population = [ind1, ind2, ind3, ind4]
+
+        # Sort.
+        pop_obj.sort_population()
+
+        self.assertIs(pop_obj.population[0], ind4)
+        self.assertIs(pop_obj.population[1], ind2)
+        self.assertIs(pop_obj.population[2], ind1)
+        self.assertIs(pop_obj.population[3], ind3)
+
+    def test_sort_population_with_Nones(self):
+        pop_obj = self.helper_create_pop_obj()
+
+        # Create a few mock individuals.
+        ind1 = MockIndividual()
+        ind2 = MockIndividual()
+
+        ind1.fitness = 1
+        ind2.fitness = None
+
+        pop_obj._population = [ind1, ind2]
+
+        with self.assertRaisesRegex(TypeError, 'While attempting to sort the'):
+            pop_obj.sort_population()
 
 
 class MainTestCase(unittest.TestCase):
