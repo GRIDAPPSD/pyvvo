@@ -1751,6 +1751,20 @@ class Population:
         # If we're here, we didn't have any hits.
         return False
 
+    def _get_two_parents(self):
+        """Simple helper to get two parents via a tournament for
+        crossover and/or mutation.
+
+        :returns parent1, parent2. Both are Individuals from the
+        population.
+        """
+        # Get two parent indices via a tournament.
+        parents = _tournament(population=self.population,
+                              tournament_size=self.tournament_size,
+                              n=2)
+        # Return the parents from the population.
+        return self.population[parents[0]], self.population[parents[1]]
+
     def _mutate(self, ind):
         """Helper to mutate an individual. If the mutation results in
         an individual with a chromosome which has already existed,

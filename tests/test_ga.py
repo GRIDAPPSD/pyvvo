@@ -2047,6 +2047,35 @@ class PopulationTestCase(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'While attempting to sort the'):
             pop_obj.sort_population()
 
+    def test_get_two_parents(self):
+        """Test _get_two_parents."""
+        # Get population object
+        pop_obj = self.helper_create_pop_obj()
+
+        # Put some mock individuals in the population.
+        for k in range(pop_obj.population_size):
+            pop_obj._population.append(MockIndividual())
+
+        # Loop over the population and assign random fitness values.
+        for i in pop_obj.population:
+            i.fitness = np.random.rand()
+
+        # Patch the call to tournament so we can ensure it's being
+        # called correctly.
+        with patch('pyvvo.ga._tournament', wraps=ga._tournament) as p:
+            parent1, parent2 = pop_obj._get_two_parents()
+
+        p.assert_called_once()
+        p.assert_called_with(population=pop_obj.population,
+                             tournament_size=pop_obj.tournament_size,
+                             n=2)
+
+        self.assertIsInstance(parent1, MockIndividual)
+        self.assertIn(parent1, pop_obj.population)
+
+        self.assertIsInstance(parent2, MockIndividual)
+        self.assertIn(parent2, pop_obj.population)
+
 
 class MainTestCase(unittest.TestCase):
     """Test the 'main' method in ga.py."""
@@ -2080,9 +2109,9 @@ class MainTestCase(unittest.TestCase):
                                                  dtype=int)
 
     def test_one(self):
-        ga.main(regulators=self.regs, capacitors=self.caps,
-                glm_mgr=self.glm_mgr, starttime=self.starttime,
-                stoptime=self.stoptime)
+        # ga.main(regulators=self.regs, capacitors=self.caps,
+        #         glm_mgr=self.glm_mgr, starttime=self.starttime,
+        #         stoptime=self.stoptime)
         self.assertTrue(False)
 
 
