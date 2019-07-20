@@ -7,15 +7,19 @@
   },
   "ga": {
     "probabilities": {
-      "mutate": 0.05,
+      "mutate_individual": 0.2,
+      "mutate_bit": 0.05,
       "crossover": 0.7
     },
     "intervals": {
       "sample": 5,
       "minimum_timestep": 1
     },
-    "individuals": 100,
-    "generations": 10
+    "population_size": 28,
+    "generations": 3,
+    "top_fraction": 0.1,
+    "total_fraction": 0.5,
+    "tournament_fraction": 0.2
   },
   "limits": {
     "voltage_high": 1.05,

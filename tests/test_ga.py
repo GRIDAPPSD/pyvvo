@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, create_autospec, Mock
+from unittest.mock import patch, create_autospec, MagicMock
 import os
 from datetime import datetime
 from copy import deepcopy
@@ -1704,6 +1704,7 @@ class PopulationTestCase(unittest.TestCase):
 
     def test_init_individual(self):
         """Test _init_individual"""
+        self.assertTrue(False, "Need to upgrade this test or add a new one!")
         # Entering this test, there should be no chromosomes in
         # all_chromosomes.
         self.assertEqual(0, len(self.pop_obj.all_chromosomes))
@@ -1761,6 +1762,8 @@ class PopulationTestCase(unittest.TestCase):
                              {'special_init': 'current_state'})
 
     def test_evaluate_population(self):
+        self.assertTrue(False, 'Need to make this test better or add another!')
+
         # Get a new population object to avoid state contamination.
         pop_obj = self.helper_create_pop_obj()
 
@@ -1880,13 +1883,48 @@ class PopulationTestCase(unittest.TestCase):
 
         self.assertEqual(101, c)
 
+    def test_crossover_and_mutate(self):
+        self.assertTrue(False)
+
+    def test_sort_population(self):
+        self.assertTrue(False)
+
 
 class MainTestCase(unittest.TestCase):
-    # @classmethod
-    # def setUpClass(cls):
-    #
+    """Test the 'main' method in ga.py."""
+
+    @classmethod
+    def setUpClass(cls):
+        # TODO: Change from 8500 node model to 9500 node model.
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        # 20 second model runtime.
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
+
+        # Get regulators and capacitors.
+        # TODO: update to 9500 node
+        reg_df = pd.read_csv(_df.REGULATORS_8500)
+        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
+
+        # It seems we don't have a way of getting capacitor state from
+        # the CIM (which is where those DataFrames originate from). So,
+        # let's randomly command each capacitor.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = np.random.randint(low=0, high=2, size=None,
+                                            dtype=int)
+            elif isinstance(c, dict):
+                for cc in c.values():
+                    cc.state = np.random.randint(low=0, high=2, size=None,
+                                                 dtype=int)
 
     def test_one(self):
+        ga.main(regulators=self.regs, capacitors=self.caps,
+                glm_mgr=self.glm_mgr, starttime=self.starttime,
+                stoptime=self.stoptime)
         self.assertTrue(False)
 
 

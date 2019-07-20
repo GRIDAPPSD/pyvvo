@@ -520,8 +520,12 @@ class Individual:
         self._penalties = None
 
     def __repr__(self):
-        return 'ga.Individual, UID: {}, Fitness: {:.2f}'.format(self.uid,
-                                                                self.fitness)
+        if self.fitness is None:
+            f_str = 'None'
+        else:
+            f_str = '{:.2f}'.format(self.fitness)
+
+        return 'ga.Individual, UID: {}, Fitness: {}'.format(self.uid, f_str)
 
     @property
     def uid(self):
@@ -1033,6 +1037,9 @@ class _Evaluator:
 
         # Run it.
         result = utils.run_gld(model)
+
+        # Clean up the model file - it's no longer needed.
+        os.remove(model)
 
         # TODO: Best way to handle failed runs? Maybe make costs
         #  infinite? Make sure to add logging.
@@ -1646,6 +1653,14 @@ class Population:
         :param chrom_override: chrom_override input for Individual
             class.
         :param special_init: special_init input for Individual class.
+
+        :raises ChromosomeAlreadyExistedError if special_init is not
+            None but the resulting individual's chromosome is identical
+            to one which has already existed. IMPORTANT NOTE: This
+            behavior is not true for chrom_override. It is assumed that
+            if the caller is overriding the chromosome they know what
+            they're doing. At the time of writing, this case is only
+            used by crossover_and_mutate.
         """
         # Initialize the individual.
         uid = next(self.uid_counter)
@@ -1656,15 +1671,26 @@ class Population:
         # expensive than checking if they existed. If this becomes a
         # serious burden, we should consider refactoring to put this in
         # the parallel workers.
-        while self._chrom_already_existed(ind.chromosome):
-            # If we were given an override or a special initialization,
-            # we have a problem.
-            if (chrom_override is not None) or (special_init is not None):
+        c = 0
+        while (chrom_override is None) \
+                and self._chrom_already_existed(ind.chromosome):
+            # If we were given special initialization, we have a
+            # problem.
+            if special_init is not None:
                 raise ChromosomeAlreadyExistedError(
                     'While trying to initialize an individual with\nchrom_'
                     'override={} and special_init={},\nit was discovered that '
                     'an individual with an identical chromosome has already '
                     'existed.'.format(chrom_override, special_init))
+
+            # Raise a ValueError if we've tried too many times. Putting
+            # this in the loop as it'll get checked less in the long
+            # run than if it were outside the loop.
+            if c == 99:
+                raise ChromosomeAlreadyExistedError(
+                    'After 100 attempts, we failed to initialize an individual'
+                    ' with a chromosome that had not already existed. UID : {}'
+                    .format(uid))
 
             self.log.debug('The chromosome for individual {} had already '
                            'existed, trying again.'.format(uid))
@@ -1672,6 +1698,8 @@ class Population:
             # Initialize the individual.
             ind = Individual(uid=uid, chrom_override=chrom_override,
                              special_init=special_init, **self.ind_init)
+
+            c += 1
 
         # Track its chromosome.
         self.all_chromosomes.append(ind.chromosome.copy())
@@ -1768,36 +1796,56 @@ class Population:
     def evaluate_population(self):
         """Evaluate all individuals in the population who haven't yet
         been evaluated. NOTE: This can take a while, depending on the
-        model, etcl.
+        model, etc.
         """
         # Throw an error if we're trying to evaluate when we can't.
         if len(self.population) != self.population_size:
             raise ValueError('evaluate_population should only be '
                              'called when the population is full.')
 
+        # Initialize list of indices for individuals we're evaluating.
+        idx = []
+
         # Put all eligible individuals in the queue.
-        for i in self.population:
-            if i.fitness is None:
-                self.input_queue.put(i)
+        for i in range(self.population_size):
+            if self.population[i].fitness is None:
+                # Put this individual in the queue.
+                self.input_queue.put(self.population[i])
+                # Track its index - we need to remove it from the
+                # population since we'll be retrieving the evaluated
+                # version later.
+                idx.append(i)
+
+        # Make a new version of the population sans the individuals
+        # who are currently being evaluated.
+        self._population = [self.population[i]
+                            for i in range(self.population_size)
+                            if i not in idx]
 
         # For multiprocessing queues, there can be a slight delay. Avoid
-        # it by sleeping.
-        time.sleep(0.1)
+        # it by sleeping. This is probably unnecessary, but safety
+        # first.
+        time.sleep(0.05)
 
         # Wait for processing to finish.
         self.input_queue.join()
 
-        # Clear our population - we'll be retrieving the individuals
-        # from the output queue.
-        self._population = []
+        # Get list to dump individuals in.
+        evaluated_individuals = []
 
-        # Dump the output queue into population.
-        _dump_queue(q=self.output_queue, i=self.population)
+        # Dump the output queue into new list.
+        _dump_queue(q=self.output_queue, i=evaluated_individuals)
+
+        # Put the individuals back in the population (recall we popped
+        # them from the list earlier).
+        self._population.extend(evaluated_individuals)
+
+        # All done.
 
     def natural_selection(self):
         """Trim the population via both elitism and tournaments."""
         # Sort the population in place.
-        self._population.sort(key=operator.attrgetter('fitness'))
+        self.sort_population()
         # Perform natural selection. Start by keeping the top fraction.
         new_population = self.population[0:self.top_keep]
         self._population = self._population[self.top_keep:]
@@ -1821,6 +1869,80 @@ class Population:
         self._population = new_population
 
         # Done.
+
+    def crossover_and_mutate(self):
+        """Replenish the population via crossover and mutation."""
+        # Initialize list to hold offspring.
+        offspring = []
+
+        while len(self.population) + len(offspring) < self.population_size:
+            # Get two parents from a tournament.
+            winners = _tournament(population=self.population,
+                                  tournament_size=self.tournament_size, n=2)
+            parent1 = self.population[winners[0]]
+            parent2 = self.population[winners[1]]
+
+            # Perform crossover with some probability.
+            if np.random.rand() < self.prob_crossover:
+                child1, child2 = \
+                    parent1.crossover_by_gene(other=parent2,
+                                              uid1=next(self.uid_counter),
+                                              uid2=next(self.uid_counter))
+
+                # Possibly mutate these individuals.
+                m = np.random.rand(2) < self.prob_mutate_individual
+
+                for tf, ind in [(m[0], child1), (m[1], child2)]:
+                    # While it may look like this if/else should be one
+                    # if statement with an "or," the way it's written
+                    # now avoids an extra call to _chrom_already_existed
+                    # in some cases, which is good, because that can be
+                    # expensive.
+                    if tf:
+                        self._mutate(ind=ind)
+                    elif self._chrom_already_existed(ind.chromosome):
+                        # Force mutation if this individual isn't unique.
+                        # This keeps the logic simpler than excluding the
+                        # child.
+                        self._mutate(ind=ind)
+
+            else:
+                children = []
+                for p in [parent1, parent2]:
+                    children.append(self._init_individual(
+                        chrom_override=p.chromosome.copy(),
+                        special_init=None))
+
+                # Unpack the list of children.
+                child1, child2 = children
+
+                # Mutate.
+                self._mutate(child1)
+                self._mutate(child2)
+
+            # Add the children to the list of offspring.
+            offspring.extend([child1, child2])
+
+        # While this could waste some effort, we want to keep our
+        # population at the correct size to avoid any surprises. Call
+        # it infant mortality. Genetic algorithm joke, nice.
+        if len(self.population) + len(offspring) > self.population_size:
+            offspring = offspring[0:-1]
+
+        # Merge the population into the population.
+        self._population.extend(offspring)
+
+        # TODO: Remove this assert statement when test is in place.
+        assert len(self.population) == self.population_size
+
+        # All done.
+
+    def sort_population(self):
+        """Helper to sort the population in place. After this method
+        is called, the individual with the lowest fitness (the best)
+        will be in position 0.
+        """
+        self._population.sort(key=operator.attrgetter('fitness'))
 
 
 class ChromosomeAlreadyExistedError(Exception):
@@ -1887,75 +2009,32 @@ def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     :param stoptime: Python datetime object for simulation end. See
         prep_glm_mgr.
     """
-    # Get a mapping of the chromosome for use by individuals.
-    chrom_map, chrom_len, num_eq = map_chromosome(regulators=regulators,
-                                                  capacitors=capacitors)
+    t0 = time.time()
+    pop = Population(regulators=regulators, capacitors=capacitors,
+                     glm_mgr=glm_mgr, starttime=starttime,
+                     stoptime=stoptime)
 
-    # Add the prerequisite elements to the glm_mgr.
-    prep_glm_mgr(glm_mgr=glm_mgr, starttime=starttime, stoptime=stoptime)
+    pop.initialize_population()
+    pop.evaluate_population()
 
-    # Initialize uid integer (to be incremented and passed to
-    # individuals)
-    uid = 0
+    g = 1
+    while g < CONFIG['ga']['generations']:
+        pop.natural_selection()
+        # The best individual will always be in position 0 after
+        # natural selection.
+        best = pop.population[0]
+        print('After generation {}, best fitness: {:.2f} from individual {}'
+              .format(g, best.fitness, best.uid))
+        pop.crossover_and_mutate()
+        pop.evaluate_population()
+        g += 1
 
-    # Initialize queue for passing individuals to different processes.
-    input_queue = mp.JoinableQueue()
+    # Sort the population.
+    pop.sort_population()
+    t1 = time.time()
+    best = pop.population[0]
+    print('Best overall fitness: {:.2f} from individual {}'
+          .format(best.fitness, best.uid))
 
-    # Initialize queue for retrieving individuals after they've been
-    # evaluated in a separate process.
-    output_queue = mp.Queue()
-
-    # For now, use all but one core.
-    # TODO: We'll want to make this configurable in the future.
-    n_jobs = mp.cpu_count() - 1
-
-    # Initialize processes.
-    processes = []
-    for n in range(n_jobs):
-        # Initialize this process, attaching it to the evaluate_worker
-        # method.
-        p = mp.Process(target=evaluate_worker, name=str(n),
-                       kwargs={'input_queue': input_queue,
-                               'output_queue': output_queue,
-                               'glm_mgr': glm_mgr})
-        # Add this process to the list.
-        processes.append(p)
-        # Start this process.
-        p.start()
-
-    # For convenience, create a dictionary with inputs for initializing
-    # individuals. These inputs won't change from individual to
-    # individual.
-    ind_init = {'chrom_len': chrom_len, 'num_eq': num_eq,
-                'chrom_map': chrom_map, 'chrom_override': None}
-
-    # Track how many individuals we need to create.
-    remaining_individuals = CONFIG['ga']['individuals']
-
-    def put(special_init):
-        """Helper to put an individual in the input queue."""
-        # We'll be modifying variables outside of the scope.
-        nonlocal uid
-        nonlocal remaining_individuals
-
-        # Initialize and individual and put them in the queue.
-        input_queue.put(Individual(**ind_init, uid=uid,
-                                   special_init=special_init))
-
-        # Increment our uid, decrement our remaining individuals.
-        uid += 1
-        remaining_individuals -= 1
-
-    # Start by seeding the population.
-    put(special_init='max')
-    put(special_init='min')
-    put(special_init='current_state')
-
-    # Fill up the input_queue with individuals.
-    while remaining_individuals > 1:
-        put(special_init=None)
-
-    # Wait for the evaluation to complete.
-    input_queue.join()
-
-    pass
+    print('Total GA run time: {:.2f}'.format(t1-t0))
+    print('All done!')
