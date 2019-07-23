@@ -2242,6 +2242,118 @@ class PopulationTestCase(unittest.TestCase):
         self.assertIs(children[1], p_mutate.call_args_list[1][0][0])
 
 
+class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
+    """Test _update_equipment_with_individual"""
+
+    @classmethod
+    def setUpClass(cls):
+        # TODO: Change from 8500 node model to 9500 node model.
+        cls.glm_mgr = GLMManager(IEEE_8500)
+        # 20 second model runtime.
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
+
+        # Get regulators and capacitors.
+        # TODO: update to 9500 node
+        reg_df = pd.read_csv(_df.REGULATORS_8500)
+        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+
+        cls.regs = equipment.initialize_regulators(reg_df)
+        cls.caps = equipment.initialize_capacitors(cap_df)
+
+        # It seems we don't have a way of getting capacitor state from
+        # the CIM (which is where those DataFrames originate from). So,
+        # let's randomly command each capacitor.
+        for c in cls.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                c.state = np.random.randint(low=0, high=2, size=None,
+                                            dtype=int)
+            elif isinstance(c, dict):
+                for cc in c.values():
+                    cc.state = np.random.randint(low=0, high=2, size=None,
+                                                 dtype=int)
+
+        # Map the chromosome.
+        cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
+
+    def test_update_max(self):
+        # Create an individual with all equipment "maxed out"
+        ind = ga.Individual(uid=0, chrom_len=self.len, num_eq=self.num_eq,
+                            chrom_map=self.map, special_init='max')
+
+        # Run the update function
+        ga._update_equipment_with_individual(ind=ind,
+                                             regs=self.regs,
+                                             caps=self.caps)
+        # Ensure all regulators are at their maximum position in CIM
+        # terms.
+        for r in self.regs.values():
+            if isinstance(r, equipment.RegulatorSinglePhase):
+                # GA only works with controllable assets.
+                if not r.controllable:
+                    continue
+                self.assertEqual(r.high_step, r.state)
+            elif isinstance(r, dict):
+                for sr in r.values():
+                    if not sr.controllable:
+                        continue
+                    self.assertEqual(sr.high_step, sr.state)
+            else:
+                raise TypeError('Unexpected type!')
+
+        # Ensure all capacitors are closed
+        for c in self.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                if not c.controllable:
+                    continue
+                self.assertEqual(1, c.state)
+            elif isinstance(c, dict):
+                for sc in c.values():
+                    if not sc.controllable:
+                        continue
+                    self.assertEqual(1, sc.state)
+
+    def test_update_min(self):
+        """I was bad/lazy and copy + pasted this from test_update_max
+        and updated it...
+        """
+        # Create an individual with all equipment at its minimum.
+        ind = ga.Individual(uid=0, chrom_len=self.len, num_eq=self.num_eq,
+                            chrom_map=self.map, special_init='min')
+
+        # Run the update function
+        ga._update_equipment_with_individual(ind=ind,
+                                             regs=self.regs,
+                                             caps=self.caps)
+        # Ensure all regulators are at their maximum position in CIM
+        # terms.
+        for r in self.regs.values():
+            if isinstance(r, equipment.RegulatorSinglePhase):
+                # GA only works with controllable assets.
+                if not r.controllable:
+                    continue
+                self.assertEqual(r.low_step, r.state)
+            elif isinstance(r, dict):
+                for sr in r.values():
+                    if not sr.controllable:
+                        continue
+                    self.assertEqual(sr.low_step, sr.state)
+            else:
+                raise TypeError('Unexpected type!')
+
+        # Ensure all capacitors are closed
+        for c in self.caps.values():
+            if isinstance(c, equipment.CapacitorSinglePhase):
+                if not c.controllable:
+                    continue
+                self.assertEqual(0, c.state)
+            elif isinstance(c, dict):
+                for sc in c.values():
+                    if not sc.controllable:
+                        continue
+                    self.assertEqual(0, sc.state)
+
+
 class MainTestCase(unittest.TestCase):
     """Test the 'main' method in ga.py."""
 

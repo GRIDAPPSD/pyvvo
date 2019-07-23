@@ -2062,6 +2062,79 @@ def _dump_queue(q, i):
             return i
 
 
+def _update_equipment_with_individual(ind, regs, caps):
+    """Given an individual, update the states of equipment.
+
+    :param ind: ga.Individual object.
+    :param regs: Dictionary of regulators as returned by
+        equipment.initialize_regulators.
+    :param caps: Dictionary of capacitors as returned by
+        equipment.initialize_capacitors.
+
+    NOTE 1: The regs and caps should have been used in the call to
+        map_chromosome which provides outputs for the initialization of
+        the Individual.
+
+    NOTE 2: This method updates the state of the regs and caps. So, if
+        these regs and caps are being used elsewhere, take care. You may
+        want to pass a deepcopy in here.
+
+    NOTE 3: You may say to yourself, "Wait a minute, the individual
+        already has a reference to all these regulators and capacitors.
+        Why not write a method for the Individual which just iterates
+        over its map and directly updates the equipment?" Well, the
+        short answer is "because pickling." The GA is parallelized by
+        necessity. When an individual gets put in the queue to be
+        evaluated, it (and all its attributes) get pickled. So the
+        equipment pointers are no longer pointers, but copies after
+        evaluation. In the future we may want to refactor such that the
+        individuals aren't carrying around these full-blown objects
+        which then get pickled, but it likely isn't worth the effort for
+        a very minimal gain.
+
+    :returns None. regs and caps are updated in place.
+    """
+    # Loop over the individual's map.
+    for phase_dict in ind.chrom_map.values():
+        for eq_dict in phase_dict.values():
+            # Get a numerical representation of the new state from the
+            # chromosome.
+            idx = eq_dict['idx']
+            eq_obj = eq_dict['eq_obj']
+            raw_new_state = \
+                _binary_array_to_scalar(ind.chromosome[idx[0]:idx[1]])
+
+            # If we're dealing with a regulator, we need to do some
+            # translations.
+            if isinstance(eq_obj, equipment.RegulatorSinglePhase):
+                # raw_new_state is going to be on the interval
+                # [0, raise_taps + lower_taps] (GridLAB-D). We need it
+                # to be on the interval [low_step, high_step] (CIM).
+                # Start by subtracting lower taps to shift it to the
+                # interval [-lower_taps, raise_taps].
+                new_state = raw_new_state - eq_obj.lower_taps
+                # Now, translate it to CIM. Yes, it's bad practice to
+                # call a "private" method. My bad. Maybe it should be
+                # public? But I'm not doing type-checking...
+                # noinspection PyProtectedMember
+                new_state = \
+                    equipment._tap_gld_to_cim(tap_pos=new_state,
+                                              neutral_step=eq_obj.neutral_step)
+                # Regulators dictionary is keyed by tap changer mrid,
+                # not by regulator mrid.
+                mrid = eq_obj.tap_changer_mrid
+
+                # Update the state.
+                regs[mrid].state = new_state
+            elif isinstance(eq_obj, equipment.CapacitorSinglePhase):
+                # Cast to a regular Python integer (from a numpy int64)
+                caps[eq_obj.mrid].state = int(raw_new_state)
+            else:
+                raise TypeError('Unexpected equipment!')
+
+    # And we're done!
+
+
 def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     """Function to run the GA in its entirety.
 
