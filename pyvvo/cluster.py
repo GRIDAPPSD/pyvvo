@@ -3,6 +3,8 @@
 In the context of pyvvo, functions here are used before performing fits
 to the ZIP load model (see zip.py).
 """
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans

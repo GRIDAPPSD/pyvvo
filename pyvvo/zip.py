@@ -58,6 +58,8 @@ import math
 import multiprocessing as mp
 from queue import Empty, Queue
 from time import process_time
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Installed packages
 import numpy as np
