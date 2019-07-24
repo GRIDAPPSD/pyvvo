@@ -1097,15 +1097,8 @@ class GLMManager:
         except KeyError:
             # This object type isn't in the model map.
             return None
-        else:
-            # Initialize listing of object dictionaries.
-            object_list = []
 
-        # Loop over the dictionary, add objects to the list.
-        for key, value in object_dict.items():
-            object_list.append(value[1])
-
-        return object_list
+        return [value[1] for value in object_dict.values()]
 
     def add_or_modify_clock(self, starttime=None,
                             stoptime=None, timezone='UTC0'):
