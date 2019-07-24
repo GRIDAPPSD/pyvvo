@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, create_autospec, MagicMock
+from unittest.mock import patch, create_autospec, NonCallableMagicMock
 import os
 from datetime import datetime
 from copy import deepcopy
@@ -2385,13 +2385,17 @@ class MainTestCase(unittest.TestCase):
                     cc.state = np.random.randint(low=0, high=2, size=None,
                                                  dtype=int)
 
-    def test_one(self):
+    def test_methods_called_correctly(self):
+        """Do plenty of patching, and just ensure everything is called
+        correctly.
+        """
+
         # Create a mock individual and assign it a fitness value.
         mock_ind = MockIndividual()
         mock_ind.fitness = 10
 
         # Create a mock to be returned by Population()
-        mock_pop = MagicMock()
+        mock_pop = NonCallableMagicMock()
         mock_pop.population = [mock_ind]
 
         # Number of generations:
