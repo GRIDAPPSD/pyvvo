@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch, create_autospec
+from unittest.mock import patch, create_autospec, MagicMock
 import os
 from datetime import datetime
 from copy import deepcopy
@@ -2363,7 +2363,7 @@ class MainTestCase(unittest.TestCase):
         cls.glm_mgr = GLMManager(IEEE_8500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
-        cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
+        cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
 
         # Get regulators and capacitors.
         # TODO: update to 9500 node
@@ -2386,10 +2386,60 @@ class MainTestCase(unittest.TestCase):
                                                  dtype=int)
 
     def test_one(self):
-        # ga.main(regulators=self.regs, capacitors=self.caps,
-        #         glm_mgr=self.glm_mgr, starttime=self.starttime,
-        #         stoptime=self.stoptime)
-        self.assertTrue(False)
+        # Create a mock individual and assign it a fitness value.
+        mock_ind = MockIndividual()
+        mock_ind.fitness = 10
+
+        # Create a mock to be returned by Population()
+        mock_pop = MagicMock()
+        mock_pop.population = [mock_ind]
+
+        # Number of generations:
+        g = 3
+
+        with patch('pyvvo.ga.Population', return_value=mock_pop,
+                   autospec=True) as p_pop:
+            with patch('pyvvo.ga._update_equipment_with_individual',
+                       autospec=True) as p_update:
+                with patch.dict(ga.CONFIG['ga'], {'generations': g}):
+                    regs, caps = \
+                        ga.main(regulators=self.regs, capacitors=self.caps,
+                                glm_mgr=self.glm_mgr, starttime=self.starttime,
+                                stoptime=self.stoptime)
+
+        p_pop.assert_called_once()
+        p_pop.assert_called_with(regulators=self.regs, capacitors=self.caps,
+                                 glm_mgr=self.glm_mgr,
+                                 starttime=self.starttime,
+                                 stoptime=self.stoptime)
+
+        # We only initialize the population once.
+        mock_pop.initialize_population.assert_called_once()
+
+        # All the GA methods should be called once per generation,
+        # except for evaluate which gets called once extra.
+        self.assertEqual(g+1, mock_pop.evaluate_population.call_count)
+        self.assertEqual(g, mock_pop.natural_selection.call_count)
+        self.assertEqual(g, mock_pop.crossover_and_mutate.call_count)
+
+        # If we weren't mocking the Population object, sort_population
+        # would be called more since it's called within
+        # natural_selection. However, for the purposes of this test we
+        # need to ensure it's just called once.
+        mock_pop.sort_population.assert_called_once()
+
+        # Ensure we correctly call _update_equipment_with_individual.
+        p_update.assert_called_once()
+        p_update.assert_called_with(ind=mock_ind, regs=self.regs,
+                                    caps=self.caps)
+
+        # Finally, ensure our returns are indeed the given regulators
+        # and capacitors.
+        # IMPORTANT NOTE: IN THE NON-PATCHED IMPLEMENTATION, THIS WILL
+        # NOT BE TRUE, AS THE OBJECTS WILL GET PICKLED FOR
+        # MULTIPROCESSING.
+        self.assertIs(regs, self.regs)
+        self.assertIs(caps, self.caps)
 
 
 if __name__ == '__main__':

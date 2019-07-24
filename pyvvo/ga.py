@@ -1319,6 +1319,7 @@ def _logging_thread(logging_queue):
             return
 
         # Log the individual completion.
+        # TODO: We may want this to be a debug message instead.
         LOG.info('Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
                  .format(log_dict['uid'], log_dict['time'],
                          log_dict['fitness']))
@@ -2139,33 +2140,47 @@ def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     """Function to run the GA in its entirety.
 
     :param regulators: dictionary as returned by
-        equipment.initialize_regulators
+        equipment.initialize_regulators. WARNING: The states of these
+        objects will be altered after the algorithm has run. It is
+        recommended that a deepcopy be passed in.
     :param capacitors: dictionary as returned by
-        equipment.initialize_capacitors
-    :param glm_mgr: glm.GLMManager object. Should have a run-able model,
-        which is made possible by the object's add_run_components
-        method.
+        equipment.initialize_capacitors/ WARNING: The states of these
+        objects will be altered after the algorithm has run. It is
+        recommended that a deepcopy be passed in.
+    :param glm_mgr: glm.GLMManager object. The model will be updated
+        via this modules 'prep_glm_mgr' function, so this object should
+        just be the raw model from the platform. WARNING: This object
+        will be modified, so it is recommended that a deepcopy be
+        passed in.
     :param starttime: Python datetime object for simulation start. For
         more details, see the docstring for prep_glm_mgr.
     :param stoptime: Python datetime object for simulation end. See
         prep_glm_mgr.
+
+    :returns regulators, capacitors after state modification.
     """
+    # We'll time the algorithm runtime.
     t0 = time.time()
+    # Initialize the Population object.
     pop = Population(regulators=regulators, capacitors=capacitors,
                      glm_mgr=glm_mgr, starttime=starttime,
                      stoptime=stoptime)
 
+    # Fill the population with individuals.
     pop.initialize_population()
+    # Evaluate each individual. This will take some time.
     pop.evaluate_population()
 
+    # Loop over the generations to perform natural selection, crossover,
+    # and mutation.
     g = 1
-    while g < CONFIG['ga']['generations']:
+    while g <= CONFIG['ga']['generations']:
         pop.natural_selection()
         # The best individual will always be in position 0 after
         # natural selection.
         best = pop.population[0]
-        print('After generation {}, best fitness: {:.2f} from individual {}'
-              .format(g, best.fitness, best.uid))
+        LOG.info('After generation {}, best fitness: {:.2f} from individual {}'
+                 .format(g, best.fitness, best.uid))
         pop.crossover_and_mutate()
         pop.evaluate_population()
         g += 1
@@ -2174,8 +2189,15 @@ def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     pop.sort_population()
     t1 = time.time()
     best = pop.population[0]
-    print('Best overall fitness: {:.2f} from individual {}'
-          .format(best.fitness, best.uid))
+    LOG.info('Best overall fitness: {:.2f} from individual {}'
+             .format(best.fitness, best.uid))
 
-    print('Total GA run time: {:.2f}'.format(t1-t0))
-    print('All done!')
+    LOG.info('Total GA run time: {:.2f}'.format(t1-t0))
+
+    # Update the regulators and capacitors with the positions given by
+    # the best individual.
+    _update_equipment_with_individual(ind=best, regs=regulators,
+                                      caps=capacitors)
+
+    # And we're done!
+    return regulators, capacitors
