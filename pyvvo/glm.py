@@ -1033,16 +1033,17 @@ class GLMManager:
         else:
             return module
 
-    @staticmethod
-    def _remove_from_item(item, remove_list):
+    def _remove_from_item(self, item, remove_list):
         """Simple helper to remove fields from an item."""
         for k in remove_list:
             # Will raise KeyError if asked to remove non-existent item
             try:
                 item.pop(k)
             except KeyError:
-                s = 'Could not remove nonexistent field {}'.format(k)
-                raise KeyError(s)
+                # No worries removing non-existent item. Let's log it
+                # just in case.
+                self.log.debug('Unable to remove {} for the following item: '
+                               '{}'.format(k, item))
 
         return item
 
