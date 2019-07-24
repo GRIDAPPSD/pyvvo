@@ -1112,5 +1112,61 @@ class IEEE9500Runs(unittest.TestCase):
         self.assertEqual(0, result.returncode)
 
 
+class ClearAllTriplexLoads(unittest.TestCase):
+    """Test GLMManager.clear_all_triplex_loads with TEST_FILE2, which
+    does not have any triplex loads.
+    """
+    @classmethod
+    def setUpClass(cls):
+        # Get a manager with the 9500 node model.
+        cls.mgr = glm.GLMManager(IEEE_9500, model_is_path=True)
+
+        # To ensure this test doesn't give us false results, let's start
+        # with some assertions right off the bat.
+        tl_list = cls.mgr.get_objects_by_type(object_type='triplex_load')
+
+        # Ensure we actually have triplex load objects.
+        assert tl_list is not None
+
+        # Ensure the first one has at least one of the properties.
+        has_prop = False
+        keys = tl_list[0].keys()
+        for prop in glm.TRIPLEX_PARAMS:
+            if prop in keys:
+                has_prop = True
+
+        assert has_prop
+
+        # Alrighty, we shouldn't get any false positives at this point.
+        # Clear out the triplex loads.
+        cls.mgr.clear_all_triplex_loads()
+
+    def test_properties_gone(self):
+        """Ensure none of our triplex loads have any of the properties
+        in glm.TRIPLEX_PARAMS.
+        """
+        # Get triplex loads from the manager.
+        tl_list = self.mgr.get_objects_by_type(object_type='triplex_load')
+
+        # Get the triplex params as a set.
+        tl_params = set(glm.TRIPLEX_PARAMS)
+
+        # Loop and assert.
+        for tl in tl_list:
+            params = set(tl.keys())
+            self.assertTrue(params.isdisjoint(tl_params))
+
+    def test_warns(self):
+        """The TEST_FILE2 model doesn't have any triplex_loads, so we
+        should get a warning.
+        """
+        # Get a manger.
+        mgr = glm.GLMManager(TEST_FILE2, model_is_path=True)
+
+        # Ensure we get a warning.
+        with self.assertLogs(logger=mgr.log, level='WARN'):
+            mgr.clear_all_triplex_loads()
+
+
 if __name__ == '__main__':
     unittest.main()

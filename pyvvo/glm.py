@@ -55,6 +55,18 @@ PHASES = ('A', 'B', 'C')
 # List of valid capacitor switch statuses.
 CAP_STATUSES = ('OPEN', 'CLOSED')
 
+# List of "settable" triplex_load parameters.
+# http://gridlab-d.shoutwiki.com/wiki/Power_Flow_User_Guide#Triplex_Load
+TRIPLEX_PARAMS = \
+    ['base_power_1', 'base_power_2', 'base_power_12',
+     'power_pf_1', 'power_pf_2', 'power_pf_12',
+     'current_pf_1', 'current_pf_2', 'current_pf_12',
+     'impedance_pf_1', 'impedance_pf_2', 'impedance_pf_12',
+     'power_fraction_1', 'power_fraction_2', 'power_fraction_12',
+     'current_fraction_1', 'current_fraction_2', 'current_fraction_12',
+     'impedance_fraction_1', 'impedance_fraction_2', 'impedance_fraction_12'
+     ]
+
 
 def parse(input_str, file_path=True):
     """
@@ -407,6 +419,8 @@ class GLMManager:
             new meter.
         - update_reg_taps: Update a regulator's tap positions, both in
             the regulator itself, and its corresponding configuration.
+        - clear_all_triplex_loads: Clear out all parameters in
+            TRIPLEX_PARAMS for all triplex_load objects in the model.
             
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
@@ -1437,6 +1451,26 @@ class GLMManager:
             cap['switch' + phase] = status
 
         # Done.
+
+    def clear_all_triplex_loads(self):
+        """For all triplex loads in the model, remove all properties
+        in TRIPLEX_PARAMS constant.
+        """
+        # Start by getting all the triplex_load objects.
+        tl_list = self.get_objects_by_type(object_type='triplex_load')
+
+        # If there aren't any triplex loads, warn and return.
+        if tl_list is None:
+            self.log.warning('clear_all_triplex_loads called, but there '
+                             'are not any triplex_loads in the model!')
+            return
+
+        # Clear 'em out!
+        for tl in tl_list:
+            self.remove_properties_from_item(item_dict=tl,
+                                             property_list=TRIPLEX_PARAMS)
+
+        # All done.
 
 
 class Error(Exception):
