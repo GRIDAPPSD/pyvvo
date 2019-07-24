@@ -526,6 +526,10 @@ class TapGLDToCIMTestCase(unittest.TestCase):
         actual = equipment._tap_gld_to_cim(tap_pos=5, neutral_step=-5)
         self.assertEqual(0, actual)
 
+    def test_tap_gld_to_cim_5(self):
+        actual = equipment._tap_gld_to_cim(tap_pos=2, neutral_step=0)
+        self.assertEqual(2, actual)
+
 
 class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
