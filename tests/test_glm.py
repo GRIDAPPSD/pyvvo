@@ -1168,5 +1168,34 @@ class ClearAllTriplexLoads(unittest.TestCase):
             mgr.clear_all_triplex_loads()
 
 
+class UpdateAllTriplexLoads(unittest.TestCase):
+    """Test GLMManager.update_all_triplex_loads."""
+    @classmethod
+    def setUpClass(cls):
+        # Load up the 13 node model, which has a lone triplex load.
+        cls.mgr = glm.GLMManager(IEEE_13)
+
+        cls.mgr.update_all_triplex_loads(
+            {'"ld_house"': {'bogus_param': 10}})
+
+    def test_works(self):
+        tl_list = self.mgr.get_objects_by_type(object_type='triplex_load')
+
+        # Ensure we don't get any surprises if someone mods the model.
+        self.assertEqual(1, len(tl_list))
+
+        # Grab the triplex_load.
+        tl = tl_list[0]
+
+        self.assertIn('bogus_param', tl)
+        self.assertEqual(tl['bogus_param'], str(10))
+
+    def test_throws_key_error(self):
+        with self.assertRaisesRegex(KeyError, 'The triplex_load blah was not'):
+            self.mgr.update_all_triplex_loads(
+                {'blah': {'stuff': 'and things'}}
+            )
+
+
 if __name__ == '__main__':
     unittest.main()

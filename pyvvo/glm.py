@@ -398,13 +398,15 @@ class GLMManager:
         - write_model: Write model to file.
         - add_item: Given an item dict, add it to the model.
         - find_object: Lookup an object by type and name.
-        - get_items_by_type: Lookup all items of a given type.
+        - get_items_by_type: Lookup all items of a given type. Return a
+            dictionary keyed by name.
         - modify_item: Update an item's properties (no renaming, though)
         - remove_properties_from_item: Delete certain properties from
             an item.
         - remove_item: Remove an item from the model
         - module_present: Test if a particular module is in the model.
-        - get_objects_by_type: Return all objects of a given type.
+        - get_objects_by_type: Return all objects of a given type as a
+            list.
         - add_or_modify_clock: Add clock if not present, or update
             existing clock.
         - object_type_present: Check if a given object type exists in
@@ -421,7 +423,9 @@ class GLMManager:
             the regulator itself, and its corresponding configuration.
         - clear_all_triplex_loads: Clear out all parameters in
             TRIPLEX_PARAMS for all triplex_load objects in the model.
-            
+        - update_all_triplex_loads: Well, update all the triplex loads
+            in the model. Self explanatory :) Check the docstring.
+
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
         thus pointers are effectively used. When using methods which 
@@ -1469,6 +1473,41 @@ class GLMManager:
         for tl in tl_list:
             self.remove_properties_from_item(item_dict=tl,
                                              property_list=TRIPLEX_PARAMS)
+
+        # All done.
+
+    def update_all_triplex_loads(self, triplex_loads):
+        """Helper to update all the triplex loads in a model.
+
+        :param triplex_loads: Dictionary of dictionaries, keyed by
+            name of each triplex_load object. The sub-dictionaries must
+            ONLY contain keys found in TRIPLEX_PARAMS. Note that the
+            dictionaries will not be validated (for speed), so be
+            careful.
+
+        NOTE/TODO: With very minimal effort this could be generalized
+            to work with any object type.
+        """
+        # Start by getting all the current triplex load objects.
+        # Here, we'll use get_items_by_type instead of
+        # get_objects_by_type so that we get a dictionary back, keyed
+        # by name.
+        current_tl = self.get_items_by_type(item_type='object',
+                                            object_type='triplex_load')
+
+        # Loop over the given triplex_loads.
+        for tl_name, tl_dict in triplex_loads.items():
+            # Attempt to modify the item.
+            try:
+                # We'll pop it so our search gets faster and faster as
+                # we move along.
+                to_modify = current_tl.pop(tl_name)
+            except KeyError:
+                raise KeyError('The triplex_load {} was not found in '
+                               'the model!'.format(tl_name))
+
+            # Modify it.
+            self._modify_item(item=to_modify, update_dict=tl_dict)
 
         # All done.
 
