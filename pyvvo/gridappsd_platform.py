@@ -113,11 +113,15 @@ class SimOutRouter:
         :param platform_manager: Initialized PlatformManager object.
         :param sim_id: Simulation ID on which to listen to.
         :param fn_mrid_list: list of dictionaries of the form
-            {'functions': <function>, 'mrids': [<mrid1>, <mrid2>,...]}
+            {'functions': <function>, 'mrids': [<mrid1>, <mrid2>,...],
+            'kwargs': {'dict': 'of keyword args',
+                       'to': 'pass to function'}}
             where 'functions' can either be a callable or list of
             callables that will accept a list of measurements, and
             'mrids' is a list of mrids to extract from the simulation
-            output, which will correspond to measurements.
+            output, which will correspond to measurements. 'kwargs' is
+            optional, and consists of key word arguments to pass to the
+            function.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -131,11 +135,18 @@ class SimOutRouter:
 
         self.mrids = []
         self.functions = []
+        self.kwargs = []
         # Combine the mrids into a list of lists, create a list of
         # functions.
         for d in fn_mrid_list:
             self.mrids.append(d['mrids'])
             self.functions.append(d['functions'])
+
+            try:
+                self.kwargs.append(d['kwargs'])
+            except KeyError:
+                # Not given kwargs, so no worries.
+                self.kwargs.append({})
 
         # Subscribe to the simulation output.
         self.platform.gad.subscribe(topic=self.output_topic,
@@ -169,11 +180,11 @@ class SimOutRouter:
             except TypeError:
                 # We have a simple function, which isn't iterable. Call
                 # it.
-                self.functions[idx](output)
+                self.functions[idx](output, **self.kwargs[idx])
             else:
                 # Call each function.
                 for f in func_iter:
-                    f(output)
+                    f(output, **self.kwargs[idx])
 
     def _filter_output_by_mrid(self, message):
         """Given an output message from the simulator, return only the

@@ -154,7 +154,8 @@ class SimOutRouterTestCase(unittest.TestCase):
 
         # Hard-code list input for the SimOutRouter.
         cls.fn_mrid_list = [{'functions': mock_fn_1, 'mrids': cls.mrids[0]},
-                            {'functions': mock_fn_2, 'mrids': cls.mrids[1]},
+                            {'functions': mock_fn_2, 'mrids': cls.mrids[1],
+                             'kwargs': {'param1': 'asdf'}},
                             {'functions': [cls.dummy_class.my_func, mock_fn_3],
                              'mrids': cls.mrids[2]}
                             ]
@@ -221,7 +222,12 @@ class SimOutRouterTestCase(unittest.TestCase):
         for idx, mock_func in enumerate(self.router.functions):
             try:
                 # Simple function case.
-                mock_func.assert_called_once_with(m2.return_value[idx])
+                if self.router.kwargs[idx] is not None:
+                    kwargs = self.router.kwargs[idx]
+                else:
+                    kwargs = {}
+                mock_func.assert_called_once_with(m2.return_value[idx],
+                                                  **kwargs)
             except AttributeError:
                 # List of functions case.
                 for f in self.router.functions[idx]:
