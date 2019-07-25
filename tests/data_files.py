@@ -83,6 +83,8 @@ WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
 
 MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 
+E_CONS_MEAS_9500 = os.path.join(DATA_DIR, 'energy_consumer_measurements.json')
+ALL_MEAS_13 = os.path.join(DATA_DIR, 'all_measurements_13.json')
 
 def read_pickle(csv_file):
     """Helper to read a pickle file corresponding to a csv file."""
