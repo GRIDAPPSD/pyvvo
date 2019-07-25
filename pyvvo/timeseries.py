@@ -1,12 +1,18 @@
 """Module for handling timeseries data from the platform.
 https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
 """
-
+import numpy as np
 import pandas as pd
 import logging
 
 # Setup log.
 LOG = logging.getLogger(__name__)
+
+# List of numeric columns.
+# https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
+NUMERIC_COLS = ['GlobalCM22', 'DirectCH1', 'Diffuse', 'TowerDryBulbTemp',
+                'TowerRH', 'AvgWindSpeed', 'AvgWindDirection',
+                'angle', 'magnitude', 'value']
 
 
 def parse_timeseries(data):
@@ -14,62 +20,77 @@ def parse_timeseries(data):
 
     :param data: dictionary with results from calling the timeseries
         API (either for weather data or simulation data). Ultimately,
-        this is a return from gridappsd.GridAPPSD.get_response. It is
-        assumed that data['data'] is not None, as that check is done
-        at a higher level. See gridappsd_platform.py.
+        this is a return from gridappsd.GridAPPSD.get_response.
     """
-    # Ensure data is a dictionary. We won't check its integrity, and
-    # let a KeyError get raised if it's incorrectly formatted.
+    # Ensure data is a dictionary.
     if not isinstance(data, dict):
         raise TypeError('data must be a dictionary!')
 
-    # Initialize dictionary for flattening the interesting return
-    # from the platform.
-    flat_dict = {}
+    # The data formatting/data model returned from the platform's time
+    # series database is pretty ridiculous. There's all sorts of
+    # unnecessary nesting. Since this nesting is present, we have a lot
+    # of safety checks we need to do. To keep the code clean/short, I'm
+    # just going to use asserts.
+    assert 'data' in data.keys()
+    assert 'measurements' in data['data'].keys()
+    assert len(data['data']) == 1
+    assert len(data['data']['measurements']) == 1
+    assert 'name' in data['data']['measurements'][0].keys()
+    assert 'points' in data['data']['measurements'][0].keys()
+    assert isinstance(data['data']['measurements'][0]['points'], list)
 
-    # The measurements can come back with mixed types. However, I'm not
-    # going to support that. Query filters should be used to avoid these
-    # situations.
-    #
-    # Grab the 'keys' for the very first entry. Yes, this depth and
-    # hard-coding are insane.
-    for entry in data['data']['measurements'][0]['points'][0]['row']['entry']:
-        flat_dict[entry['key']] = []
+    # Alrighty, there's our initial checks. Now move on.
 
-    # Loop over the "rows."
-    for row in data['data']['measurements'][0]['points']:
-        # Keep track of which keys have been accessed - we need to
-        # ensure consistency.
-        keys = list(flat_dict.keys())
+    # Initialize our data list. This is eventually going to be used to
+    # create a Pandas DataFrame.
+    dl = []
+    # Loop over the "points," which contain the data we need.
+    for point in data['data']['measurements'][0]['points']:
+        # We're expecting a dictionary with a single entry.
+        assert len(point) == 1
 
-        # Loop over all the measurements, since they aren't properly
-        # keyed.
-        for meas_dict in row['row']['entry']:
-            # Grab type and value of measurement.
-            meas_type = meas_dict['key']
-            meas_value = meas_dict['value']
+        # Extract the row.
+        row = point['row']
 
-            # Place the measurement in the dictionary.
-            try:
-                # Attempt to append to the list.
-                flat_dict[meas_type].append(meas_value)
-            except KeyError:
-                # We have inconsistent data.
-                m = ('The data is inconsistent! Found field {} which was '
-                     + 'not present in the first entry/row!').format(meas_type)
-                raise ValueError(m) from None
+        # Again, we're expecting a dictionary with a single entry.
+        assert len(row) == 1
 
-            # Remove the meas_type from the keys list.
-            keys.remove(meas_type)
+        # Extract the "entry"
+        entry = row['entry']
 
-        # Ensure we used up all the keys.
-        if len(keys) != 0:
-            m = ('The data is inconsistent! Found row which is missing '
-                 + 'the following fields: {}').format(keys)
-            raise ValueError(m)
+        # Create a dictionary for this entry.
+        this_entry = {}
 
-    # Return a DataFrame.
-    return pd.DataFrame(flat_dict)
+        # Loop over the values in entry.
+        for d in entry:
+            # We should have just 'key' and 'value' keys.
+            assert len(d) == 2
+
+            # Use the key as well, a key, and the value as well, a
+            # value. The fact that I have to do this seems crazy.
+            this_entry[d['key']] = d['value']
+
+        # Append to our list.
+        dl.append(this_entry)
+
+    # Create our DataFrame.
+    df = pd.DataFrame(dl)
+
+    # Get the timestamps as Datetime-esque objects. Note that Proven
+    # returns timestamps as seconds from the epoch, UTC. I think the
+    # source of the timestamps is the simulation itself.
+    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True, origin='unix',
+                                box=True)
+
+    # Set the time index.
+    df.set_index(keys='time', drop=True, inplace=True)
+
+    # Get dictionary of numeric types for this data.
+    dtype_dict = {key: np.float for key in df.columns.to_list()
+                  if key in NUMERIC_COLS}
+
+    # Return the DataFrame with numeric types properly casted.
+    return df.astype(dtype=dtype_dict, copy=False, errors="raise")
 
 
 def parse_weather(data):

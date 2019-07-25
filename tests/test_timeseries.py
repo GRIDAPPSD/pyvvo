@@ -1,29 +1,111 @@
 # Standard library.
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 import copy
 
 # Third-party installed.
 import simplejson as json
+import numpy as np
 import pandas as pd
 
 # pyvvo
 from pyvvo import timeseries
 import tests.data_files as _df
 
-# class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
-#     """Test parse_timeseries, and pass it simulation measurements."""
-#
-#     @classmethod
-#     def setUpClass(cls):
-#         # Load measurement data
-#         with open(MEASUREMENTS, 'r') as f:
-#             cls.data = json.load(f)
-#
-#     def test_one(self):
-#
-#         parsed_data = timeseries.parse_timeseries(data=self.data)
-#         self.assertTrue(False)
+
+class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
+    """Test parse_timeseries, and pass it simulation measurements which
+    have been created via querying the timeseries database after a
+    simulation.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Load measurement data
+        with open(_df.ALL_MEAS_13, 'r') as f:
+            cls.meas_13 = json.load(f)
+
+        with open(_df.E_CONS_MEAS_9500, 'r') as f:
+            cls.e_cons_meas_9500 = json.load(f)
+
+        # HARD-CODING INBOUND:
+        # This starttime must match what's in data_files.py where these
+        # json files are generated.
+        cls.starttime = datetime(2013, 1, 14, 0, 0, tzinfo=timezone.utc)
+        # The stoptime is the starttime plus the duration.
+        cls.stoptime = datetime(2013, 1, 14, 0, 0, 20, tzinfo=timezone.utc)
+
+    def test_13(self):
+        # Parse the data.
+        parsed_data = timeseries.parse_timeseries(data=self.meas_13)
+
+        # We should get back as many rows as there are "points"
+        self.assertEqual(
+            len(self.meas_13['data']['measurements'][0]['points']),
+            parsed_data.shape[0]
+        )
+
+        # For the 13 node "all measurements" we'll be getting back
+        # mixed types which results in columns which are not used for
+        # all the data. Ensure we have NaN's.
+        self.assertTrue(
+            parsed_data.isna().any().any()
+        )
+
+        # Ensure we have the expected columns.
+        self.assertListEqual(
+            ['hasSimulationMessageType', 'measurement_mrid', 'angle',
+             'magnitude', 'simulation_id', 'value'],
+            parsed_data.columns.to_list()
+        )
+
+        # The NA signature should be identical for angle and magnitude.
+        angle_na = parsed_data['angle'].isna()
+        mag_na = parsed_data['magnitude'].isna()
+
+        pd.testing.assert_series_equal(angle_na, mag_na,
+                                       check_names=False)
+
+        # The NA signature should be exactly opposite for
+        # angle/magnitude and value.
+        value_na = parsed_data['value'].isna()
+        xor = np.logical_xor(angle_na.values, value_na.values)
+        self.assertTrue(xor.all())
+
+        # Ensure all our times are in bounds.
+        self.assertTrue((parsed_data.index >= self.starttime).all())
+        self.assertTrue((parsed_data.index <= self.stoptime).all())
+
+        # Ensure all columns which should be numeric are numeric.
+        for c in parsed_data.columns.to_list():
+            if c in timeseries.NUMERIC_COLS:
+                self.assertEqual(np.dtype('float'), parsed_data[c].dtype)
+
+    def test_9500(self):
+        parsed_data = timeseries.parse_timeseries(data=self.e_cons_meas_9500)
+        # For this data, we have 6 measurements because the platform
+        # outputs data every 3 seconds, and we ran a 20 second
+        # simulation.
+        self.assertEqual(6, parsed_data.shape[0])
+
+        # With just one measurement, we shouldn't get any nans.
+        self.assertFalse(parsed_data.isna().any().any())
+
+        # Ensure we have the expected columns.
+        self.assertListEqual(
+            ['hasSimulationMessageType', 'measurement_mrid', 'angle',
+             'magnitude', 'simulation_id'],
+            parsed_data.columns.to_list()
+        )
+
+        # Ensure all our times are in bounds.
+        self.assertTrue((parsed_data.index >= self.starttime).all())
+        self.assertTrue((parsed_data.index <= self.stoptime).all())
+
+        # Ensure all columns which should be numeric are numeric.
+        for c in parsed_data.columns.to_list():
+            if c in timeseries.NUMERIC_COLS:
+                self.assertEqual(np.dtype('float'), parsed_data[c].dtype)
 
 
 class ParseWeatherTestCase(unittest.TestCase):
