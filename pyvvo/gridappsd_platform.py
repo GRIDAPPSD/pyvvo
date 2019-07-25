@@ -439,74 +439,91 @@ class PlatformManager:
         )
         return data_df
 
-    def get_historic_measurements(self, sim_id, mrid=None):
-        """"""
-        # TODO: Use topics from gridappsd-python when fixed.
-        t = '/queue/goss.gridappsd.process.request.data.timeseries'
-        payload = {'queryMeasurement': 'PROVEN_MEASUREMENT',
-                   'queryFilter': {'simulation_id': sim_id,
-                                   'measurement_mrid': mrid},
-                                   #'hasSimulationMessageType': 'OUTPUT'},
-                                   #'hasSimulationMessageType': 'INPUT'},
-                                   # 'hasMrid': mrid},
+    def _query_simulation_output(self, simulation_id, starttime=None,
+                                 endtime=None, measurement_mrid=None):
+        """Get simulation output from the platform.
+        https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
+
+        Note this method is SPECIFICALLY for getting simulation OUTPUT,
+        not INPUT.
+
+        Also note the platform provides a couple more filters, but at
+        the time of writing they are literally useless.
+
+        :param simulation_id: Required. ID of the simulation to get
+            output for.
+        :param starttime: Optional. Python datetime object for filtering
+            data. Data is only grabbed for at or after starttime.
+        :param endtime: Optional. Python datetime object for filtering
+            data. Data is only grabbed at or before endtime.
+        :param measurement_mrid: Optional. String. Only get measurements
+            with the given measurement MRID.
+
+        TODO: document return.
+        """
+        # Initialize the filter dictionary.
+        filter_dict = {'simulation_id': simulation_id,
+                       'hasSimulationMessageType': 'OUTPUT'}
+
+        # Add filters if given.
+        if starttime is not None:
+            filter_dict['starttime'] = utils.dt_to_us_from_epoch(starttime)
+
+        if endtime is not None:
+            filter_dict['endtime'] = utils.dt_to_us_from_epoch(endtime)
+
+        if measurement_mrid is not None:
+            filter_dict['measurement_mrid'] = measurement_mrid
+
+        # Construct the full payload.
+        payload = {'queryMeasurement': 'simulation',
+                   'queryFilter': filter_dict,
                    'responseFormat': 'JSON'}
 
-        return self.gad.get_response(topic=t, message=payload, timeout=30)
+        return self.gad.get_response(topic=topics.TIMESERIES,
+                                     message=payload, timeout=30)
 
-    def run_simulation(self):
+    def run_simulation(self, feeder_id, start_time, duration, realtime):
         """Start a simulation and return the simulation ID.
 
-        TODO: stop hard-coding, take inputs.
+        For now, this is hard-coded to the point where it'll likely only
+        work with the 8500 and maybe 9500 node models.
+
+        :param feeder_id: mrid of feeder to run simulation for.
+        :param start_time: Python datetime for starting simulation.
+        :param duration: Integer. Duration of simulation.
+        :param realtime: Boolean. Whether or not to run the simulation
+            in real time.
         """
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
-        geo_name = "_79C9D814-3CE0-DC11-534D-BDA1AF949810"
+        geo_name = "_73C512BD-7249-4F50-50DA-D93849B89C43"
         subgeo_name = "_A1170111-942A-6ABD-D325-C64886DC4D7D"
-        # 13-node:
-        # model_mrid = "_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62"
-        # sim_name = "ieee13nodeckt"
-        # 8500 node:
-        model_mrid = "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"
-        sim_name = "ieee8500"
-        # 123-node:
-        # model_mrid = '_C1C3E687-6FFD-C753-582B-632A27E28507'
-        # sim_name = 'ieee123'
 
         sim_request = \
             {"power_system_config": {
                 "GeographicalRegion_name": geo_name,
                 "SubGeographicalRegion_name": subgeo_name,
-                "Line_name": model_mrid},
+                "Line_name": feeder_id},
                 "application_config": {"applications": []},
-                "simulation_config":
-                    {"start_time": "1560369428",
-                     "duration": "15",
-                     "simulator": "GridLAB-D",
-                     "timestep_frequency": "1000",
-                     "timestep_increment": "1000",
-                     "run_realtime": True,
-                     "simulation_name": sim_name,
-                     "power_flow_solver_method": "NR",
-                     "model_creation_config": {
-                         "load_scaling_factor": "1",
-                         "schedule_name": "ieeezipload",
-                         "z_fraction": "0", "i_fraction": "1",
-                         "p_fraction": "0",
-                         "randomize_zipload_fractions": False,
-                         "use_houses": False},
-                     "startTime": "2019-06-12 12:57:08",
-                     "runInRealtime": True,
-                     "simulationName": "ieee8500",
-                     "modelCreationConfig": {
-                         "load_scaling_factor": "1",
-                         "schedule_name": "ieeezipload",
-                         "z_fraction": "0", "i_fraction": "1",
-                         "p_fraction": "0",
-                         "randomize_zipload_fractions": False,
-                         "use_houses": False}},
+                "simulation_config": {"start_time":
+                                          utils.dt_to_s_from_epoch(start_time),
+                                      "duration": str(duration),
+                                      "simulator": "GridLAB-D",
+                                      "timestep_frequency": "1000",
+                                      "timestep_increment": "1000",
+                                      "run_realtime": realtime,
+                                      "simulation_name": "ieee8500",
+                                      "power_flow_solver_method": "NR",
+                                      "model_creation_config": {
+                                          "load_scaling_factor": "1",
+                                          "schedule_name": "ieeezipload",
+                                          "z_fraction": "0", "i_fraction": "1",
+                                          "p_fraction": "0",
+                                          "randomize_zipload_fractions": False,
+                                          "use_houses": False}},
                 "test_config": {"events": [],
-                                "appId":
-                                    "_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3"}}
+                                "appId": feeder_id}}
 
         # Run simulation.
         sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,
