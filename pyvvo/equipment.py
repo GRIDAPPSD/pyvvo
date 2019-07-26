@@ -701,10 +701,6 @@ class EquipmentManager:
         :param msg: list passed to this method via a SimOutRouter's
             "_on_message" method.
         """
-        # # Dump message for testing:
-        # import json
-        # with open('cap_meas_message_8500.json', 'w') as f:
-        #     json.dump(msg, f)
 
         # Type checking:
         if not isinstance(msg, list):
