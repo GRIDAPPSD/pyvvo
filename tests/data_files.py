@@ -7,12 +7,16 @@ TODO: There's a lot of nasty hard-coding in here (copy + paste type
 import os
 import pickle
 from uuid import UUID
+from datetime import datetime
+import time
 
 # PyVVO.
 from pyvvo import sparql
+from pyvvo import gridappsd_platform
 
 # Third-party.
 import pandas as pd
+import simplejson as json
 
 # Hard-code 8500 node feeder MRID.
 FEEDER_MRID_8500 = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
@@ -83,8 +87,9 @@ WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
 
 MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 
-E_CONS_MEAS_9500 = os.path.join(DATA_DIR, 'energy_consumer_measurements.json')
+E_CONS_MEAS_9500 = os.path.join(DATA_DIR, 'energy_consumer_measurements_9500.json')
 ALL_MEAS_13 = os.path.join(DATA_DIR, 'all_measurements_13.json')
+
 
 def read_pickle(csv_file):
     """Helper to read a pickle file corresponding to a csv file."""
@@ -101,7 +106,8 @@ def to_file(df, csv_file):
         pickle.dump(df, f)
 
 
-def gen_expected_results():
+# noinspection DuplicatedCode
+def gen_expected_sparql_results():
     """Helper to generate expected results. Uncomment in the "main"
     section. This function is a bit gross and not particularly
     maintainable, it'll do.
@@ -224,5 +230,91 @@ def get_non_id_cols(df):
     return non_id_cols, id_cols
 
 
+def generate_all_measurements_13():
+    """Generate the file all_measurements_13.json."""
+    platform = gridappsd_platform.PlatformManager()
+    starttime = datetime(2013, 1, 14, 0, 0)
+    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_13,
+                                     start_time=starttime,
+                                     duration=20, realtime=False)
+    # Crude, hacky way to let the simulation finish running.
+    time.sleep(20)
+
+    # Get the measurements.
+    # noinspection PyProtectedMember
+    data = platform._query_simulation_output(simulation_id=sim_id)
+
+    # Write to file.
+    _dict_to_json(fname='all_measurements_13.json',
+                  data=data)
+
+
+def generate_energy_consumer_measurements_9500():
+    """Generate energy_consumer_measurements_9500.json"""
+    platform = gridappsd_platform.PlatformManager()
+    starttime = datetime(2013, 1, 14, 0, 0)
+    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
+                                     start_time=starttime,
+                                     duration=20, realtime=False)
+
+    # Get load measurement data. Save time by reading the csv.
+    load_meas = pd.read_csv(LOAD_MEAS_9500)
+    # Extract the first entry.
+    mrid = load_meas.iloc[0]['id']
+
+    # Crude, hacky way to let the simulation finish running.
+    time.sleep(20)
+
+    # Get the measurements.
+    # noinspection PyProtectedMember
+    data = platform._query_simulation_output(simulation_id=sim_id,
+                                             measurement_mrid=mrid)
+
+    # Write to file.
+    _dict_to_json(fname='energy_consumer_measurements_9500.json',
+                  data=data)
+
+
+def _dict_to_json(data, fname):
+    with open(os.path.join(DATA_DIR, fname), 'w') as f:
+        json.dump(data, f)
+
+
+# # TODO: This isn't working due to a platform bug for both
+# #   v2019.06.beta and v2019.07.0
+# def generate_cap_and_reg_meas_message_8500():
+#     """Generate cap_meas_message_8500.json and reg_meas_message_8500.json
+#     """
+#
+#     # Load up the capacitor data.
+#     caps = pd.read_csv(CAP_MEAS_8500)
+#     cap_mrids = caps['state_meas_mrid'].tolist()
+#     # Load up regulator data.
+#     regs = pd.read_csv(REG_MEAS_8500)
+#     reg_mrids = regs['pos_meas_mrid'].tolist()
+#
+#     # Initialize fn_mrid_list for a SimOutRouter.
+#     fn_mrid_list = [{'functions': _dict_to_json, 'mrids': cap_mrids,
+#                      'kwargs': {'fname': 'cap_meas_message_8500.json'}},
+#                     {'functions': _dict_to_json, 'mrids': reg_mrids,
+#                      'kwargs': {'fname': 'reg_meas_message_8500.json'}}]
+#
+#     platform = gridappsd_platform.PlatformManager()
+#     starttime = datetime(2013, 1, 14, 0, 0)
+#     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_8500,
+#                                      start_time=starttime,
+#                                      duration=4, realtime=False)
+#     print(sim_id)
+#     router = gridappsd_platform.SimOutRouter(platform_manager=platform,
+#                                              sim_id=sim_id,
+#                                              fn_mrid_list=fn_mrid_list)
+#     time.sleep(60)
+
+
 if __name__ == '__main__':
-    gen_expected_results()
+    gen_expected_sparql_results()
+    generate_all_measurements_13()
+    generate_energy_consumer_measurements_9500()
+    # generate_cap_and_reg_meas_message_8500()
+    print("All done. Don't forget to update file permissions:")
+    print("chown -R thay838:thay838 ~/git/pyvvo")
