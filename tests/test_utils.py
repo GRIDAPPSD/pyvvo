@@ -170,6 +170,14 @@ class DTToUSFromEpochTestCase(unittest.TestCase):
                          utils.dt_to_us_from_epoch(datetime(2013, 1, 1)))
 
 
+class DtToSFromEpochTestCase(unittest.TestCase):
+    """Test dt_to_s_from_epoch"""
+    def test_one(self):
+        dt = datetime(2019, 7, 26, 14, 43, 10)
+        self.assertEqual("1564152190",
+                         utils.dt_to_s_from_epoch(dt))
+
+
 # noinspection PyShadowingBuiltins,PyMethodMayBeStatic
 class MapDataFrameColumnsTestCase(unittest.TestCase):
     """Test map_dataframe_columns."""

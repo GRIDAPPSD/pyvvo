@@ -198,6 +198,16 @@ def dt_to_us_from_epoch(dt):
     return '{:.0f}'.format(dt.timestamp() * 1e6)
 
 
+def dt_to_s_from_epoch(dt):
+    """Convert datetime.datetime object to seconds since the epoch as
+    a string.
+    :param dt: Python datetime.datetime object.
+
+    :returns seconds since the epoch as a string.
+    """
+    return '{:.0f}'.format(dt.timestamp())
+
+
 def platform_header_timestamp_to_dt(timestamp):
     """Convert timestamp (milliseconds from epoch) to datetime object.
     This is specifically built for reading the 'timestamp' field of the
