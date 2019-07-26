@@ -21,6 +21,9 @@ def parse_timeseries(data):
     :param data: dictionary with results from calling the timeseries
         API (either for weather data or simulation data). Ultimately,
         this is a return from gridappsd.GridAPPSD.get_response.
+
+    :returns pandas DataFrame representing the data. Data types in
+        NUMERIC_COLS will be cast to np.float. Note NaNs may be present.
     """
     # Ensure data is a dictionary.
     if not isinstance(data, dict):
@@ -102,57 +105,15 @@ def parse_weather(data):
 
     :param data: dictionary passed directly from
         gridappsd_platform.PlatformManager.get_weather
+
+    :returns:
     """
-    # Ensure data is a dictionary. We won't check its integrity, and
-    # let a KeyError get raised if it's incorrectly formatted.
-    if not isinstance(data, dict):
-        raise TypeError('data must be a dictionary!')
+    # Start by parsing into a DataFrame.
+    df = parse_timeseries(data)
 
-    # Initialize dictionary (which we'll later convert to a DataFrame)
-    wd = {'temperature': [], 'ghi': []}
-    t = []
-
-    # Loop over the "rows."
-    for row in data['data']['measurements'][0]['points']:
-        # Loop over all the measurements, since they aren't properly
-        # keyed.
-        for meas_dict in row['row']['entry']:
-            # Grab type and value of measurement.
-            meas_type = meas_dict['key']
-            meas_value = meas_dict['value']
-
-            if meas_type == 'TowerDryBulbTemp':
-                wd['temperature'].append(float(meas_value))
-            elif meas_type == 'GlobalCM22':
-                wd['ghi'].append(float(meas_value))
-            elif meas_type == 'time':
-                # Use an integer for time since we don't care about
-                # fractions of a second for this application.
-                t.append(round(float(meas_value)))
-
-    # If any of these are empty, raise an exception.
-    if len(t) == 0:
-        raise ValueError('data did not have time!')
-
-    if len(wd['temperature']) == 0:
-        raise ValueError('data did not have TowerDryBulbTemp!')
-
-    if len(wd['ghi']) == 0:
-        raise ValueError('data did not have GlobalCM22!')
-
-    # Ensure the lengths are the same.
-    if not (len(t) == len(wd['temperature']) == len(wd['ghi'])):
-        m = "data did not contain the same number of entries for "\
-            "'TowerDryBulbTemp,' 'GlobalCM22', or 'time!'"
-        raise ValueError(m)
-
-    # Note that Proven returns time in seconds despite requiring
-    # microseconds as input.
-    t_index = pd.to_datetime(t, unit='s', utc=True, origin='unix',
-                             box=True)
-    # Convert to pandas DataFrame
-    df_weather = pd.DataFrame(wd, index=t_index)
-    return df_weather
+    # Just return a renamed version of the columns we care about.
+    return df[['TowerDryBulbTemp', 'GlobalCM22']].rename(
+        columns={'TowerDryBulbTemp': 'temperature', 'GlobalCM22': 'ghi'})
 
 
 def resample_weather(weather_data, interval, interval_unit):

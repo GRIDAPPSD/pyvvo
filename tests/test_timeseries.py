@@ -131,6 +131,8 @@ class ParseWeatherTestCase(unittest.TestCase):
             pd.DataFrame([[temp, ghi]], index=dt_index,
                          columns=['temperature', 'ghi'])
 
+        cls.weather_simple_expected.index.name = 'time'
+
         # Create an entry with two rows.
         cls.weather_two = copy.deepcopy(cls.weather_simple)
 
@@ -144,13 +146,14 @@ class ParseWeatherTestCase(unittest.TestCase):
         cls.weather_two_expected = \
             pd.DataFrame([[temp, ghi], [temp, ghi]], index=dt_index_two,
                          columns=['temperature', 'ghi'])
+        cls.weather_two_expected.index.name = 'time'
 
     def test_parse_weather_bad_input_type(self):
         self.assertRaises(TypeError, timeseries.parse_weather, 10)
 
     def test_parse_weather_bad_input_value(self):
-        """This will raise a TypeError rather than a KeyError."""
-        self.assertRaises(TypeError, timeseries.parse_weather,
+        """This will raise an AssertionError."""
+        self.assertRaises(AssertionError, timeseries.parse_weather,
                           {'data': {'measurements': [1, 2, 3]}})
 
     # noinspection PyMethodMayBeStatic
@@ -170,7 +173,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove temperature
         del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        self.assertRaises(KeyError, timeseries.parse_weather, data)
 
     def test_parse_weather_no_ghi(self):
         # Get a copy of the data.
@@ -179,7 +182,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove ghi
         del data['data']['measurements'][0]['points'][0]['row']['entry'][8]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        self.assertRaises(KeyError, timeseries.parse_weather, data)
 
     def test_parse_weather_no_time(self):
         # Get a copy of the data.
@@ -188,7 +191,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove time
         del data['data']['measurements'][0]['points'][0]['row']['entry'][10]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        self.assertRaises(KeyError, timeseries.parse_weather, data)
 
     def test_parse_weather_data_no_wind(self):
         """We aren't using wind speed."""
@@ -219,7 +222,10 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a temperature entry.
         del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        actual = timeseries.parse_weather(data)
+
+        # We'll have a NaN.
+        self.assertTrue(actual['temperature'].isna().any())
 
     def test_parse_weather_two_missing_ghi(self):
         """Delete one ghi entry from the two-row case."""
@@ -228,7 +234,10 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a ghi entry.
         del data['data']['measurements'][0]['points'][1]['row']['entry'][8]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        actual = timeseries.parse_weather(data)
+
+        # We'll have a NaN.
+        self.assertTrue(actual['ghi'].isna().any())
 
     def test_parse_weather_two_missing_time(self):
         """Delete one time entry from the two-row case."""
@@ -237,7 +246,10 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Remove a time entry.
         del data['data']['measurements'][0]['points'][1]['row']['entry'][10]
 
-        self.assertRaises(ValueError, timeseries.parse_weather, data)
+        actual = timeseries.parse_weather(data)
+
+        # We'll have a NaN in the Index.
+        self.assertTrue(actual.index.isna().any())
 
 
 class ResampleWeatherTestCase(unittest.TestCase):
