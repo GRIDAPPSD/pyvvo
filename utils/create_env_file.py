@@ -7,7 +7,10 @@ In PyCharm, using the EnvFile plugin to set environment variables:
 https://github.com/Ashald/EnvFile
 """
 import socket
-import json
+try:
+    import simplejson as json
+except ImportError:
+    import json
 import argparse
 
 

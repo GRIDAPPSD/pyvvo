@@ -2,7 +2,7 @@ import unittest
 from random import randint, choice
 from copy import deepcopy
 import pandas as pd
-import json
+import simplejson as json
 
 from pyvvo import equipment
 
