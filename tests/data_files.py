@@ -87,7 +87,8 @@ WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
 
 MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 
-E_CONS_MEAS_9500 = os.path.join(DATA_DIR, 'energy_consumer_measurements_9500.json')
+E_CONS_MEAS_9500 =\
+    os.path.join(DATA_DIR, 'energy_consumer_measurements_9500.json')
 ALL_MEAS_13 = os.path.join(DATA_DIR, 'all_measurements_13.json')
 
 
@@ -271,7 +272,7 @@ def generate_energy_consumer_measurements_9500():
                                              measurement_mrid=mrid)
 
     # Write to file.
-    _dict_to_json(fname='energy_consumer_measurements_9500.json',
+    _dict_to_json(fname=E_CONS_MEAS_9500,
                   data=data)
 
 
@@ -280,41 +281,51 @@ def _dict_to_json(data, fname):
         json.dump(data, f)
 
 
-# # TODO: This isn't working due to a platform bug for both
-# #   v2019.06.beta and v2019.07.0
-# def generate_cap_and_reg_meas_message_8500():
-#     """Generate cap_meas_message_8500.json and reg_meas_message_8500.json
-#     """
-#
-#     # Load up the capacitor data.
-#     caps = pd.read_csv(CAP_MEAS_8500)
-#     cap_mrids = caps['state_meas_mrid'].tolist()
-#     # Load up regulator data.
-#     regs = pd.read_csv(REG_MEAS_8500)
-#     reg_mrids = regs['pos_meas_mrid'].tolist()
-#
-#     # Initialize fn_mrid_list for a SimOutRouter.
-#     fn_mrid_list = [{'functions': _dict_to_json, 'mrids': cap_mrids,
-#                      'kwargs': {'fname': 'cap_meas_message_8500.json'}},
-#                     {'functions': _dict_to_json, 'mrids': reg_mrids,
-#                      'kwargs': {'fname': 'reg_meas_message_8500.json'}}]
-#
-#     platform = gridappsd_platform.PlatformManager()
-#     starttime = datetime(2013, 1, 14, 0, 0)
-#     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_8500,
-#                                      start_time=starttime,
-#                                      duration=4, realtime=False)
-#     print(sim_id)
-#     router = gridappsd_platform.SimOutRouter(platform_manager=platform,
-#                                              sim_id=sim_id,
-#                                              fn_mrid_list=fn_mrid_list)
-#     time.sleep(60)
+def generate_cap_and_reg_meas_message_8500():
+    """Generate cap_meas_message_8500.json and reg_meas_message_8500.json
+    """
+
+    # Load up the capacitor data.
+    caps = pd.read_csv(CAP_MEAS_8500)
+    cap_mrids = caps['state_meas_mrid'].tolist()
+    # Load up regulator data.
+    regs = pd.read_csv(REG_MEAS_8500)
+    reg_mrids = regs['pos_meas_mrid'].tolist()
+
+    # Initialize fn_mrid_list for a SimOutRouter.
+    fn_mrid_list = [{'functions': _dict_to_json, 'mrids': cap_mrids,
+                     'kwargs': {'fname': 'cap_meas_message_8500.json'}},
+                    {'functions': _dict_to_json, 'mrids': reg_mrids,
+                     'kwargs': {'fname': 'reg_meas_message_8500.json'}}]
+
+    platform = gridappsd_platform.PlatformManager()
+    starttime = datetime(2013, 1, 14, 0, 0)
+    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_8500,
+                                     start_time=starttime,
+                                     duration=5, realtime=False)
+    print(sim_id)
+    router = gridappsd_platform.SimOutRouter(platform_manager=platform,
+                                             sim_id=sim_id,
+                                             fn_mrid_list=fn_mrid_list)
+    time.sleep(60)
+
+
+def generate_model_info():
+    """Generate 'query_model_info.json.
+    """
+    platform = gridappsd_platform.PlatformManager()
+
+    info = platform.gad.query_model_info()
+
+    with open(MODEL_INFO, 'w') as f:
+        json.dump(info, f)
 
 
 if __name__ == '__main__':
     gen_expected_sparql_results()
     generate_all_measurements_13()
     generate_energy_consumer_measurements_9500()
-    # generate_cap_and_reg_meas_message_8500()
+    generate_cap_and_reg_meas_message_8500()
+    generate_model_info()
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")

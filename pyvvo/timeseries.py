@@ -150,7 +150,7 @@ def fix_ghi(weather_data):
         raise TypeError('weather_data must be a pandas DataFrame.')
 
     # Zero-out negative GHI.
-    weather_data['ghi'][weather_data['ghi'] < 0] = 0
+    weather_data.loc[weather_data['ghi'] < 0, 'ghi'] = 0
 
     return weather_data
 
