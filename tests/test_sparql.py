@@ -375,6 +375,7 @@ class ExpectedResults13TestCase(unittest.TestCase):
             (cls.s.query_regulators, _df.REGULATORS_13),
             (cls.s.query_rtc_measurements, _df.REG_MEAS_13),
             (cls.s.query_capacitor_measurements, _df.CAP_MEAS_13),
+            (cls.s.query_load_nominal_voltage, _df.LOAD_NOM_V_13),
             # Node naming is screwing up dtypes here.
             (cls.s.query_load_measurements, _df.LOAD_MEAS_13),
             (cls.s.query_substation_source, _df.SUBSTATION_13),
@@ -402,6 +403,7 @@ class ExpectedResults123TestCase(unittest.TestCase):
             (cls.s.query_regulators, _df.REGULATORS_123),
             (cls.s.query_rtc_measurements, _df.REG_MEAS_123),
             (cls.s.query_capacitor_measurements, _df.CAP_MEAS_123),
+            (cls.s.query_load_nominal_voltage, _df.LOAD_NOM_V_123),
             # Node naming is screwing up dtypes here.
             (cls.s.query_load_measurements, _df.LOAD_MEAS_123),
             (cls.s.query_substation_source, _df.SUBSTATION_123),
@@ -429,6 +431,7 @@ class ExpectedResults9500TestCase(unittest.TestCase):
             (cls.s.query_regulators, _df.REGULATORS_9500),
             (cls.s.query_rtc_measurements, _df.REG_MEAS_9500),
             (cls.s.query_capacitor_measurements, _df.CAP_MEAS_9500),
+            (cls.s.query_load_nominal_voltage, _df.LOAD_NOM_V_9500),
             # Node naming is screwing up dtypes here.
             (cls.s.query_load_measurements, _df.LOAD_MEAS_9500),
             (cls.s.query_substation_source, _df.SUBSTATION_9500),

@@ -41,6 +41,8 @@ CAPACITORS_8500 = os.path.join(DATA_DIR, 'query_capacitors_8500.csv')
 REGULATORS_8500 = os.path.join(DATA_DIR, 'query_regulators_8500.csv')
 REG_MEAS_8500 = os.path.join(DATA_DIR, 'query_reg_meas_8500.csv')
 CAP_MEAS_8500 = os.path.join(DATA_DIR, 'query_cap_meas_8500.csv')
+LOAD_NOM_V_8500 = os.path.join(DATA_DIR,
+                               'query_load_nominal_voltage_8500.csv')
 LOAD_MEAS_8500 = os.path.join(DATA_DIR, 'query_load_measurements_8500.csv')
 SUBSTATION_8500 = os.path.join(DATA_DIR, 'query_substation_source_8500.csv')
 SWITCHES_8500 = os.path.join(DATA_DIR, 'query_switches_8500.csv')
@@ -51,6 +53,7 @@ CAPACITORS_13 = os.path.join(DATA_DIR, 'query_capacitors_13.csv')
 REGULATORS_13 = os.path.join(DATA_DIR, 'query_regulators_13.csv')
 REG_MEAS_13 = os.path.join(DATA_DIR, 'query_reg_meas_13.csv')
 CAP_MEAS_13 = os.path.join(DATA_DIR, 'query_cap_meas_13.csv')
+LOAD_NOM_V_13 = os.path.join(DATA_DIR, 'query_load_nominal_voltage_13.csv')
 LOAD_MEAS_13 = os.path.join(DATA_DIR, 'query_load_measurements_13.csv')
 SUBSTATION_13 = os.path.join(DATA_DIR, 'query_substation_source_13.csv')
 SWITCHES_13 = os.path.join(DATA_DIR, 'query_switches_13.csv')
@@ -61,6 +64,7 @@ CAPACITORS_123 = os.path.join(DATA_DIR, 'query_capacitors_123.csv')
 REGULATORS_123 = os.path.join(DATA_DIR, 'query_regulators_123.csv')
 REG_MEAS_123 = os.path.join(DATA_DIR, 'query_reg_meas_123.csv')
 CAP_MEAS_123 = os.path.join(DATA_DIR, 'query_cap_meas_123.csv')
+LOAD_NOM_V_123 = os.path.join(DATA_DIR, 'query_load_nominal_voltage_123.csv')
 LOAD_MEAS_123 = os.path.join(DATA_DIR, 'query_load_measurements_123.csv')
 SUBSTATION_123 = os.path.join(DATA_DIR, 'query_substation_source_123.csv')
 SWITCHES_123 = os.path.join(DATA_DIR, 'query_switches_123.csv')
@@ -71,6 +75,8 @@ CAPACITORS_9500 = os.path.join(DATA_DIR, 'query_capacitors_9500.csv')
 REGULATORS_9500 = os.path.join(DATA_DIR, 'query_regulators_9500.csv')
 REG_MEAS_9500 = os.path.join(DATA_DIR, 'query_reg_meas_9500.csv')
 CAP_MEAS_9500 = os.path.join(DATA_DIR, 'query_cap_meas_9500.csv')
+LOAD_NOM_V_9500 = os.path.join(DATA_DIR,
+                               'query_load_nominal_voltage_9500.csv')
 LOAD_MEAS_9500 = os.path.join(DATA_DIR, 'query_load_measurements_9500.csv')
 SUBSTATION_9500 = os.path.join(DATA_DIR, 'query_substation_source_9500.csv')
 SWITCHES_9500 = os.path.join(DATA_DIR, 'query_switches_9500.csv')
@@ -121,6 +127,7 @@ def gen_expected_sparql_results():
     a1 = [
         (s1.query_capacitors, CAPACITORS_8500),
         (s1.query_regulators, REGULATORS_8500),
+        (s1.query_load_nominal_voltage, LOAD_NOM_V_8500),
         (s1.query_rtc_measurements, REG_MEAS_8500),
         (s1.query_capacitor_measurements, CAP_MEAS_8500),
         (s1.query_load_measurements, LOAD_MEAS_8500),
@@ -135,6 +142,7 @@ def gen_expected_sparql_results():
         (s2.query_regulators, REGULATORS_13),
         (s2.query_rtc_measurements, REG_MEAS_13),
         (s2.query_capacitor_measurements, CAP_MEAS_13),
+        (s2.query_load_nominal_voltage, LOAD_NOM_V_13),
         (s2.query_load_measurements, LOAD_MEAS_13),
         (s2.query_substation_source, SUBSTATION_13),
         (s2.query_switches, SWITCHES_13),
@@ -147,6 +155,7 @@ def gen_expected_sparql_results():
         (s3.query_regulators, REGULATORS_123),
         (s3.query_rtc_measurements, REG_MEAS_123),
         (s3.query_capacitor_measurements, CAP_MEAS_123),
+        (s3.query_load_nominal_voltage, LOAD_NOM_V_123),
         (s3.query_load_measurements, LOAD_MEAS_123),
         (s3.query_substation_source, SUBSTATION_123),
         (s3.query_switches, SWITCHES_123),
@@ -159,6 +168,7 @@ def gen_expected_sparql_results():
         (s4.query_regulators, REGULATORS_9500),
         (s4.query_rtc_measurements, REG_MEAS_9500),
         (s4.query_capacitor_measurements, CAP_MEAS_9500),
+        (s4.query_load_nominal_voltage, LOAD_NOM_V_9500),
         (s4.query_load_measurements, LOAD_MEAS_9500),
         (s4.query_substation_source, SUBSTATION_9500),
         (s4.query_switches, SWITCHES_9500),

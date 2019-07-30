@@ -153,4 +153,3 @@ def fix_ghi(weather_data):
     weather_data.loc[weather_data['ghi'] < 0, 'ghi'] = 0
 
     return weather_data
-
