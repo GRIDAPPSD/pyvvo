@@ -24,6 +24,19 @@ class LoadModelManager:
 
     def __init__(self, load_nominal_voltage, load_measurements,
                  load_names_glm):
+        """Map and filter the given data down to a single DataFrame with
+        relevant information.
+
+        :param load_nominal_voltage: Pandas DataFrame, should come from
+            sparql.SparqlManager.query_load_nominal_voltage()
+        :param load_measurements: Pandas DataFrame, should come from
+            sparql.SparqlManager.query_load_measurements()
+        :param load_names_glm: List of strings of the triplex load names
+            within a GridLAB-D model. The simplest way to obtain this is
+            through a glm.GLMManager object ('mgr' in this example):
+            list(mgr.get_items_by_type(item_type='object',
+                                       object_type='triplex_load').keys())
+        """
         # Initialize the log.
         self.log = logging.getLogger(self.__class__.__name__)
 
