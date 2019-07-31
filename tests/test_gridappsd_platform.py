@@ -6,7 +6,7 @@ from datetime import datetime
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform
-from gridappsd import GridAPPSD
+from gridappsd import GridAPPSD, topics
 from pyvvo.timeseries import parse_weather
 import tests.data_files as _df
 from tests.models import IEEE_8500, IEEE_13
@@ -451,6 +451,102 @@ class PlatformManagerTestCase(unittest.TestCase):
 
         # Ensure we called self.gad.send.
         mock.assert_called_once()
+
+    def test__query_simulation_output_bad_sim_id_type(self):
+        with self.assertRaisesRegex(TypeError, 'simulation_id must be a str'):
+            self.platform._query_simulation_output(simulation_id=1234)
+
+    def test__query_simulation_output_bad_query_meas_type(self):
+        with self.assertRaisesRegex(TypeError, 'query_measurement must be a '):
+            self.platform._query_simulation_output(simulation_id='1234',
+                                                   query_measurement={'a'})
+
+    def test__query_simulation_output_bad_starttime_type(self):
+        with self.assertRaisesRegex(TypeError, 'starttime must be datetime'):
+            self.platform._query_simulation_output(simulation_id='1234',
+                                                   starttime='noon')
+
+    def test__query_simulation_output_bad_endtime_type(self):
+        with self.assertRaisesRegex(TypeError, 'endtime must be datetime'):
+            self.platform._query_simulation_output(simulation_id='1234',
+                                                   endtime='2019-07-21')
+
+    def test__query_simulation_output_bad_meas_mrid_type(self):
+        with self.assertRaisesRegex(TypeError, 'measurement_mrid must be a '):
+            self.platform._query_simulation_output(simulation_id='1234',
+                                                   measurement_mrid=[1, 2, 3])
+
+    def test__query_simulation_output_bad_query_meas_value(self):
+        with self.assertRaisesRegex(ValueError, "query_measurement must be '"):
+            self.platform._query_simulation_output(simulation_id='1234',
+                                                   query_measurement='bad')
+
+    def test__query_simulation_output_no_filters_and_defaults(self):
+        with patch.object(self.platform.gad, 'get_response',
+                          return_value=10) as p:
+            out = self.platform._query_simulation_output(simulation_id='7')
+
+        p.assert_called_once()
+        p.assert_called_with(topic=topics.TIMESERIES,
+                             message={"queryMeasurement": "simulation",
+                                      "queryFilter":
+                                          {"simulation_id": "7",
+                                           'hasSimulationMessageType':
+                                               'OUTPUT'},
+                                      "responseFormat": "JSON"}, timeout=30)
+
+        self.assertEqual(10, out)
+
+    def test__query_simulation_output_all_filters(self):
+        s = datetime(2019, 1, 1, 0)
+        e = datetime(2019, 1, 1, 1)
+        m = 'mrid'
+        q = 'gridappsd-sensor-simulator'
+
+        with patch.object(self.platform.gad, 'get_response',
+                          return_value=10) as p1:
+            with patch('pyvvo.utils.dt_to_us_from_epoch', return_value='7') \
+                    as p2:
+                out = self.platform._query_simulation_output(
+                    simulation_id='95', query_measurement=q,
+                    starttime=s, endtime=e, measurement_mrid=m
+                )
+
+        p1.assert_called_once()
+
+        self.assertEqual(2, p2.call_count)
+        self.assertEqual(10, out)
+
+        p1.assert_called_with(topic=topics.TIMESERIES,
+                              message={"queryMeasurement": q,
+                                       "queryFilter":
+                                           {"simulation_id": "95",
+                                            "starttime": '7',
+                                            'endtime': '7',
+                                            'measurement_mrid': m},
+                                       "responseFormat": "JSON"}, timeout=30)
+
+    def test_platform_manager_get_simulation_output(self):
+        """Ensure inputs are passed along directly, and output is
+        parsed.
+        """
+        with patch.object(self.platform, '_query_simulation_output',
+                          return_value=42) as p1:
+            with patch('pyvvo.timeseries.parse_timeseries',
+                       return_value=21) as p2:
+                out = self.platform.get_simulation_output(
+                    simulation_id=7, query_measurement=3,
+                    starttime=10, endtime=16, measurement_mrid=65
+                )
+
+        p1.assert_called_once()
+        p2.assert_called_once()
+
+        p1.assert_called_with(simulation_id=7, query_measurement=3,
+                              starttime=10, endtime=16, measurement_mrid=65)
+        p2.assert_called_with(42)
+
+        self.assertEqual(21, out)
 
 
 if __name__ == '__main__':

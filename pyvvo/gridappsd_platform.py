@@ -450,9 +450,11 @@ class PlatformManager:
         )
         return data_df
 
-    def _query_simulation_output(self, simulation_id, starttime=None,
-                                 endtime=None, measurement_mrid=None):
-        """Get simulation output from the platform.
+    def _query_simulation_output(self, simulation_id,
+                                 query_measurement='simulation',
+                                 starttime=None, endtime=None,
+                                 measurement_mrid=None):
+        """Get simulation/sensor service output from the platform.
         https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
 
         Note this method is SPECIFICALLY for getting simulation OUTPUT,
@@ -463,6 +465,11 @@ class PlatformManager:
 
         :param simulation_id: Required. ID of the simulation to get
             output for.
+        :param query_measurement: Optional, defaults to 'simulation.'
+            String, currently valid options are 'simulation' and
+            'gridappsd-sensor-simulator'. Note that technically
+            'weather' is valid, but we have the "get_weather" method
+            for that.
         :param starttime: Optional. Python datetime object for filtering
             data. Data is only grabbed for at or after starttime.
         :param endtime: Optional. Python datetime object for filtering
@@ -470,13 +477,35 @@ class PlatformManager:
         :param measurement_mrid: Optional. String. Only get measurements
             with the given measurement MRID.
 
-        TODO: document return.
+        :returns: Messy nested dictionary straight from the platform.
         """
+        # Check inputs.
+        if not isinstance(simulation_id, str):
+            raise TypeError('simulation_id must be a string.')
+
+        if not isinstance(query_measurement, str):
+            raise TypeError('query_measurement must be a string.')
+
+        if (starttime is not None) and not isinstance(starttime, datetime):
+            raise TypeError('starttime must be datetime.datetime.')
+
+        if (endtime is not None) and not isinstance(endtime, datetime):
+            raise TypeError('endtime must be datetime.datetime.')
+
+        if (measurement_mrid is not None) and \
+                not isinstance(measurement_mrid, str):
+            raise TypeError('measurement_mrid must be a string.')
+
         # Initialize the filter dictionary.
-        filter_dict = {'simulation_id': simulation_id,
-                       'hasSimulationMessageType': 'OUTPUT'}
+        filter_dict = {'simulation_id': simulation_id}
 
         # Add filters if given.
+        if query_measurement == 'simulation':
+            filter_dict['hasSimulationMessageType'] = 'OUTPUT'
+        elif query_measurement != 'gridappsd-sensor-simulator':
+            raise ValueError("query_measurement must be 'simulation' or "
+                             "'gridappsd-sensor-simulator'")
+
         if starttime is not None:
             filter_dict['starttime'] = utils.dt_to_us_from_epoch(starttime)
 
@@ -487,12 +516,29 @@ class PlatformManager:
             filter_dict['measurement_mrid'] = measurement_mrid
 
         # Construct the full payload.
-        payload = {'queryMeasurement': 'simulation',
+        payload = {'queryMeasurement': query_measurement,
                    'queryFilter': filter_dict,
                    'responseFormat': 'JSON'}
 
         return self.gad.get_response(topic=topics.TIMESERIES,
                                      message=payload, timeout=30)
+
+    def get_simulation_output(self, simulation_id,
+                              query_measurement='simulation', starttime=None,
+                              endtime=None, measurement_mrid=None):
+        """Simple wrapper to call _query_simulation_output and then
+            parse and return the results. See the docstring of
+            _query_simulation_output for details on inputs.
+        """
+        # Query the timeseries database.
+        data = \
+            self._query_simulation_output(
+                simulation_id=simulation_id,
+                query_measurement=query_measurement, starttime=starttime,
+                endtime=endtime, measurement_mrid=measurement_mrid)
+
+        # Parse the result and return.
+        return timeseries.parse_timeseries(data)
 
     def run_simulation(self, feeder_id, start_time, duration, realtime):
         """Start a simulation and return the simulation ID.
