@@ -82,8 +82,7 @@ def parse_timeseries(data):
     # Get the timestamps as Datetime-esque objects. Note that Proven
     # returns timestamps as seconds from the epoch, UTC. I think the
     # source of the timestamps is the simulation itself.
-    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True, origin='unix',
-                                box=True)
+    df['time'] = pd.to_datetime(df['time'], unit='s', utc=True, origin='unix')
 
     # Set the time index.
     df.set_index(keys='time', drop=True, inplace=True)

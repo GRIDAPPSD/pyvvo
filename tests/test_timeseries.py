@@ -166,7 +166,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Create the expected DataFrame.
         # Weather data starts at 2013-01-01 00:00:00 Mountain Time.
         dt = datetime(2013, 1, 1, 6)
-        dt_index = pd.to_datetime([dt], box=True, utc=True)
+        dt_index = pd.to_datetime([dt], utc=True)
 
         # Expected data.
         temp = 13.316
@@ -188,7 +188,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         cls.weather_two['data']['measurements'][0]['points'].append(row)
 
         # Create the expected return for the two-row case.
-        dt_index_two = pd.to_datetime([dt, dt], box=True, utc=True)
+        dt_index_two = pd.to_datetime([dt, dt], utc=True)
         cls.weather_two_expected = \
             pd.DataFrame([[temp, ghi], [temp, ghi]], index=dt_index_two,
                          columns=['temperature', 'ghi'])
