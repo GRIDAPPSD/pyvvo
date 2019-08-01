@@ -349,6 +349,21 @@ def generate_model_info():
         json.dump(info, f)
 
 
+def _get_9500_meas_data_for_one_node():
+    """Helper to get all the measurement MRIDs for a single node in the
+    9500 node model.
+    """
+    # Get load measurement data. Save time by reading the csv.
+    load_meas = pd.read_csv(LOAD_MEAS_9500)
+    # Get all the measurements associated with a single node.
+    node = load_meas.loc[0, 'node']
+    node_mask = load_meas['node'] == node
+    node_rows = load_meas[node_mask]
+    assert node_rows.shape[0] == 4
+
+    return node_rows
+
+
 def generate_sensor_service_measurements_9500():
     """NOTE: THIS ONE WON'T JUST WORK OUT OF THE BOX, SINCE EXTENSIVE
     PLATFORM CONFIGURATION IS NECESSARY.
@@ -363,13 +378,7 @@ def generate_sensor_service_measurements_9500():
         https://github.com/GRIDAPPSD/gridappsd-forum/issues/21#issue-475728176
         is addressed.
     """
-    # Get load measurement data. Save time by reading the csv.
-    load_meas = pd.read_csv(LOAD_MEAS_9500)
-    # Get all the measurements associated with a single node.
-    node = load_meas.loc[0, 'node']
-    node_mask = load_meas['node'] == node
-    node_rows = load_meas[node_mask]
-    assert node_rows.shape[0] == 4
+    meas_data = _get_9500_meas_data_for_one_node()
 
     platform = gridappsd_platform.PlatformManager()
     starttime = datetime(2013, 1, 14, 0, 0)
@@ -388,7 +397,7 @@ def generate_sensor_service_measurements_9500():
     time.sleep(300)
 
     # Get output for all our MRIDs.
-    for idx, meas_mrid in enumerate(node_rows['id'].values):
+    for idx, meas_mrid in enumerate(meas_data['id'].values):
         # noinspection PyProtectedMember
         out = platform._query_simulation_output(
             simulation_id=sim_id, measurement_mrid=meas_mrid,
