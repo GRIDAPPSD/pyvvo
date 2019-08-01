@@ -97,6 +97,18 @@ E_CONS_MEAS_9500 =\
     os.path.join(DATA_DIR, 'energy_consumer_measurements_9500.json')
 ALL_MEAS_13 = os.path.join(DATA_DIR, 'all_measurements_13.json')
 
+SENSOR_MEASUREMENT_BASE = 'sensor_measurements_9500'
+SENSOR_MEAS_9500_0 = \
+    os.path.join(DATA_DIR, SENSOR_MEASUREMENT_BASE + '_0.json')
+SENSOR_MEAS_9500_1 = \
+    os.path.join(DATA_DIR, SENSOR_MEASUREMENT_BASE + '_1.json')
+SENSOR_MEAS_9500_2 = \
+    os.path.join(DATA_DIR, SENSOR_MEASUREMENT_BASE + '_2.json')
+SENSOR_MEAS_9500_3 = \
+    os.path.join(DATA_DIR, SENSOR_MEASUREMENT_BASE + '_3.json')
+SENSOR_MEAS_LIST = [SENSOR_MEAS_9500_0, SENSOR_MEAS_9500_1, SENSOR_MEAS_9500_2,
+                    SENSOR_MEAS_9500_3]
+
 
 def read_pickle(csv_file):
     """Helper to read a pickle file corresponding to a csv file."""
@@ -249,6 +261,8 @@ def generate_all_measurements_13():
                                      start_time=starttime,
                                      duration=20, realtime=False)
     # Crude, hacky way to let the simulation finish running.
+    # TODO: Use updated GridAPPS-D Python API to wait for simulation
+    #   completion.
     time.sleep(20)
 
     # Get the measurements.
@@ -274,7 +288,9 @@ def generate_energy_consumer_measurements_9500():
     mrid = load_meas.iloc[0]['id']
 
     # Crude, hacky way to let the simulation finish running.
-    time.sleep(20)
+    # TODO: Use updated GridAPPS-D Python API to wait for simulation
+    #   completion.
+    time.sleep(60)
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -317,6 +333,8 @@ def generate_cap_and_reg_meas_message_8500():
     router = gridappsd_platform.SimOutRouter(platform_manager=platform,
                                              sim_id=sim_id,
                                              fn_mrid_list=fn_mrid_list)
+    # TODO: Use updated GridAPPS-D Python API to wait for simulation
+    #   completion.
     time.sleep(60)
 
 
@@ -331,11 +349,62 @@ def generate_model_info():
         json.dump(info, f)
 
 
+def generate_sensor_service_measurements_9500():
+    """NOTE: THIS ONE WON'T JUST WORK OUT OF THE BOX, SINCE EXTENSIVE
+    PLATFORM CONFIGURATION IS NECESSARY.
+
+    To get it to work, you must ensure the sample application has the
+    "gridappsd-sensor-simulator" listed in its "prereqs" field.
+
+    This method is also going to produce different results depending
+    on how the sensor service is configured.
+
+    TODO: Re-run when
+        https://github.com/GRIDAPPSD/gridappsd-forum/issues/21#issue-475728176
+        is addressed.
+    """
+    # Get load measurement data. Save time by reading the csv.
+    load_meas = pd.read_csv(LOAD_MEAS_9500)
+    # Get all the measurements associated with a single node.
+    node = load_meas.loc[0, 'node']
+    node_mask = load_meas['node'] == node
+    node_rows = load_meas[node_mask]
+    assert node_rows.shape[0] == 4
+
+    platform = gridappsd_platform.PlatformManager()
+    starttime = datetime(2013, 1, 14, 0, 0)
+    # TODO: Use houses when
+    #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/20#issue-475398545
+    #  is resolved.
+    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
+                                     start_time=starttime,
+                                     duration=300, realtime=False,
+                                     applications=[{'name': 'sample_app'}],
+                                     random_zip=False, houses=False)
+
+    # Hackish way to ensure things run.
+    # TODO: Use updated GridAPPS-D Python API to wait for simulation
+    #   completion.
+    time.sleep(300)
+
+    # Get output for all our MRIDs.
+    for idx, meas_mrid in enumerate(node_rows['id'].values):
+        # noinspection PyProtectedMember
+        out = platform._query_simulation_output(
+            simulation_id=sim_id, measurement_mrid=meas_mrid,
+            query_measurement='gridappsd-sensor-simulator')
+
+        # Save the output to file.
+        with open(SENSOR_MEAS_LIST[idx], 'w') as f:
+            json.dump(out, f)
+
+
 if __name__ == '__main__':
     gen_expected_sparql_results()
     generate_all_measurements_13()
     generate_energy_consumer_measurements_9500()
     generate_cap_and_reg_meas_message_8500()
     generate_model_info()
+    generate_sensor_service_measurements_9500()
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")
