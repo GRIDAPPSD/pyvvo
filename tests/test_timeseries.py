@@ -107,6 +107,52 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
             if c in timeseries.NUMERIC_COLS:
                 self.assertEqual(np.dtype('float'), parsed_data[c].dtype)
 
+    def test_sensor_service_9500(self):
+        # Read in data.
+        data = []
+        for file in _df.SENSOR_MEAS_LIST:
+            with open(file, 'r') as f:
+                data.append(json.load(f))
+
+        # Parse each dictionary and do some rudimentary tests. Mainly,
+        # we're happy if it just parses.
+        for d in data:
+            parsed = timeseries.parse_timeseries(data=d)
+
+            # Ensure it's a DataFrame.
+            self.assertIsInstance(parsed, pd.DataFrame)
+
+            # Ensure we're indexed by time.
+            self.assertEqual('time', parsed.index.name)
+            self.assertIsInstance(parsed.index[0], datetime)
+
+            # Ensure we have all the expected columns.
+            self.assertListEqual(
+                ['instance_id', 'hasSimulationMessageType', 'measurement_mrid',
+                 'angle', 'magnitude', 'simulation_id'],
+                parsed.columns.to_list()
+            )
+
+            # Ensure angle and magnitude are floats.
+            self.assertEqual(np.dtype('float'), parsed.dtypes['angle'])
+            self.assertEqual(np.dtype('float'), parsed.dtypes['magnitude'])
+
+            # The rest of our columns should be objects.
+            cols = copy.copy(parsed.columns.to_list())
+            cols.remove('angle')
+            cols.remove('magnitude')
+
+            for c in cols:
+                self.assertEqual(np.dtype('O'), parsed.dtypes[c])
+
+            # TODO: Once
+            #   https://github.com/GRIDAPPSD/gridappsd-forum/issues/21#issue-475728176
+            #   is addressed, add a length assertion. In data_files.py,
+            #   the simulation duration was 300 seconds, and we're
+            #   expecting aggregation every 30 seconds, so we should
+            #   get 10 records.
+            # self.assertEqual(10, parsed.shape[0])
+
 
 class ParseWeatherTestCase(unittest.TestCase):
     """Test parse_weather"""
