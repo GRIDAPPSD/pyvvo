@@ -206,11 +206,10 @@ def get_data_for_load(sim_id, meas_data,
         same load, but no integrity checks will be performed.
 
     :param sim_id: Simulation ID, string.
-    :param meas_data: Pandas DataFrame. Should be a subset of the
-        DataFrame returned by
-        sparql.SPARQLManager.query_load_measurements, but with
-        measurements only for a single load. For triplex_loads, this
-        means it MUST have 4 rows.
+    :param meas_data: Pandas DataFrame with 4 rows (one for each
+        measurement object on a triplex load) and 2 columns:
+        meas_type and meas_mrid. meas_type must be PNV or VA, and there
+        must be two of each type.
     :param query_measurement: String, defaults to
         'gridappsd-sensor-simulator.'
     :param starttime: datetime.datetime. Filters measurements.
@@ -236,7 +235,7 @@ def get_data_for_load(sim_id, meas_data,
     data = {}
 
     # Query the time series database.
-    for m in meas_data['id'].values:
+    for m in meas_data['meas_mrid'].values:
         # Get the data for this measurement.
         d = mgr.get_simulation_output(
             simulation_id=sim_id,
@@ -275,13 +274,13 @@ def get_data_for_load(sim_id, meas_data,
         # By the nature of our query, we can ensure that each DataFrame
         # only corresponds to a single measurement MRID.
         # Extract the row in meas_data corresponding to this mrid.
-        row = meas_data[meas_data['id'] == meas_mrid]
+        row = meas_data[meas_data['meas_mrid'] == meas_mrid]
 
         # Ensure it really is just a row.
         assert row.shape[0] == 1
 
         # Extract the type.
-        meas_type = row.iloc[0]['type']
+        meas_type = row.iloc[0]['meas_type']
 
         if meas_type == 'PNV':
             pnv += d['data']

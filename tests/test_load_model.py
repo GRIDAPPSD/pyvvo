@@ -134,6 +134,8 @@ class GetDataForLoadTestCase(unittest.TestCase):
         # model, just as is done in
         # generate_sensor_service_measurements_9500 in data_files.py
         cls.meas_data = _df._get_9500_meas_data_for_one_node()
+        cls.meas_data.rename(columns={'id': 'meas_mrid', 'type': 'meas_type'},
+                             inplace=True)
 
         # HARD CODE the same datetime in
         # generate_sensor_service_measurements_9500
@@ -201,8 +203,8 @@ class GetDataForLoadTestCase(unittest.TestCase):
 
         # Mock up our 'meas_data' input. Note the alignment with our
         # DataFrames in order.
-        meas_data = pd.DataFrame({'id': ['a', 'b', 'c', 'd'],
-                                  'type': ['PNV', 'PNV', 'VA', 'VA']})
+        meas_data = pd.DataFrame({'meas_mrid': ['a', 'b', 'c', 'd'],
+                                  'meas_type': ['PNV', 'PNV', 'VA', 'VA']})
 
         # Create a mock for the PlatformManager.
         mock_mgr = MagicMock()
@@ -218,7 +220,6 @@ class GetDataForLoadTestCase(unittest.TestCase):
         self.assertEqual(1, p.call_count)
         self.assertEqual(4, mock_mgr.get_simulation_output.call_count)
         pd.testing.assert_frame_equal(expected, actual)
-
 
 
 class FixLoadNameTestCase(unittest.TestCase):
