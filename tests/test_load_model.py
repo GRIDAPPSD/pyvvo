@@ -1,13 +1,16 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from copy import deepcopy
+from datetime import datetime
 
 from tests import data_files as _df
 from tests import models
 from pyvvo.glm import GLMManager
 from pyvvo import load_model
 
+import numpy as np
 import pandas as pd
+import simplejson as json
 
 
 class LoadModelManager9500TestCase(unittest.TestCase):
@@ -121,6 +124,101 @@ class LoadModelManager123TestCase(unittest.TestCase):
             load_model.LoadModelManager(load_nominal_voltage=self.load_nom_v,
                                         load_measurements=self.load_meas,
                                         load_names_glm=self.load_names_glm)
+
+
+class GetDataForLoadTestCase(unittest.TestCase):
+    """Test get_data_for_load"""
+    @classmethod
+    def setUpClass(cls):
+        # Grab the all meas data for one load in the the 9500 node
+        # model, just as is done in
+        # generate_sensor_service_measurements_9500 in data_files.py
+        cls.meas_data = _df._get_9500_meas_data_for_one_node()
+
+        # HARD CODE the same datetime in
+        # generate_sensor_service_measurements_9500
+        cls.starttime = datetime(2013, 1, 14, 0, 0)
+        # HARD CODE - simulation duration is 300 seconds, aka 5 minutes.
+        cls.endtime = datetime(2013, 1, 14, 0, 5)
+
+        # Read the outputs from the timeseries database.
+        cls.ts_out = []
+        for file in _df.SENSOR_MEAS_LIST:
+            with open(file, 'r') as f:
+                cls.ts_out.append(json.load(f))
+
+    def test_runs(self):
+        """Use our testing data from the platform to ensure this works
+        all the way through.
+        """
+        # Patch calls to _query_simulation_output to read our
+        # measurements in order.
+        with patch(('pyvvo.gridappsd_platform.PlatformManager'
+                    + '._query_simulation_output'),
+                   side_effect=self.ts_out) as p:
+            results = \
+                load_model.get_data_for_load(
+                    sim_id='1234', meas_data=self.meas_data,
+                    starttime=self.starttime, endtime=self.endtime,
+                    query_measurement='gridappsd-sensor-simulator')
+
+        self.assertEqual(4, p.call_count)
+        self.assertIsInstance(results, pd.DataFrame)
+
+    def test_expected(self):
+        """Create expected results, create inputs by deconstructing
+        them.
+        """
+        expected = pd.DataFrame(data=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
+                                columns=['v', 'p', 'q'])
+
+        # Extract v from our expected.
+        v = expected['v'].values
+
+        # Divide by 3.
+        v_3 = v / 3
+
+        v_angle = pd.Series(np.zeros_like(v_3))
+
+        # Create DataFrame for v, which holds 1/3 of the sum.
+        df1 = pd.DataFrame(data={'magnitude': v_3, 'angle': v_angle})
+
+        # Second DataFrame for v should hold 2/3 of sum.
+        df2 = pd.DataFrame(data={'magnitude': 2*v_3, 'angle': v_angle})
+
+        # Now, create complex numbers for VA.
+        va = expected['p'].values + 1j * expected['q'].values
+
+        # Divide our va by 4.
+        va_4 = va / 4
+
+        # Create our first DataFrame for VA
+        df3 = pd.DataFrame(data={'magnitude': np.abs(va_4),
+                                 'angle': np.angle(va_4, deg=True)})
+        # Now, our second.
+        df4 = pd.DataFrame(data={'magnitude': np.abs(3*va_4),
+                                 'angle': np.angle(3*va_4, deg=True)})
+
+        # Mock up our 'meas_data' input. Note the alignment with our
+        # DataFrames in order.
+        meas_data = pd.DataFrame({'id': ['a', 'b', 'c', 'd'],
+                                  'type': ['PNV', 'PNV', 'VA', 'VA']})
+
+        # Create a mock for the PlatformManager.
+        mock_mgr = MagicMock()
+        mock_mgr.get_simulation_output = \
+            MagicMock(side_effect=[df1, df2, df3, df4])
+
+        # We're ready to call the function.
+        with patch('pyvvo.load_model.PlatformManager',
+                   return_value=mock_mgr) as p:
+            actual = load_model.get_data_for_load(sim_id='bleh',
+                                                  meas_data=meas_data)
+
+        self.assertEqual(1, p.call_count)
+        self.assertEqual(4, mock_mgr.get_simulation_output.call_count)
+        pd.testing.assert_frame_equal(expected, actual)
+
 
 
 class FixLoadNameTestCase(unittest.TestCase):

@@ -1,9 +1,16 @@
 """Module for managing load modeling: take data from the platform,
 manipulate it, then perform a ZIP fit.
 """
+# Standard library:
 import logging
 
+# Third party:
+import numpy as np
 import pandas as pd
+
+# pyvvo:
+from pyvvo.gridappsd_platform import PlatformManager
+from pyvvo import utils
 
 LOG = logging.getLogger(__name__)
 
@@ -28,9 +35,9 @@ class LoadModelManager:
         relevant information.
 
         :param load_nominal_voltage: Pandas DataFrame, should come from
-            sparql.SparqlManager.query_load_nominal_voltage()
+            sparql.SPARQLManager.query_load_nominal_voltage()
         :param load_measurements: Pandas DataFrame, should come from
-            sparql.SparqlManager.query_load_measurements()
+            sparql.SPARQLManager.query_load_measurements()
         :param load_names_glm: List of strings of the triplex load names
             within a GridLAB-D model. The simplest way to obtain this is
             through a glm.GLMManager object ('mgr' in this example):
@@ -181,3 +188,112 @@ def fix_load_name(n):
 
     # Strip off the prefix and suffix and return.
     return tmp[len(TRIPLEX_LOAD_PREFIX):]
+
+
+def get_data_for_load(sim_id, meas_data,
+                      query_measurement='gridappsd-sensor-simulator',
+                      starttime=None, endtime=None,):
+    """Query sensor service output to get data for given measurement
+    mrids. This is specific to triplex_loads, and at the moment DOES NOT
+    generalize to three phase loads.
+
+    NOTE 1: query_measurement, starttime, and endtime are all directly
+        passed to
+        gridappsd_platform.PlatformManager.get_simulation_output. For
+        details on these inputs, see that method's docstring.
+
+    NOTE 2: The given meas_mrids are assumed to be associated with the
+        same load, but no integrity checks will be performed.
+
+    :param sim_id: Simulation ID, string.
+    :param meas_data: Pandas DataFrame. Should be a subset of the
+        DataFrame returned by
+        sparql.SPARQLManager.query_load_measurements, but with
+        measurements only for a single load. For triplex_loads, this
+        means it MUST have 4 rows.
+    :param query_measurement: String, defaults to
+        'gridappsd-sensor-simulator.'
+    :param starttime: datetime.datetime. Filters measurements.
+    :param endtime: datetime.datetime. Filters measurements.
+
+    :returns pandas DataFrame with three columns, 'v', 'p', and 'q'.
+        Indexed by time as returned by
+        gridappsd_platform.PlatformManager.get_simulation_output.
+    """
+    # Do some quick input checks.
+    if not isinstance(meas_data, pd.DataFrame):
+        raise TypeError('meas_data must be a Pandas DataFrame.')
+
+    if meas_data.shape[0] != 4:
+        raise ValueError('Since meas_data should correspond to measurements '
+                         'for a single triplex_load, it should have 4 rows.')
+
+    # Get a PlatformManager to query the time series database.
+    mgr = PlatformManager()
+
+    # Initialize dictionary to hold DataFrames. It will be keyed by
+    # measurement MRID.
+    data = {}
+
+    # Query the time series database.
+    for m in meas_data['id'].values:
+        # Get the data for this measurement.
+        d = mgr.get_simulation_output(
+            simulation_id=sim_id,
+            query_measurement=query_measurement,
+            starttime=starttime, endtime=endtime,
+            measurement_mrid=m
+        )
+
+        # There may be some bugs in pandas related to complex numbers...
+        # So, we'll hack around this.
+        data[m] = {'data': utils.get_complex(r=d['magnitude'].values,
+                                             phi=d['angle'].values,
+                                             degrees=True),
+                   'idx': d.index
+                   }
+
+    # Ensure nothing funky is going on and that all our data is the
+    # same shape.
+    v_iter = iter(data.values())
+    dict1 = next(v_iter)
+    s = dict1['data'].shape
+    idx = dict1['idx']
+
+    for d in v_iter:
+        assert s == d['data'].shape
+        pd.testing.assert_index_equal(idx, d['idx'])
+
+    # Initialize arrays to hold our phase to neutral measurements and
+    # VA measurements. I initially had these as columns in a DataFrame,
+    # but pandas gets upset about complex numbers?
+    pnv = np.zeros_like(dict1['data'])
+    va = np.zeros_like(dict1['data'])
+
+    # Loop over our list of DataFrames
+    for meas_mrid, d in data.items():
+        # By the nature of our query, we can ensure that each DataFrame
+        # only corresponds to a single measurement MRID.
+        # Extract the row in meas_data corresponding to this mrid.
+        row = meas_data[meas_data['id'] == meas_mrid]
+
+        # Ensure it really is just a row.
+        assert row.shape[0] == 1
+
+        # Extract the type.
+        meas_type = row.iloc[0]['type']
+
+        if meas_type == 'PNV':
+            pnv += d['data']
+        elif meas_type == 'VA':
+            va += d['data']
+        else:
+            raise ValueError('Unexpected measurement type, {}.'
+                             .format(meas_type))
+
+    # Return a DataFrame with the 'v', 'p', and 'q' columns needed for
+    # ZIP fitting.
+    return pd.DataFrame(data={'v': np.abs(pnv),
+                              'p': va.real,
+                              'q': va.imag},
+                        index=idx)
