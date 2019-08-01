@@ -145,9 +145,8 @@ class GetDataForLoadTestCase(unittest.TestCase):
 
         # Read the outputs from the timeseries database.
         cls.ts_out = []
-        for file in _df.SENSOR_MEAS_LIST:
-            with open(file, 'r') as f:
-                cls.ts_out.append(json.load(f))
+        for file in _df.PARSED_SENSOR_LIST:
+            cls.ts_out.append(pd.read_csv(file))
 
     def test_runs(self):
         """Use our testing data from the platform to ensure this works
@@ -156,7 +155,7 @@ class GetDataForLoadTestCase(unittest.TestCase):
         # Patch calls to _query_simulation_output to read our
         # measurements in order.
         with patch(('pyvvo.gridappsd_platform.PlatformManager'
-                    + '._query_simulation_output'),
+                    + '.get_simulation_output'),
                    side_effect=self.ts_out) as p:
             results = \
                 load_model.get_data_for_load(
