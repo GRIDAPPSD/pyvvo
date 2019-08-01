@@ -540,7 +540,9 @@ class PlatformManager:
         # Parse the result and return.
         return timeseries.parse_timeseries(data)
 
-    def run_simulation(self, feeder_id, start_time, duration, realtime):
+    def run_simulation(self, feeder_id, start_time, duration, realtime,
+                       applications=None, random_zip=False,
+                       houses=False):
         """Start a simulation and return the simulation ID.
 
         For now, this is hard-coded to the point where it'll likely only
@@ -551,7 +553,15 @@ class PlatformManager:
         :param duration: Integer. Duration of simulation.
         :param realtime: Boolean. Whether or not to run the simulation
             in real time.
+        :param applications: List of dictionaries of applications to
+            run. Each application must at least have a 'name' field.
+        :param random_zip: Boolean, whether to randomize zip loads.
+        :param houses: Boolean, whether or not to use houses in the
+            simulation.
         """
+        if applications is None:
+            applications = []
+
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
         geo_name = "_73C512BD-7249-4F50-50DA-D93849B89C43"
@@ -562,9 +572,9 @@ class PlatformManager:
                 "GeographicalRegion_name": geo_name,
                 "SubGeographicalRegion_name": subgeo_name,
                 "Line_name": feeder_id},
-                "application_config": {"applications": []},
+                "application_config": {"applications": applications},
                 "simulation_config": {"start_time":
-                                          utils.dt_to_s_from_epoch(start_time),
+                                        utils.dt_to_s_from_epoch(start_time),
                                       "duration": str(duration),
                                       "simulator": "GridLAB-D",
                                       "timestep_frequency": "1000",
@@ -577,8 +587,9 @@ class PlatformManager:
                                           "schedule_name": "ieeezipload",
                                           "z_fraction": "0", "i_fraction": "1",
                                           "p_fraction": "0",
-                                          "randomize_zipload_fractions": False,
-                                          "use_houses": False}},
+                                          "randomize_zipload_fractions":
+                                              random_zip,
+                                          "use_houses": houses}},
                 "test_config": {"events": [],
                                 "appId": feeder_id}}
 
