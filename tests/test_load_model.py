@@ -146,7 +146,7 @@ class GetDataForLoadTestCase(unittest.TestCase):
         # Read the outputs from the timeseries database.
         cls.ts_out = []
         for file in _df.PARSED_SENSOR_LIST:
-            cls.ts_out.append(pd.read_csv(file))
+            cls.ts_out.append(_df.read_pickle(file))
 
     def test_runs(self):
         """Use our testing data from the platform to ensure this works
