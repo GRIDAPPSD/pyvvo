@@ -270,5 +270,36 @@ class PowerFactorTestCase(unittest.TestCase):
         np.testing.assert_allclose(actual, expected)
 
 
+class GetComplex(unittest.TestCase):
+    def test_scalar_degrees(self):
+        expected = 1 + 1j*1
+        actual = utils.get_complex(r=2**0.5, phi=45, degrees=True)
+        # noinspection PyTypeChecker
+        self.assertTrue(np.isclose(actual, expected))
+
+    # noinspection PyTypeChecker
+    def test_scalar_radians(self):
+        expected = 2 + 1j * 2
+        actual = utils.get_complex(r=abs(expected), phi=np.angle(expected),
+                                   degrees=False)
+        self.assertTrue(np.isclose(expected, actual))
+
+    # noinspection PyMethodMayBeStatic
+    def test_array_degrees(self):
+        expected = np.random.rand(10) + 1j * np.random.rand(10)
+        actual = utils.get_complex(r=np.abs(expected),
+                                   phi=np.angle(expected, deg=True),
+                                   degrees=True)
+        np.testing.assert_allclose(actual, expected)
+
+    # noinspection PyMethodMayBeStatic
+    def test_array_radians(self):
+        expected = np.random.rand(10) + 1j * np.random.rand(10)
+        actual = utils.get_complex(r=np.abs(expected),
+                                   phi=np.angle(expected, deg=False),
+                                   degrees=False)
+        np.testing.assert_allclose(actual, expected)
+
+
 if __name__ == '__main__':
     unittest.main()

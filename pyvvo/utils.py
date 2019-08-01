@@ -272,3 +272,17 @@ def power_factor(p):
     pf = np.abs(p.real) / np.abs(p)
     angle = np.angle(p)
     return pf * np.sign(angle)
+
+
+def get_complex(r, phi, degrees=True):
+    """Given polar coordinates, return complex numbers.
+
+    :param r: radius/magnitude. Scalar or numpy array.
+    :param phi: angle. Scalar or numpy array. Assumed to be in degrees
+        if degrees=True, otherwise assumed to be in radians.
+    :param degrees: boolean, True for degrees, False for radians.
+    """
+    if degrees:
+        return r * np.exp(1j * np.radians(phi))
+    else:
+        return r * np.exp(1j * phi)
