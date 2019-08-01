@@ -325,23 +325,13 @@ class ResampleWeatherTestCase(unittest.TestCase):
 
     def test_resample_weather_bad_weather_data_type(self):
         self.assertRaises(TypeError, timeseries.resample_weather,
-                          weather_data={'temp': [1, 2, 3]}, interval=15,
-                          interval_unit='Min')
-
-    def test_resample_weather_bad_interval_type(self):
-        self.assertRaises(TypeError, timeseries.resample_weather,
-                          weather_data=pd.DataFrame(), interval=15.1,
-                          interval_unit='Min')
-
-    def test_resample_weather_bad_interval_unit(self):
-        self.assertRaises(TypeError, timeseries.resample_weather,
-                          weather_data=pd.DataFrame(), interval=15,
-                          interval_unit=[1, 2, 3])
+                          weather_data={'temp': [1, 2, 3]},
+                          interval_str='15Min')
 
     def test_resample_weather_15_min(self):
         """Resample at 15 minute intervals."""
         actual = timeseries.resample_weather(weather_data=self.weather_data,
-                                             interval=15, interval_unit='Min')
+                                             interval_str='15Min')
 
         pd.testing.assert_frame_equal(actual, self.expected_data)
 

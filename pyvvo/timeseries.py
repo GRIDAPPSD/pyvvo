@@ -115,27 +115,26 @@ def parse_weather(data):
         columns={'TowerDryBulbTemp': 'temperature', 'GlobalCM22': 'ghi'})
 
 
-def resample_weather(weather_data, interval, interval_unit):
+def resample_weather(weather_data, interval_str):
     """Resample weather data.
 
     :param weather_data: DataFrame result from calling parse_weather.
-    :param interval: Integer for resampling, e.g. 15
-    :param interval_unit: One of the "offset aliases" for frequencies
-        in pandas, e.g. "Min":
-        http://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html
+    :param interval_str: String representing the new desired interval.
+        Docs:
+        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html
+        Examples:
+            '15Min'
+            '3S'
     """
     if not isinstance(weather_data, pd.DataFrame):
         raise TypeError('weather_data must be a pandas DataFrame.')
 
-    if not isinstance(interval, int):
-        raise TypeError('interval must be an integer!')
-
-    if not isinstance(interval_unit, str):
-        raise TypeError('interval_unit must be a string!')
+    if not isinstance(interval_str, str):
+        raise TypeError('interval_str must be a string!')
 
     # Perform the resampling.
-    return weather_data.resample('{}{}'.format(interval, interval_unit),
-                                 closed='right', label='right').mean()
+    return weather_data.resample(interval_str, closed='right',
+                                 label='right').mean()
 
 
 def fix_ghi(weather_data):
