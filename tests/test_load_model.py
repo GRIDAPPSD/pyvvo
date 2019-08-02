@@ -137,11 +137,9 @@ class GetDataForLoadTestCase(unittest.TestCase):
         cls.meas_data.rename(columns={'id': 'meas_mrid', 'type': 'meas_type'},
                              inplace=True)
 
-        # HARD CODE the same datetime in
-        # generate_sensor_service_measurements_9500
-        cls.starttime = datetime(2013, 1, 14, 0, 0)
-        # HARD CODE - simulation duration is 300 seconds, aka 5 minutes.
-        cls.endtime = datetime(2013, 1, 14, 0, 5)
+        # Get dates corresponding to measurements.
+        cls.starttime = _df.SENSOR_MEASUREMENT_TIME_START
+        cls.endtime = _df.SENSOR_MEASUREMENT_TIME_END
 
         # Read the outputs from the timeseries database.
         cls.ts_out = []
@@ -220,6 +218,8 @@ class GetDataForLoadTestCase(unittest.TestCase):
         self.assertEqual(4, mock_mgr.get_simulation_output.call_count)
         pd.testing.assert_frame_equal(expected, actual)
 
+
+# class FitForLoadTestCase(unittest.TestCase):
 
 class FixLoadNameTestCase(unittest.TestCase):
 

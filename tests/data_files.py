@@ -97,6 +97,9 @@ E_CONS_MEAS_9500 =\
     os.path.join(DATA_DIR, 'energy_consumer_measurements_9500.json')
 ALL_MEAS_13 = os.path.join(DATA_DIR, 'all_measurements_13.json')
 
+SENSOR_MEASUREMENT_TIME_START = datetime(2013, 1, 14, 0, 0)
+SENSOR_MEASUREMENT_TIME_END = datetime(2013, 1, 14, 0, 5)
+
 SENSOR_MEASUREMENT_BASE = 'sensor_measurements_9500'
 SENSOR_MEAS_9500_0 = \
     os.path.join(DATA_DIR, SENSOR_MEASUREMENT_BASE + '_0.json')
@@ -122,6 +125,9 @@ PARSED_SENSOR_LIST = [PARSED_SENSOR_9500_0, PARSED_SENSOR_9500_1,
                       PARSED_SENSOR_9500_2, PARSED_SENSOR_9500_3]
 
 PARSED_SENSOR_VPQ = os.path.join(DATA_DIR, 'parsed_sensor_vpq_9500.csv')
+
+WEATHER_FOR_SENSOR_DATA_9500 = \
+    os.path.join(DATA_DIR, 'weather_for_sensors_data_9500.csv')
 
 
 def read_pickle(csv_file):
@@ -395,13 +401,14 @@ def generate_sensor_service_measurements_9500():
     meas_data = _get_9500_meas_data_for_one_node()
 
     platform = gridappsd_platform.PlatformManager()
-    starttime = datetime(2013, 1, 14, 0, 0)
+    time_diff = SENSOR_MEASUREMENT_TIME_END - SENSOR_MEASUREMENT_TIME_START
     # TODO: Use houses when
     #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/20#issue-475398545
     #  is resolved.
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
-                                     start_time=starttime,
-                                     duration=300, realtime=False,
+                                     start_time=SENSOR_MEASUREMENT_TIME_START,
+                                     duration=time_diff.seconds,
+                                     realtime=False,
                                      applications=[{'name': 'sample_app'}],
                                      random_zip=False, houses=False)
 
@@ -460,6 +467,15 @@ def generate_vpq_for_parsed_sensor_service_measurements_9500():
     to_file(out, PARSED_SENSOR_VPQ)
 
 
+def generate_weather_for_sensor_data_9500():
+    """Get weather data that lines up with the sensor data.
+    """
+    p = gridappsd_platform.PlatformManager()
+    d = p.get_weather(start_time=SENSOR_MEASUREMENT_TIME_START,
+                      end_time=SENSOR_MEASUREMENT_TIME_END)
+    to_file(d, WEATHER_FOR_SENSOR_DATA_9500)
+
+
 if __name__ == '__main__':
     gen_expected_sparql_results()
     generate_all_measurements_13()
@@ -469,5 +485,6 @@ if __name__ == '__main__':
     generate_sensor_service_measurements_9500()
     generate_parsed_sensor_service_measurements_9500()
     generate_vpq_for_parsed_sensor_service_measurements_9500()
+    generate_weather_for_sensor_data_9500()
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")
