@@ -126,6 +126,7 @@ def resample_weather(weather_data, interval_str):
             '15Min'
             '3S'
     """
+    # https://stackoverflow.com/questions/24635721/how-to-compare-frequencies-sampling-rates-in-pandas
     if not isinstance(weather_data, pd.DataFrame):
         raise TypeError('weather_data must be a pandas DataFrame.')
 

@@ -335,6 +335,10 @@ class ResampleWeatherTestCase(unittest.TestCase):
 
         pd.testing.assert_frame_equal(actual, self.expected_data)
 
+    def test_stuff(self):
+        self.assertTrue(False, "Need to make this method more general,"
+                               " and handle upsampling and downsampling.")
+
 
 class FixGHITestCase(unittest.TestCase):
     """Test fix_ghi"""

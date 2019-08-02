@@ -219,7 +219,17 @@ class GetDataForLoadTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
 
-# class FitForLoadTestCase(unittest.TestCase):
+class FitForLoadTestCase(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.load_data = _df.read_pickle(_df.PARSED_SENSOR_VPQ)
+        cls.weather_data = _df.read_pickle(_df.WEATHER_FOR_SENSOR_DATA_9500)
+
+    def test_one(self):
+        load_model.fit_for_load(load_data=self.load_data,
+                                weather_data=self.weather_data)
+
+        self.assertTrue(False)
 
 class FixLoadNameTestCase(unittest.TestCase):
 

@@ -6,7 +6,7 @@ from pyvvo import equipment
 from pyvvo import ga, utils
 from gridappsd import topics
 from datetime import datetime
-import json
+import simplejson as json
 import time
 
 
@@ -56,7 +56,9 @@ if __name__ == '__main__':
     # PLATFORM = os.environ['platform']
     #
     # Hard-code 8500 node MRID for now.
-    feeder_mrid = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
+    # feeder_mrid = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
+    # 9500
+    feeder_mrid = '_AAE94E4A-2465-6F5E-37B1-3E72183A4E44'
     # IEEE 13 bus
     # feeder_mrid = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
     # IEEE 123 bus
@@ -73,14 +75,19 @@ if __name__ == '__main__':
     #
     # # m = platform.get_historic_measurements(sim_id=sim_id, mrid=None)
     #
-    # # Hard-code some dates to work with.
-    # starttime = datetime(2013, 1, 14)
-    # stoptime = datetime(2013, 1, 28)
-    #
+    # Hard-code some dates to work with.
+    starttime = datetime(2013, 1, 14, 0, 0)
+    stoptime = datetime(2013, 1, 14, 0, 1)
+
+    # sim_id = platform.run_simulation(feeder_id=feeder_mrid,
+    #                                  start_time=starttime,
+    #                                  duration=20, realtime=False)
+
+    # sim_id = '1524166554'
     # ####################################################################
     # # GET PREREQUISITE DATA
     # ####################################################################
-    #
+    # #
     # # TODO: Dispatch these jobs to threads.
     # # Get regulator information.
     # reg_df = sparql_mgr.query_regulators()
@@ -108,32 +115,33 @@ if __name__ == '__main__':
     # # TODO: Uncomment below when the following is resolved:
     # # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/969
     #
-    # # switch_meas = sparql_mgr.query_switch_measurements()
-    # # switch_meas_mrid = list(switch_meas[sparql.SWITCH_MEAS_MEAS_MRID_COL])
-    # # switch_mgr = equipment.EquipmentManager(
-    # #     eq_dict=switch_objects, eq_meas=switch_meas,
-    # #     meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL,
-    # #     eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
-    # # )
+    # switch_meas = sparql_mgr.query_switch_measurements()
+    # switch_meas_mrid = list(switch_meas[sparql.SWITCH_MEAS_MEAS_MRID_COL])
+    # switch_mgr = equipment.EquipmentManager(
+    #     eq_dict=switch_objects, eq_meas=switch_meas,
+    #     meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL,
+    #     eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
+    # )
     #
     # # Get EnergyConsumer (load) data.
-    # load_nom_v = sparql_mgr.query_load_nominal_voltage()
-    # load_meas = sparql_mgr.query_load_measurements()
-    #
-    # # Get substation data.
-    # substation = sparql_mgr.query_substation_source()
-    # substation_bus_meas = sparql_mgr.query_measurements_for_bus(
-    #     bus_mrid=substation.iloc[0]['bus_mrid'])
+    load_nom_v = sparql_mgr.query_load_nominal_voltage()
+    load_meas = sparql_mgr.query_load_measurements()
+
+    meas_id = load_meas.iloc[0]['id']
+
+    # Get substation data.
+    substation = sparql_mgr.query_substation_source()
+    substation_bus_meas = sparql_mgr.query_measurements_for_bus(
+        bus_mrid=substation.iloc[0]['bus_mrid'])
 
     # Get model, make it runnable.
     model = platform.get_glm(model_id=feeder_mrid)
     glm = GLMManager(model=model, model_is_path=False)
     model_start = datetime(2013, 4, 1, 12, 0)
     model_end = datetime(2013, 4, 1, 12, 5)
-    glm.add_run_components(starttime=model_start, stoptime=model_end)
-    glm.write_model(out_path='8500.glm')
-    result = utils.run_gld('8500.glm')
-    pass
+    # glm.add_run_components(starttime=model_start, stoptime=model_end)
+    # glm.write_model(out_path='8500.glm')
+    # result = utils.run_gld('8500.glm')
     # import timeit
     # from copy import deepcopy
     # t1 = timeit.timeit("glm = GLMManager(model=model, model_is_path=False)",

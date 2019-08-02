@@ -10,7 +10,7 @@ import pandas as pd
 
 # pyvvo:
 from pyvvo.gridappsd_platform import PlatformManager
-from pyvvo import utils
+from pyvvo import utils, timeseries
 
 LOG = logging.getLogger(__name__)
 
@@ -152,6 +152,11 @@ class LoadModelManager:
         self.log.info('Initialization complete. GridLAB-D load names '
                       'successfully mapped to CIM measurements.')
 
+    def get_zip_for_load(self, load_meas_data, weather_data):
+        """Given measurement data from the platform, come up with a
+        ZIP load model.
+        """
+
 
 def fix_load_name(n):
     """Strip quotes, remove prefix, and remove suffix from load names.
@@ -228,6 +233,8 @@ def get_data_for_load(sim_id, meas_data,
                          'for a single triplex_load, it should have 4 rows.')
 
     # Get a PlatformManager to query the time series database.
+    # NOTE: This is created on demand rather than being an input to
+    # make this more robust for running in parallel.
     mgr = PlatformManager()
 
     # Initialize dictionary to hold DataFrames. It will be keyed by
@@ -296,3 +303,34 @@ def get_data_for_load(sim_id, meas_data,
                               'p': va.real,
                               'q': va.imag},
                         index=idx)
+
+
+def fit_for_load(load_data, weather_data):
+    """Get data for a load, then perform the fit.
+
+    :param load_data: Pandas DataFrame. Return from get_data_for_load.
+    :param weather_data: Pandas DataFrame which has come straight from
+        gridappsd_platform.PlatformManager.get_weather.
+
+    NOTE: It's assumed that load_data and weather_data were pulled
+        using the same starting and ending times.
+    """
+    # Fix up our weather data.
+    weather_data = timeseries.fix_ghi(weather_data)
+
+    # Detect the frequency of our load data.
+    load_freq = pd.infer_freq(load_data.index, warn=False)
+
+    if load_freq is None:
+        # TODO: find a more appropriate exception here.
+        raise UserWarning('Could not determine the load frequency!')
+
+    # Resample our weather data to match our load frequency.
+    weather_resampled = timeseries.resample_weather(weather_data=weather_data,
+                                                    interval_str=load_freq)
+
+    pass
+
+
+
+
