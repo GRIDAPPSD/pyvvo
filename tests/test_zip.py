@@ -1075,7 +1075,11 @@ class TestGLDZIP(unittest.TestCase):
 
                 # Get string of max pct diff for reporting.
                 pct_diff = ((d2 - d1) / d2) * 100
-                max_pct_diff = pct_diff[np.argmax(np.abs(pct_diff))]
+                try:
+                    max_pct_diff = pct_diff[np.argmax(np.abs(pct_diff.values))]
+                except AttributeError:
+                    max_pct_diff = pct_diff[np.argmax(np.abs(pct_diff))]
+
                 diff_str = '{:.2f}%'.format(max_pct_diff)
 
             # Actually run the test.

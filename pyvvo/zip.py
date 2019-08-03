@@ -13,7 +13,7 @@ P_i = S_n * [(V_i/V_n)^2 * Z% * cos(Z_theta)
 Q_i = S_n * [(V_i/V_n)^2 * Z% * sin(Z_theta)
       + V_i/V_n * I% * sin(I_theta) + P% * sin(P_theta)]
 
-Contrained by:
+Constrained by:
 Z% + I% + P% = 1
 
 Where:
@@ -58,8 +58,6 @@ import math
 import multiprocessing as mp
 from queue import Empty, Queue
 from time import process_time
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Installed packages
 import numpy as np
@@ -678,6 +676,7 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
         if rmsd < min_rmsd:
             min_rmsd = rmsd
             best_fit = fit_outputs
+            best_fit['k'] = k
 
     # That's it. Return the best fit.
     return best_fit
