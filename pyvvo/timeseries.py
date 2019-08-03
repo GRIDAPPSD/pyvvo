@@ -115,27 +115,51 @@ def parse_weather(data):
         columns={'TowerDryBulbTemp': 'temperature', 'GlobalCM22': 'ghi'})
 
 
-def resample_weather(weather_data, interval_str):
-    """Resample weather data.
+def resample_timeseries(ts, interval_str):
+    """Resample timeseries, either up-sampling or down-sampling. For
+    up-sampling, linear interpolation will be used, and means will be
+    used for down-sampling.
 
-    :param weather_data: DataFrame result from calling parse_weather.
+    :param ts: DataFrame or Series indexed by time.
     :param interval_str: String representing the new desired interval.
         Docs:
-        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html
+        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
         Examples:
             '15Min'
             '3S'
     """
     # https://stackoverflow.com/questions/24635721/how-to-compare-frequencies-sampling-rates-in-pandas
-    if not isinstance(weather_data, pd.DataFrame):
-        raise TypeError('weather_data must be a pandas DataFrame.')
+    if not isinstance(ts, (pd.DataFrame, pd.Series)):
+        raise TypeError('weather_data must be a pandas DataFrame or Series.')
 
     if not isinstance(interval_str, str):
         raise TypeError('interval_str must be a string!')
 
-    # Perform the resampling.
-    return weather_data.resample(interval_str, closed='right',
-                                 label='right').mean()
+    # Compare the interval of our input data and the desired interval.
+    ts_freq = pd.infer_freq(ts.index)
+
+    if ts_freq is None:
+        # TODO: Find better exception.
+        raise UserWarning('Could not infer frequency from timeseries!')
+
+    # noinspection PyUnresolvedReferences
+    ts_offset = pd.tseries.frequencies.to_offset(ts_freq)
+    # noinspection PyUnresolvedReferences
+    i_offset = pd.tseries.frequencies.to_offset(interval_str)
+
+    if ts_offset > i_offset:
+        # Upsample.
+        return ts.resample(interval_str, closed='right',
+                           label='right').interpolate('linear')
+    elif ts_offset < i_offset:
+        # Downsample.
+        return ts.resample(interval_str, closed='right',
+                           label='right').mean()
+    else:
+        # Do nothing.
+        LOG.warning('The given timeseries and interval_str have the same '
+                    'frequency, so no resampling was performed.')
+        return ts
 
 
 def fix_ghi(weather_data):

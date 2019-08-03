@@ -298,8 +298,8 @@ class ParseWeatherTestCase(unittest.TestCase):
         self.assertTrue(actual.index.isna().any())
 
 
-class ResampleWeatherTestCase(unittest.TestCase):
-    """Test resample_weather function."""
+class ResampleTimeSeriesTestCase(unittest.TestCase):
+    """Test resample_timeseries function."""
 
     @classmethod
     def setUpClass(cls):
@@ -324,20 +324,45 @@ class ResampleWeatherTestCase(unittest.TestCase):
                                          index=dt_index_2)
 
     def test_resample_weather_bad_weather_data_type(self):
-        self.assertRaises(TypeError, timeseries.resample_weather,
+        self.assertRaises(TypeError, timeseries.resample_timeseries,
                           weather_data={'temp': [1, 2, 3]},
                           interval_str='15Min')
 
-    def test_resample_weather_15_min(self):
+    def test_resample_weather_15_min_downsample(self):
         """Resample at 15 minute intervals."""
-        actual = timeseries.resample_weather(weather_data=self.weather_data,
-                                             interval_str='15Min')
+        actual = timeseries.resample_timeseries(ts=self.weather_data,
+                                                interval_str='15Min')
 
         pd.testing.assert_frame_equal(actual, self.expected_data)
 
-    def test_stuff(self):
-        self.assertTrue(False, "Need to make this method more general,"
-                               " and handle upsampling and downsampling.")
+    # noinspection PyMethodMayBeStatic
+    def test_resample_upsample(self):
+        a = [1, 2, 3, 4, 5]
+        b = [11, 12, 13, 14, 15]
+        dt_index = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=5,
+                                 freq='2Min')
+
+        to_resample = pd.DataFrame({'a': a, 'b': b}, index=dt_index)
+        a2 = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
+        b2 = [11, 11.5, 12, 12.5, 13, 13.5, 14, 14.5, 15]
+        r_index = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=9,
+                                freq='1Min')
+        expected = pd.DataFrame({'a': a2, 'b': b2}, index=r_index)
+
+        actual = timeseries.resample_timeseries(ts=to_resample,
+                                                interval_str='1Min')
+
+        pd.testing.assert_frame_equal(actual, expected)
+        
+    def test_resample_same_freq(self):
+        a = [1, 2, 3, 4, 5]
+        i = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=5,
+                          freq='1Min')
+        s = pd.Series(a, index=i)
+        with self.assertLogs(logger=timeseries.LOG, level='WARNING'):
+            s2 = timeseries.resample_timeseries(s, '1Min')
+
+        self.assertIs(s, s2)
 
 
 class FixGHITestCase(unittest.TestCase):
