@@ -353,7 +353,7 @@ class ResampleTimeSeriesTestCase(unittest.TestCase):
                                                 interval_str='1Min')
 
         pd.testing.assert_frame_equal(actual, expected)
-        
+
     def test_resample_same_freq(self):
         a = [1, 2, 3, 4, 5]
         i = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=5,
@@ -363,6 +363,32 @@ class ResampleTimeSeriesTestCase(unittest.TestCase):
             s2 = timeseries.resample_timeseries(s, '1Min')
 
         self.assertIs(s, s2)
+
+    def test_bad_method(self):
+        with self.assertRaisesRegex(ValueError, 'method must be either'):
+            timeseries.resample_timeseries(ts=pd.Series([1, 2, 3]),
+                                           interval_str='20Min',
+                                           method='bad_method')
+
+
+class UpOrDownSampleTestCase(unittest.TestCase):
+    def test_upsample(self):
+        self.assertEqual(
+            'upsample',
+            timeseries.up_or_down_sample(orig_interval='10Min',
+                                         new_interval='1Min')
+        )
+
+    def test_downsample(self):
+        self.assertEqual(
+            'downsample',
+            timeseries.up_or_down_sample(orig_interval='1Min',
+                                         new_interval='10Min')
+        )
+
+    def test_none(self):
+        self.assertIsNone(timeseries.up_or_down_sample(orig_interval='1Min',
+                                                       new_interval='T'))
 
 
 class FixGHITestCase(unittest.TestCase):

@@ -115,7 +115,7 @@ def parse_weather(data):
         columns={'TowerDryBulbTemp': 'temperature', 'GlobalCM22': 'ghi'})
 
 
-def resample_timeseries(ts, interval_str):
+def resample_timeseries(ts, interval_str, method=None):
     """Resample timeseries, either up-sampling or down-sampling. For
     up-sampling, linear interpolation will be used, and means will be
     used for down-sampling.
@@ -127,6 +127,10 @@ def resample_timeseries(ts, interval_str):
         Examples:
             '15Min'
             '3S'
+    :param method: String, either 'upsample' or 'downsample'. Only use
+        this parameter (make it None) if ts does not have a regular
+        interval, making it difficult to infer if we're upsampling or
+        downsampling.
     """
     # https://stackoverflow.com/questions/24635721/how-to-compare-frequencies-sampling-rates-in-pandas
     if not isinstance(ts, (pd.DataFrame, pd.Series)):
@@ -135,31 +139,66 @@ def resample_timeseries(ts, interval_str):
     if not isinstance(interval_str, str):
         raise TypeError('interval_str must be a string!')
 
-    # Compare the interval of our input data and the desired interval.
-    ts_freq = pd.infer_freq(ts.index)
+    # If not given 'method', infer based on frequencies.
+    if method is None:
+        # Compare the interval of our input data and the desired interval.
+        ts_freq = pd.infer_freq(ts.index)
 
-    if ts_freq is None:
-        # TODO: Find better exception.
-        raise UserWarning('Could not infer frequency from timeseries!')
+        if ts_freq is None:
+            # TODO: Find better exception.
+            raise UserWarning('Could not infer frequency from timeseries!')
 
-    # noinspection PyUnresolvedReferences
-    ts_offset = pd.tseries.frequencies.to_offset(ts_freq)
-    # noinspection PyUnresolvedReferences
-    i_offset = pd.tseries.frequencies.to_offset(interval_str)
+        # Determine if we're upsampling or downsampling.
+        method = up_or_down_sample(orig_interval=ts_freq,
+                                   new_interval=interval_str)
 
-    if ts_offset > i_offset:
-        # Upsample.
+        if method is None:
+            # Do nothing and return.
+            LOG.warning('The given timeseries and interval_str have the same '
+                        'frequency, so no resampling was performed.')
+            return ts
+    else:
+        # If given 'method', ensure it's valid.
+        if method not in ['upsample', 'downsample']:
+            raise ValueError("method must be either 'upsample' or"
+                             " 'downsample'")
+
+    # Now that we've determined our method, perform the resampling
+    # and return.
+    if method == 'upsample':
         return ts.resample(interval_str, closed='right',
-                           label='right').interpolate('linear')
-    elif ts_offset < i_offset:
-        # Downsample.
+                           label='right').interpolate('time')
+    elif method == 'downsample':
         return ts.resample(interval_str, closed='right',
                            label='right').mean()
+
+    # Nothing else to see here.
+
+
+# noinspection PyUnresolvedReferences
+def up_or_down_sample(orig_interval, new_interval):
+    """Helper to determine if upsampling or downsampling needs
+    performed given two frequency strings.
+
+    :param orig_interval: str, representing a Pandas dateoffset.
+    :param new_interval: str, representing a Pandas dateoffset.
+
+    Docs:
+    https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
+
+    Examples: '1Min', '10S'
+
+    :returns: 'upsample', 'downsample', or None (if the intervals are
+        equal)
+    """
+    o_o = pd.tseries.frequencies.to_offset(orig_interval)
+    n_o = pd.tseries.frequencies.to_offset(new_interval)
+    if o_o > n_o:
+        return 'upsample'
+    elif o_o < n_o:
+        return 'downsample'
     else:
-        # Do nothing.
-        LOG.warning('The given timeseries and interval_str have the same '
-                    'frequency, so no resampling was performed.')
-        return ts
+        return None
 
 
 def fix_ghi(weather_data):
