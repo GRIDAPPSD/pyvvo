@@ -72,7 +72,6 @@ printf "Building pyvvo-base container...\n"
 docker build -t pyvvo-base:${tag} \
     --build-arg mysql_apt=${mysql_apt} \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" \
-    --no-cache \
     --build-arg GLD=${gld_tar_gz} .
 
 # Move back up.
@@ -100,5 +99,4 @@ docker build -t gridappsd/pyvvo:${tag} \
     --build-arg TAG=${tag} \
     --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} \
     --build-arg mysql_apt=${mysql_apt} \
-    --no-cache \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" .
