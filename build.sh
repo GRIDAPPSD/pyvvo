@@ -14,7 +14,7 @@ pwd=$PWD
 # NOTE: When updating this branch, you probably should delete the
 # GridLAB-D directory ($gld_dir) first - the behavior of using
 # --single-branch with git clone does some weird stuff.
-gld_branch=release/RC4.1
+gld_branch=release/v4.2
 
 # Collect arguments.
 tag=${1:-latest}
@@ -72,6 +72,7 @@ printf "Building pyvvo-base container...\n"
 docker build -t pyvvo-base:${tag} \
     --build-arg mysql_apt=${mysql_apt} \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" \
+    --no-cache \
     --build-arg GLD=${gld_tar_gz} .
 
 # Move back up.
@@ -98,5 +99,6 @@ printf "Building pyvvo container...\n"
 docker build -t gridappsd/pyvvo:${tag} \
     --build-arg TAG=${tag} \
     --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} \
-       --build-arg mysql_apt=${mysql_apt} \
+    --build-arg mysql_apt=${mysql_apt} \
+    --no-cache \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" .
