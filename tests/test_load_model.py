@@ -226,10 +226,13 @@ class FitForLoadTestCase(unittest.TestCase):
         cls.weather_data = _df.read_pickle(_df.WEATHER_FOR_SENSOR_DATA_9500)
 
     def test_one(self):
-        load_model.fit_for_load(load_data=self.load_data,
-                                weather_data=self.weather_data)
+        output = load_model.fit_for_load(load_data=self.load_data,
+                                         weather_data=self.weather_data,
+                                         interval_str='1Min')
 
-        self.assertTrue(False)
+        self.assertTrue(False, "Need to actually test stuff and add more "
+                        "tests.")
+
 
 class FixLoadNameTestCase(unittest.TestCase):
 

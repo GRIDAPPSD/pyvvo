@@ -10,7 +10,7 @@ import pandas as pd
 
 # pyvvo:
 from pyvvo.gridappsd_platform import PlatformManager
-from pyvvo import utils, timeseries
+from pyvvo import utils, timeseries, zip
 
 LOG = logging.getLogger(__name__)
 
@@ -24,6 +24,8 @@ CIM_TRIPLEX_VOLTAGE = 208
 # objects for each triplex load phase. These seem to be suffixed with
 # 'a' and 'b'.
 CIM_TRIPLEX_SUFFIX_SET = {'a', 'b'}
+# For fitting, we need to use a nominal voltage.
+FIT_NOMINAL_VOLTAGE = 240
 
 
 class LoadModelManager:
@@ -305,30 +307,66 @@ def get_data_for_load(sim_id, meas_data,
                         index=idx)
 
 
-def fit_for_load(load_data, weather_data):
-    """Get data for a load, then perform the fit.
+def fit_for_load(load_data, weather_data, interval_str=None):
+    """Get data for a load, then perform the fit by calling
+    pyvvo.zip.get_best_fit_from_clustering.
 
     :param load_data: Pandas DataFrame. Return from get_data_for_load.
     :param weather_data: Pandas DataFrame which has come straight from
         gridappsd_platform.PlatformManager.get_weather.
+    :param interval_str: String for resampling the data (after
+        joining). This will be passed to timeseries.resample_timeseries,
+        and should be interpretable by Pandas.
+        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
+        e.g. '1Min'
 
-    NOTE: It's assumed that load_data and weather_data were pulled
+    NOTE 1: It's assumed that load_data and weather_data were pulled
         using the same starting and ending times.
+
+    NOTE 2: These two DataFrames will be merged, and any resulting
+        NaN values will be filled by simple linear interpolation. Thus,
+        it's the caller's responsibility to ensure reasonable alignment
+        between the indices of the DataFrames.
+
+    :returns output from pyvvo.zip.get_best_fit_from_clustering.
     """
     # Fix up our weather data.
     weather_data = timeseries.fix_ghi(weather_data)
 
-    # Detect the frequency of our load data.
-    load_freq = pd.infer_freq(load_data.index, warn=False)
+    # Join our load_data and weather_data, fill gaps via time-based
+    # linear interpolation.
+    df = load_data.join(weather_data, how='outer').interpolate(method='time')
 
-    if load_freq is None:
-        # TODO: find a more appropriate exception here.
-        raise UserWarning('Could not determine the load frequency!')
+    # If the indices didn't line up, we'll backfill and forward fill
+    # the rest. HO
+    df.fillna(method='backfill', inplace=True)
+    df.fillna(method='ffill', inplace=True)
 
-    # Resample our weather data to match our load frequency.
-    weather_resampled = timeseries.resample_weather(weather_data=weather_data,
-                                                    interval_str=load_freq)
+    if interval_str is not None:
+        # At this point, our df may not have an evenly spaced index. So,
+        # we need to determine if we're upsampling or downsampling.
+        # noinspection PyUnresolvedReferences
+        f1 = pd.tseries.frequencies.to_offset(
+            pd.infer_freq(weather_data.index))
+        # noinspection PyUnresolvedReferences
+        f2 = pd.tseries.frequencies.to_offset(pd.infer_freq(load_data.index))
+        min_f = min(f1, f2)
 
+        # Determine if we're upsampling or downsampling.
+        method = timeseries.up_or_down_sample(orig_interval=min_f,
+                                              new_interval=interval_str)
+
+        if method is not None:
+            df = timeseries.resample_timeseries(ts=df, method=method,
+                                                interval_str=interval_str)
+
+    # Now that our data's ready, let's perform the fit.
+    # TODO: Find good way to configure.
+    # TODO: Stop hard-coding configuration.
+    output = zip.get_best_fit_from_clustering(
+        data=df, zip_fit_inputs={'v_n': FIT_NOMINAL_VOLTAGE},
+        selection_data=df.iloc[-1][['temperature', 'ghi']]
+    )
     pass
 
 
