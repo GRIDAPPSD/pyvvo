@@ -262,12 +262,13 @@ class FitForLoadTestCase(unittest.TestCase):
         self.assertIn('rmsd_q', output)
         self.assertIn('k', output)
 
+    # noinspection PyMethodMayBeStatic
     def test_no_resampling(self):
         """Pass in simple DataFrames to ensure joining/filling is
         being done correctly."""
         # Data to input.
-        a1 = [1, 2, 3, 4]
-        a2 = [5, 6, 7, 9]
+        a1 = [1., 2., 3., 4.]
+        a2 = [5., 6., 7., 9.]
         b = [9., 10., 12.]
 
         # Timeseries index.
@@ -292,6 +293,8 @@ class FitForLoadTestCase(unittest.TestCase):
         p.assert_called_once()
         pd.testing.assert_frame_equal(expected,
                                       p.call_args[1]['data'])
+        pd.testing.assert_series_equal(a_df.iloc[-1],
+                                       p.call_args[1]['selection_data'])
 
 
 class FixLoadNameTestCase(unittest.TestCase):

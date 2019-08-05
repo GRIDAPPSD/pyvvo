@@ -307,7 +307,8 @@ def get_data_for_load(sim_id, meas_data,
                         index=idx)
 
 
-def fit_for_load(load_data, weather_data, interval_str=None):
+def fit_for_load(load_data, weather_data, interval_str=None,
+                 selection_data=None):
     """Get data for a load, then perform the fit by calling
     pyvvo.zip.get_best_fit_from_clustering.
 
@@ -321,6 +322,12 @@ def fit_for_load(load_data, weather_data, interval_str=None):
         and should be interpretable by Pandas.
         https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
         e.g. '1Min'
+    :param selection_data: Pandas Series, used as the point in space to
+        which cluster distances are measured. Passed directly to
+        zip.get_best_fit_from_clustering. Note all values of the index
+        must be columns in either load_data or weather_data. If None,
+        the last 'temperature' and 'ghi' values after DataFrame merging
+        and interpolation will be used.
 
     NOTE 1: It's assumed that load_data and weather_data were pulled
         using the same starting and ending times.
@@ -359,13 +366,17 @@ def fit_for_load(load_data, weather_data, interval_str=None):
             df = timeseries.resample_timeseries(ts=df, method=method,
                                                 interval_str=interval_str)
 
+    # If not given selection_data, use the last weather values.
+    if selection_data is None:
+        selection_data = df.iloc[-1][['temperature', 'ghi']]
+
     # Now that our data's ready, let's perform the fit.
     # TODO: Find good way to configure.
     # TODO: Stop hard-coding configuration.
     # TODO: BEst way to manage selection_data?
     output = zip.get_best_fit_from_clustering(
         data=df, zip_fit_inputs={'v_n': FIT_NOMINAL_VOLTAGE},
-        selection_data=df.iloc[-1][['temperature', 'ghi']]
+        selection_data=selection_data
     )
 
     return output
