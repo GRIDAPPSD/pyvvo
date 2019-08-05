@@ -312,8 +312,10 @@ def fit_for_load(load_data, weather_data, interval_str=None):
     pyvvo.zip.get_best_fit_from_clustering.
 
     :param load_data: Pandas DataFrame. Return from get_data_for_load.
-    :param weather_data: Pandas DataFrame which has come straight from
-        gridappsd_platform.PlatformManager.get_weather.
+    :param weather_data: Pandas DataFrame which has originated from
+        gridappsd_platform.PlatformManager.get_weather. The data is
+        already assumed to be cleaned, e.g. it has already been passed
+        through timeseries.fix_ghi.
     :param interval_str: String for resampling the data (after
         joining). This will be passed to timeseries.resample_timeseries,
         and should be interpretable by Pandas.
@@ -330,15 +332,12 @@ def fit_for_load(load_data, weather_data, interval_str=None):
 
     :returns output from pyvvo.zip.get_best_fit_from_clustering.
     """
-    # Fix up our weather data.
-    weather_data = timeseries.fix_ghi(weather_data)
-
     # Join our load_data and weather_data, fill gaps via time-based
     # linear interpolation.
     df = load_data.join(weather_data, how='outer').interpolate(method='time')
 
     # If the indices didn't line up, we'll backfill and forward fill
-    # the rest. HO
+    # the rest.
     df.fillna(method='backfill', inplace=True)
     df.fillna(method='ffill', inplace=True)
 
@@ -363,11 +362,13 @@ def fit_for_load(load_data, weather_data, interval_str=None):
     # Now that our data's ready, let's perform the fit.
     # TODO: Find good way to configure.
     # TODO: Stop hard-coding configuration.
+    # TODO: BEst way to manage selection_data?
     output = zip.get_best_fit_from_clustering(
         data=df, zip_fit_inputs={'v_n': FIT_NOMINAL_VOLTAGE},
         selection_data=df.iloc[-1][['temperature', 'ghi']]
     )
-    pass
+
+    return output
 
 
 

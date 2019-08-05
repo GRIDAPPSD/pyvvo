@@ -6,7 +6,7 @@ from datetime import datetime
 from tests import data_files as _df
 from tests import models
 from pyvvo.glm import GLMManager
-from pyvvo import load_model
+from pyvvo import load_model, timeseries, zip
 
 import numpy as np
 import pandas as pd
@@ -85,6 +85,7 @@ class LoadModelManager13TestCase(unittest.TestCase):
     """The 13 bus model has only one triplex load, but several other
     loads at different voltages.
     """
+
     @classmethod
     def setUpClass(cls):
         cls.load_nom_v = pd.read_csv(_df.LOAD_NOM_V_13)
@@ -107,6 +108,7 @@ class LoadModelManager13TestCase(unittest.TestCase):
 
 class LoadModelManager123TestCase(unittest.TestCase):
     """The 123 load model has not triplex loads."""
+
     @classmethod
     def setUpClass(cls):
         cls.load_nom_v = pd.read_csv(_df.LOAD_NOM_V_123)
@@ -128,6 +130,7 @@ class LoadModelManager123TestCase(unittest.TestCase):
 
 class GetDataForLoadTestCase(unittest.TestCase):
     """Test get_data_for_load"""
+
     @classmethod
     def setUpClass(cls):
         # Grab the all meas data for one load in the the 9500 node
@@ -183,7 +186,7 @@ class GetDataForLoadTestCase(unittest.TestCase):
         df1 = pd.DataFrame(data={'magnitude': v_3, 'angle': v_angle})
 
         # Second DataFrame for v should hold 2/3 of sum.
-        df2 = pd.DataFrame(data={'magnitude': 2*v_3, 'angle': v_angle})
+        df2 = pd.DataFrame(data={'magnitude': 2 * v_3, 'angle': v_angle})
 
         # Now, create complex numbers for VA.
         va = expected['p'].values + 1j * expected['q'].values
@@ -195,8 +198,8 @@ class GetDataForLoadTestCase(unittest.TestCase):
         df3 = pd.DataFrame(data={'magnitude': np.abs(va_4),
                                  'angle': np.angle(va_4, deg=True)})
         # Now, our second.
-        df4 = pd.DataFrame(data={'magnitude': np.abs(3*va_4),
-                                 'angle': np.angle(3*va_4, deg=True)})
+        df4 = pd.DataFrame(data={'magnitude': np.abs(3 * va_4),
+                                 'angle': np.angle(3 * va_4, deg=True)})
 
         # Mock up our 'meas_data' input. Note the alignment with our
         # DataFrames in order.
@@ -225,13 +228,70 @@ class FitForLoadTestCase(unittest.TestCase):
         cls.load_data = _df.read_pickle(_df.PARSED_SENSOR_VPQ)
         cls.weather_data = _df.read_pickle(_df.WEATHER_FOR_SENSOR_DATA_9500)
 
-    def test_one(self):
-        output = load_model.fit_for_load(load_data=self.load_data,
-                                         weather_data=self.weather_data,
-                                         interval_str='1Min')
+    def test_runs(self):
+        """Ensure that with real data, it runs."""
+        # Patch calls to resample_timeseries and
+        # get_best_fit_from_clustering.
+        with patch('pyvvo.timeseries.resample_timeseries',
+                   wraps=timeseries.resample_timeseries) as p1:
+            with patch('pyvvo.zip.get_best_fit_from_clustering',
+                       wraps=zip.get_best_fit_from_clustering) as p2:
+                output = load_model.fit_for_load(
+                    load_data=self.load_data, weather_data=self.weather_data,
+                    interval_str='1Min')
 
-        self.assertTrue(False, "Need to actually test stuff and add more "
-                        "tests.")
+        # Ensure patched methods were called once.
+        p1.assert_called_once()
+        p2.assert_called_once()
+
+        # Since our load data is 3 second (for now) and we're passing an
+        # interval_str of '1Min', we should be downsampling.
+        self.assertEqual('downsample', p1.call_args[1]['method'])
+
+        # Ensure the interval string was passed through.
+        self.assertEqual('1Min', p1.call_args[1]['interval_str'])
+
+        # Ensure the output looks as expected.
+        self.assertIsInstance(output, dict)
+        self.assertIsInstance(output['zip_gld'], dict)
+        self.assertTrue(output['success'])
+        self.assertEqual('Optimization terminated successfully.',
+                         output['message'])
+        self.assertIsInstance(output['pq_predicted'], pd.DataFrame)
+        self.assertIn('rmsd_p', output)
+        self.assertIn('rmsd_q', output)
+        self.assertIn('k', output)
+
+    def test_no_resampling(self):
+        """Pass in simple DataFrames to ensure joining/filling is
+        being done correctly."""
+        # Data to input.
+        a1 = [1, 2, 3, 4]
+        a2 = [5, 6, 7, 9]
+        b = [9., 10., 12.]
+
+        # Timeseries index.
+        idx = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=4,
+                            freq='1Min')
+        # Leave a gap for the 'b' data.
+        b_idx = idx[[True, True, False, True]]
+
+        # Create DataFrames.
+        a_df = pd.DataFrame({'temperature': a1, 'ghi': a2}, index=idx)
+        b_df = pd.DataFrame({'b': b}, index=b_idx, columns=['b'])
+
+        # Create expected DataFrame.
+        expected = pd.DataFrame({'temperature': a1,
+                                 'ghi': a2,
+                                 'b': [9., 10., 11., 12.]}, index=idx)
+
+        with patch('pyvvo.zip.get_best_fit_from_clustering') as p:
+            load_model.fit_for_load(load_data=a_df,
+                                    weather_data=b_df)
+
+        p.assert_called_once()
+        pd.testing.assert_frame_equal(expected,
+                                      p.call_args[1]['data'])
 
 
 class FixLoadNameTestCase(unittest.TestCase):
