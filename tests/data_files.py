@@ -129,6 +129,10 @@ PARSED_SENSOR_VPQ = os.path.join(DATA_DIR, 'parsed_sensor_vpq_9500.csv')
 WEATHER_FOR_SENSOR_DATA_9500 = \
     os.path.join(DATA_DIR, 'weather_for_sensors_data_9500.csv')
 
+WEATHER_TWO_WEEK = os.path.join(DATA_DIR, 'weather_two_week.csv')
+WEATHER_TWO_WEEK_START = datetime(2013, 7, 14, 0, 0)
+WEATHER_TWO_WEEK_END = datetime(2013, 7, 28, 0, 0)
+
 
 def read_pickle(csv_file):
     """Helper to read a pickle file corresponding to a csv file."""
@@ -138,9 +142,9 @@ def read_pickle(csv_file):
     return p
 
 
-def to_file(df, csv_file):
+def to_file(df, csv_file, index=False):
     """Helper to write a DataFrame both to csv and pickle."""
-    df.to_csv(csv_file, index=False)
+    df.to_csv(csv_file, index=index)
     with open(csv_file.replace('.csv', '.pickle'), 'wb') as f:
         pickle.dump(df, f)
 
@@ -476,6 +480,15 @@ def generate_weather_for_sensor_data_9500():
     to_file(d, WEATHER_FOR_SENSOR_DATA_9500)
 
 
+def generate_weather_two_week():
+    """Generate two weeks worth of data in 15 minute intervals."""
+    p = gridappsd_platform.PlatformManager()
+    d = p.get_weather(start_time=WEATHER_TWO_WEEK_START,
+                      end_time=WEATHER_TWO_WEEK_END)
+    to_file(d.resample('15Min', closed='right', label='right').mean(),
+            WEATHER_TWO_WEEK, index=True)
+
+
 if __name__ == '__main__':
     gen_expected_sparql_results()
     generate_all_measurements_13()
@@ -486,5 +499,6 @@ if __name__ == '__main__':
     generate_parsed_sensor_service_measurements_9500()
     generate_vpq_for_parsed_sensor_service_measurements_9500()
     generate_weather_for_sensor_data_9500()
+    generate_weather_two_week()
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")
