@@ -1,6 +1,6 @@
 # Standard library.
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timezone, time
 import copy
 
 # Third-party installed.
@@ -411,6 +411,48 @@ class FixGHITestCase(unittest.TestCase):
         df_actual = timeseries.fix_ghi(df_original)
 
         pd.testing.assert_frame_equal(df_expected, df_actual)
+
+
+class FilterByTimeAndFilterByDayTestCase(unittest.TestCase):
+    """Test filter_by_time, filter_by_day_of_week, filter_by_weekday,
+    and filter_by_weekend.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        """Read our two week weather file."""
+        cls.w = pd.read_csv(_df.WEATHER_TWO_WEEK, index_col='time',
+                            parse_dates=True)
+
+    def test_filter_hour_and_a_half(self):
+        """Filter such that we get times from 11:30 a.m. to 12:30 p.m.
+        """
+        out = timeseries.filter_by_time(data=self.w, hour_low=11, hour_high=12,
+                                        minute_low=30, minute_high=30)
+
+        # Ensure all hours are in range.
+        self.assertTrue((out.index.time <= time(12, 30)).all())
+        self.assertTrue((out.index.time >= time(11, 30)).all())
+
+    def test_filter_by_day_of_week(self):
+        """Simple test """
+        out = timeseries._filter_by_day_of_week(data=self.w,
+                                                day_start=3, day_end=5)
+
+        self.assertTrue((out.index.dayofweek >= 3).all())
+        self.assertTrue((out.index.dayofweek <= 5).all())
+
+    def test_filter_by_weekdays(self):
+        out = timeseries.filter_by_weekday(data=self.w)
+
+        self.assertTrue((out.index.dayofweek >= 0).all())
+        self.assertTrue((out.index.dayofweek <= 4).all())
+
+    def test_filter_by_weekend(self):
+        out = timeseries.filter_by_weekend(data=self.w)
+
+        self.assertTrue((out.index.dayofweek >= 5).all())
+        self.assertTrue((out.index.dayofweek <= 6).all())
 
 
 if __name__ == '__main__':

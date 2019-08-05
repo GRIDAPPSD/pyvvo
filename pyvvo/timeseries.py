@@ -1,6 +1,8 @@
 """Module for handling timeseries data from the platform.
 https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
 """
+import datetime
+
 import numpy as np
 import pandas as pd
 import logging
@@ -215,3 +217,77 @@ def fix_ghi(weather_data):
     weather_data.loc[weather_data['ghi'] < 0, 'ghi'] = 0
 
     return weather_data
+
+
+def filter_by_time(data, hour_low, minute_low, hour_high, minute_high):
+    """Filter data to get specific time intervals. Specifically, the
+    data will be filtered such that:
+     hour_low:minute_low <= data.index.time <= hour_high:minute_high
+
+    :param data: Pandas DataFrame or Timeseries indexed by time.
+    :param hour_low: integer, lower bound hour on 24 hour clock.
+    :param minute_low: integer, lower bound minute for 60 minute hour.
+    :param hour_high: integer, upper bound hour on 24 hour clock.
+    :param minute_high: integer, upper bound minute for 60 minute hout.
+    """
+    # Quick value checks to avoid unexpected behavior.
+    if (hour_low < 0) or (hour_low > 23):
+        raise ValueError('hour_low must be on interval [0, 23]')
+
+    if (hour_high < 0) or (hour_high > 23):
+        raise ValueError('hour_high must be on interval [0, 23]')
+
+    if (minute_low < 0) or (minute_low > 60):
+        raise ValueError('minute_low must be on interval [0, 60]')
+
+    if (minute_high < 0) or (minute_high > 60):
+        raise ValueError('minute_high must be on interval [0, 60]')
+
+    # Create time objects for comparison.
+    t_high = datetime.time(hour=hour_high, minute=minute_high)
+    t_low = datetime.time(hour=hour_low, minute=minute_low)
+
+    # Return the filtered data set.
+    return \
+        data.loc[(data.index.time >= t_low) & (data.index.time <= t_high), :]
+
+
+def filter_by_weekday(data):
+    """Wrapper to call filter_by_day_of week to get weekdays.
+
+    :param data: pandas DataFrame or Timeseries indexed by time.
+
+    :returns the subset of data which occurs on weekdays.
+    """
+    return _filter_by_day_of_week(data=data, day_start=0, day_end=4)
+
+
+def filter_by_weekend(data):
+    """Wrapper to call filter_by_day_of_week to get weekend days.
+
+    :param data: pandas DataFrame or Timeseries indexed by time.
+
+    :returns the subset of data which occurs on weekends.
+    """
+    return _filter_by_day_of_week(data=data, day_start=5, day_end=6)
+
+
+def _filter_by_day_of_week(data, day_start, day_end):
+    """Filter data by day of week to get:
+     day_start <= data.index.dayofweek <= day_end
+
+     It follows from the above that day_start should be <= day_end.
+
+     Note from the Pandas documentation that Monday = 0, Sunday = 6:
+     https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DatetimeIndex.html
+
+     :param data: Pandas DataFrame or Series, index by time.
+     :param day_start: Integer, representing the starting day.
+     :param day_end: Integer, representing the ending day.
+
+     NOTE: This method is "private" as inputs won't be checked. In most
+     cases you'll want to sipmly use filter_by_weekday or
+     filter_by_weekend.
+     """
+    dow = data.index.dayofweek
+    return data.loc[(dow >= day_start) & (dow <= day_end), :]
