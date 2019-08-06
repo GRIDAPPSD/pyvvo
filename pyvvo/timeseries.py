@@ -219,37 +219,23 @@ def fix_ghi(weather_data):
     return weather_data
 
 
-def filter_by_time(data, hour_low, minute_low, hour_high, minute_high):
+def filter_by_time(data, t_start, t_end):
     """Filter data to get specific time intervals. Specifically, the
     data will be filtered such that:
-     hour_low:minute_low <= data.index.time <= hour_high:minute_high
+    t_start <= data.index.time <= t_end
 
     :param data: Pandas DataFrame or Timeseries indexed by time.
-    :param hour_low: integer, lower bound hour on 24 hour clock.
-    :param minute_low: integer, lower bound minute for 60 minute hour.
-    :param hour_high: integer, upper bound hour on 24 hour clock.
-    :param minute_high: integer, upper bound minute for 60 minute hout.
+    :param t_start: datetime.time object for the start of filtering.
+    :param t_end: datetime.time object for the end of filtering.
     """
-    # Quick value checks to avoid unexpected behavior.
-    if (hour_low < 0) or (hour_low > 23):
-        raise ValueError('hour_low must be on interval [0, 23]')
-
-    if (hour_high < 0) or (hour_high > 23):
-        raise ValueError('hour_high must be on interval [0, 23]')
-
-    if (minute_low < 0) or (minute_low > 60):
-        raise ValueError('minute_low must be on interval [0, 60]')
-
-    if (minute_high < 0) or (minute_high > 60):
-        raise ValueError('minute_high must be on interval [0, 60]')
-
-    # Create time objects for comparison.
-    t_high = datetime.time(hour=hour_high, minute=minute_high)
-    t_low = datetime.time(hour=hour_low, minute=minute_low)
+    # Quick type-checking.
+    if (not isinstance(t_start, datetime.time)) \
+            or (not isinstance(t_end, datetime.time)):
+        raise ValueError('t_start and t_end must be datetime.time objects!')
 
     # Return the filtered data set.
-    return \
-        data.loc[(data.index.time >= t_low) & (data.index.time <= t_high), :]
+    return data.loc[(data.index.time >= t_start) \
+                 & (data.index.time <= t_end), :]
 
 
 def filter_by_weekday(data):

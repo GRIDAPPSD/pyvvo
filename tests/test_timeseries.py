@@ -427,8 +427,8 @@ class FilterByTimeAndFilterByDayTestCase(unittest.TestCase):
     def test_filter_hour_and_a_half(self):
         """Filter such that we get times from 11:30 a.m. to 12:30 p.m.
         """
-        out = timeseries.filter_by_time(data=self.w, hour_low=11, hour_high=12,
-                                        minute_low=30, minute_high=30)
+        out = timeseries.filter_by_time(data=self.w, t_start=time(11, 30),
+                                        t_end=time(12, 30))
 
         # Ensure all hours are in range.
         self.assertTrue((out.index.time <= time(12, 30)).all())
