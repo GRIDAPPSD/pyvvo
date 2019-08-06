@@ -301,5 +301,15 @@ class GetComplex(unittest.TestCase):
         np.testing.assert_allclose(actual, expected)
 
 
+class ReadConfigTestCase(unittest.TestCase):
+    """Test read_config."""
+
+    def test_runs(self):
+        """Keep it simple. Ensure we get a dictionary back with no
+        patching.
+        """
+        out = utils.read_config()
+        self.assertIsInstance(out, dict)
+
 if __name__ == '__main__':
     unittest.main()

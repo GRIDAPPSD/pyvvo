@@ -8,6 +8,10 @@ from datetime import datetime, timezone
 import os
 import numpy as np
 import pandas as pd
+try:
+    import simplejson as json
+except AttributeError:
+    import json
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -17,6 +21,9 @@ RECT_EXP = re.compile(r'[+-]*([0-9])+(\.)*([0-9])*(e[+-]*([0-9])+)*[+-]'
                       + r'([0-9])+(\.)*([0-9])*(e[+-]([0-9])+)*j')
 FIRST_EXP = re.compile(r'[+-]*([0-9])+(\.)*([0-9])*(e[+-]*([0-9])+)*')
 SECOND_EXP = re.compile(r'[+-]*([0-9])+(\.)*([0-9])*(e[+-]*([0-9])+)*[dr]')
+
+# Define directory
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def parse_complex_str(s):
@@ -286,3 +293,11 @@ def get_complex(r, phi, degrees=True):
         return r * np.exp(1j * np.radians(phi))
     else:
         return r * np.exp(1j * phi)
+
+
+def read_config():
+    """Simpler helper to read the PyVVO configuration file."""
+    with open(os.path.join(THIS_DIR, 'pyvvo_config.json'), 'r') as f:
+        config = json.load(f)
+
+    return config

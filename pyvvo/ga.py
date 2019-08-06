@@ -31,8 +31,7 @@ SUBSTATION_RECORDER = 'substation_recorder'
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 # TODO: We may want to read the config file dynamically, so that a user
 #   can change the config in between runs.
-with open(os.path.join(THIS_DIR, 'pyvvo_config.json'), 'r') as f:
-    CONFIG = json.load(f)
+CONFIG = utils.read_config()
 # By default, GridLAB-D creates a time column 't' and ID column 'id'
 TIME_COL = 't'
 ID_COL = 'id'
