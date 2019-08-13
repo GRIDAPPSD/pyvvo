@@ -9,7 +9,7 @@ import pickle
 from uuid import UUID
 from datetime import datetime
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 # PyVVO.
 from pyvvo import sparql, gridappsd_platform, timeseries, load_model
@@ -277,6 +277,14 @@ def get_non_id_cols(df):
     return non_id_cols, id_cols
 
 
+def wait_for_simulation(platform):
+    """Helper to wait for a simulation to complete."""
+    while not platform.sim_complete:
+        time.sleep(0.1)
+
+    print('Simulation complete!', flush=True)
+
+
 def generate_all_measurements_13():
     """Generate the file all_measurements_13.json."""
     platform = gridappsd_platform.PlatformManager()
@@ -284,10 +292,9 @@ def generate_all_measurements_13():
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_13,
                                      start_time=starttime,
                                      duration=20, realtime=False)
-    # Crude, hacky way to let the simulation finish running.
-    # TODO: Use updated GridAPPS-D Python API to wait for simulation
-    #   completion.
-    time.sleep(20)
+
+    # Wait for simulation completion.
+    wait_for_simulation(platform)
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -311,10 +318,8 @@ def generate_energy_consumer_measurements_9500():
     # Extract the first entry.
     mrid = load_meas.iloc[0]['id']
 
-    # Crude, hacky way to let the simulation finish running.
-    # TODO: Use updated GridAPPS-D Python API to wait for simulation
-    #   completion.
-    time.sleep(60)
+    # Wait for simulation completion.
+    wait_for_simulation(platform)
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -353,13 +358,14 @@ def generate_cap_and_reg_meas_message_8500():
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_8500,
                                      start_time=starttime,
                                      duration=5, realtime=False)
-    print(sim_id)
+
+    # Create a SimOutRouter to save the measurements.
     router = gridappsd_platform.SimOutRouter(platform_manager=platform,
                                              sim_id=sim_id,
                                              fn_mrid_list=fn_mrid_list)
-    # TODO: Use updated GridAPPS-D Python API to wait for simulation
-    #   completion.
-    time.sleep(60)
+
+    # Wait for simulation completion.
+    wait_for_simulation(platform)
 
 
 def generate_model_info():
@@ -416,10 +422,8 @@ def generate_sensor_service_measurements_9500():
                                      applications=[{'name': 'sample_app'}],
                                      random_zip=False, houses=False)
 
-    # Hackish way to ensure things run.
-    # TODO: Use updated GridAPPS-D Python API to wait for simulation
-    #   completion.
-    time.sleep(300)
+    # Wait for simulation completion.
+    wait_for_simulation(platform)
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):

@@ -3,7 +3,7 @@
 Note this module depends on the GridAPPS-D platform being up and
 running.
 """
-from gridappsd import GridAPPSD, topics
+from gridappsd import GridAPPSD, topics, simulation
 from gridappsd.difference_builder import DifferenceBuilder as DiffBuilder
 from gridappsd import utils as gad_utils
 
@@ -289,8 +289,13 @@ class PlatformManager:
 
         self.log.info('Connected to GridAPPS-D platform.')
 
-        # Initialize property for holding a simulation ID.
-        self._sim_id = None
+        # Initialize property for holding a Simulation object from
+        # GridAPPS-D.
+        self.sim = None
+
+        # We'll also use a property for tracking if a simulation is
+        # complete.
+        self.sim_complete = None
 
         # # Get information on available models.
         # self.platform_model_info = self.gad_object.query_model_info()
@@ -307,14 +312,6 @@ class PlatformManager:
         # self.model_id = self._get_model_id(self.model_name)
 
         pass
-
-    @property
-    def sim_id(self):
-        return self._sim_id
-
-    @sim_id.setter
-    def sim_id(self, value):
-        self._sim_id = value
 
     def send_command(self, object_ids, attributes, forward_values,
                      reverse_values, sim_id=None):
@@ -356,12 +353,12 @@ class PlatformManager:
 
         # Ensure we have a simulation ID.
         if sim_id is None:
-            sim_id = self.sim_id
-
-        if sim_id is None:
-            m = 'sim_id input is None, and so is self.sim_id. In order to '\
-                'send a command, we must have a simulation ID.'
-            raise ValueError(m)
+            try:
+                sim_id = self.sim.simulation_id
+            except AttributeError:
+                m = ('sim_id input is None, and so is self.sim.simulation_id. '
+                     'In order to send a command, we must have a sim_id.')
+                raise ValueError(m)
 
         self.log.debug('Input checks complete for send_command.')
 
@@ -567,7 +564,7 @@ class PlatformManager:
         geo_name = "_73C512BD-7249-4F50-50DA-D93849B89C43"
         subgeo_name = "_A1170111-942A-6ABD-D325-C64886DC4D7D"
 
-        sim_request = \
+        run_config = \
             {"power_system_config": {
                 "GeographicalRegion_name": geo_name,
                 "SubGeographicalRegion_name": subgeo_name,
@@ -593,11 +590,28 @@ class PlatformManager:
                 "test_config": {"events": [],
                                 "appId": feeder_id}}
 
-        # Run simulation.
-        sim_id = self.gad.get_response(topic=topics.REQUEST_SIMULATION,
-                                       message=json.dumps(sim_request))
+        # Simulation is not complete yet.
+        self.sim_complete = False
 
-        return sim_id['simulationId']
+        # Create simulation object.
+        self.sim = simulation.Simulation(gapps=self.gad,
+                                         run_config=run_config)
+
+        # Add a callback to update sim_complete.
+        self.sim.add_oncomplete_callback(self._update_sim_complete)
+
+        # Log.
+        self.log.info('Starting simulation.')
+
+        # Start the simulation.
+        self.sim.start_simulation()
+
+        # Return the simulation ID.
+        return self.sim.simulation_id
+
+    def _update_sim_complete(self, *args):
+        self.sim_complete = True
+        self.log.info('Simulation complete!')
 
 
 class Error(Exception):
