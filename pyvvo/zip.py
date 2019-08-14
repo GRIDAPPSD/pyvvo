@@ -60,6 +60,7 @@ import numpy as np
 import pandas as pd
 from scipy.optimize import minimize, Bounds
 from sklearn.metrics import mean_squared_error
+from sklearn.preprocessing import StandardScaler
 
 # pyvvo
 from pyvvo import cluster
@@ -204,7 +205,7 @@ def zip_fit(vpq, v_n=240, s_n=None, par_0=PAR_0,
 
 
 def _get_vpq_bar(vpq, v_n, s_n):
-    """Helper to normalize our v, p, and q. This helps reduce the amount
+    """Helper to scale our v, p, and q. This helps reduce the amount
     of floating point operations used during optimization.
 
     :param vpq: Pandas DataFrame with columns v, p, and q.
@@ -212,7 +213,7 @@ def _get_vpq_bar(vpq, v_n, s_n):
     :param s_n: scalar, nominal apparent power magnitude.
 
     :returns: DataFrame with v_bar, p_bar, and q_bar, which are
-        normalized parameters to be used in optimization.
+        scaled parameters to be used in optimization.
     """
     return pd.DataFrame(data={'v_bar': vpq['v'] / v_n,
                               'p_bar': vpq['p'] / s_n,
@@ -541,14 +542,47 @@ def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
 
     # If we're clustering, do so.
     if selection_data is not None:
-        # Note that 'v' is dropped from the cluster_data.
-        fit_data, best_bool, _ = \
-            cluster.find_best_cluster(cluster_data=data.drop('v', axis=1),
-                                      selection_data=selection_data,
-                                      n_clusters=n_clusters,
-                                      random_state=random_state)
+        # For K-Means, it's best to first standardize the data so that
+        # it looks Gaussian.
+        #
+        # Initialize a StandardScaler, and fit it to our data.
+        scaler = StandardScaler()
+        scaler.fit(data.values)
+        # Create a DataFrame for holding scaled data.
+        # TODO: We're adding extra over-head to use a DataFrame, but
+        #   this is a quick fix without messing with
+        #   cluster.find_best_cluster.
+        scaled_data = pd.DataFrame(scaler.transform(data.values),
+                                   index=data.index, columns=data.columns)
+
+        # We also need to scale the selection data.
+        # Initialize a Series which has all the "columns" of our data.
+        tmp_series = pd.Series(0, index=data.columns)
+        # Fill the Series with our selection data values.
+        tmp_series[selection_data.index] = selection_data
+        # Now scale the temporary Series. Note the reshaping is for a
+        # single sample (1 row by X columns), and ravel puts the data
+        # back into a 1D array for Series creation.
+        scaled_selection = pd.Series(
+            scaler.transform(tmp_series.values.reshape(1, -1)).ravel(),
+            index=tmp_series.index)
+
+        # Note that 'v' is dropped from the cluster_data, and we're
+        # plucking the appropriate selection data.
+        data_out, best_bool, _ = cluster.find_best_cluster(
+            cluster_data=scaled_data.drop('v', axis=1),
+            selection_data=scaled_selection[selection_data.index],
+            n_clusters=n_clusters,
+            random_state=random_state)
+
         # Re-associate voltage data.
-        fit_data['v'] = data[best_bool]['v']
+        data_out['v'] = scaled_data[best_bool]['v']
+
+        # "Un-scale" the fit_data.
+        # TODO: Again, we've got extra overhead by using DataFrames.
+        fit_data = pd.DataFrame(
+            scaler.inverse_transform(data_out[data.columns]),
+            index=data_out.index, columns=data.columns)
     else:
         # No clustering.
         fit_data = data
@@ -573,13 +607,11 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
 
     For input descriptions, see cluster_and_fit.
 
-    NOTE: data and selection_data are assumed to already be normalized.
-
     NOTE: the 'fit_data' field of zip_fit_inputs will be overridden to
     be true, as this function won't work otherwise.
 
-    :returns: best_fit. 'Best' output (smallest rmsd_p + rmsd_q) from
-              calling cluster_and_fit
+    :returns: best_fit. 'Best' output (smallest normalized mse_p
+        + mse_q) from calling cluster_and_fit
     """
 
     # Override zip_fit_inputs
