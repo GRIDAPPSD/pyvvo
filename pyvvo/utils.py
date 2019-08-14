@@ -4,7 +4,7 @@ import math
 import cmath
 import subprocess
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 import os
 import numpy as np
 import pandas as pd
@@ -301,3 +301,27 @@ def read_config():
         config = json.load(f)
 
     return config
+
+
+def add_timedelta_to_time(t, td):
+    """Add a timedelta object to a time object using a dummy datetime.
+
+    :param t: datetime.time object.
+    :param td: datetime.timedelta object.
+
+    :returns: datetime.time object, representing the result of t + td.
+
+    NOTE: Using a gigantic td may result in an overflow. You've been
+    warned.
+    """
+    # Create a dummy date object.
+    dummy_date = date(year=100, month=1, day=1)
+
+    # Combine the dummy date with the given time.
+    dummy_datetime = datetime.combine(date=dummy_date, time=t, tzinfo=t.tzinfo)
+
+    # Add the timedelta to the dummy datetime.
+    new_datetime = dummy_datetime + td
+
+    # Return the resulting time, including timezone information.
+    return new_datetime.timetz()

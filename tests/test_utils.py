@@ -2,7 +2,7 @@ import unittest
 import math
 import cmath
 from pyvvo import utils
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time
 import pandas as pd
 import os
 import numpy as np
@@ -310,6 +310,25 @@ class ReadConfigTestCase(unittest.TestCase):
         """
         out = utils.read_config()
         self.assertIsInstance(out, dict)
+
+
+class AddTimedeltaToTimeTestCase(unittest.TestCase):
+    """Test add_timedelta_to_time."""
+
+    def test_wraps(self):
+        t = time(hour=23, minute=59)
+        td = timedelta(minutes=2)
+        t_expected = time(hour=0, minute=1)
+        t_actual = utils.add_timedelta_to_time(t=t, td=td)
+        self.assertEqual(t_expected, t_actual)
+
+    def test_tz(self):
+        t = time(hour=4, minute=16, tzinfo=timezone.utc)
+        td = timedelta(hours=10, minutes=4)
+        t_expected = time(hour=14, minute=20, tzinfo=timezone.utc)
+        t_actual = utils.add_timedelta_to_time(t=t, td=td)
+        self.assertEqual(t_expected, t_actual)
+
 
 if __name__ == '__main__':
     unittest.main()
