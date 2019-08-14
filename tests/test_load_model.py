@@ -222,79 +222,65 @@ class GetDataForLoadTestCase(unittest.TestCase):
         pd.testing.assert_frame_equal(expected, actual)
 
 
+def pass_through(*args, **kwargs):
+    """Return what's given."""
+    return args, kwargs
+
+
 class FitForLoadTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.load_data = _df.read_pickle(_df.PARSED_SENSOR_VPQ)
         cls.weather_data = _df.read_pickle(_df.WEATHER_FOR_SENSOR_DATA_9500)
+        cls.weather_data = timeseries.fix_ghi(cls.weather_data)
 
-    def test_runs(self):
+    @patch.dict(load_model.CONFIG['load_model'],
+                {'averaging_interval': '1Min',
+                 'filtering_interval_minutes': 5})
+    @patch('pyvvo.timeseries.filter_by_time',
+           wraps=timeseries.filter_by_time)
+    @patch('pyvvo.timeseries.filter_by_weekday',
+           wraps=timeseries.filter_by_weekday)
+    @patch('pyvvo.timeseries.up_or_down_sample',
+           wraps=timeseries.up_or_down_sample)
+    @patch('pyvvo.zip.get_best_fit_from_clustering',
+           wraps=zip.get_best_fit_from_clustering)
+    @patch('pyvvo.timeseries.resample_timeseries',
+           wraps=timeseries.resample_timeseries)
+    def test_runs(self, p_resample, p_fit, p_up_or_down, p_filter_weekday,
+                  p_filter_time):
         """Ensure that with real data, it runs."""
-        # Patch calls to resample_timeseries and
-        # get_best_fit_from_clustering.
-        with patch('pyvvo.timeseries.resample_timeseries',
-                   wraps=timeseries.resample_timeseries) as p1:
-            with patch('pyvvo.zip.get_best_fit_from_clustering',
-                       wraps=zip.get_best_fit_from_clustering) as p2:
-                output = load_model.fit_for_load(
-                    load_data=self.load_data, weather_data=self.weather_data,
-                    interval_str='1Min')
+        # Run the function. Note all the patching.
+        output = load_model.fit_for_load(
+            load_data=self.load_data,
+            weather_data=self.weather_data)
 
         # Ensure patched methods were called once.
-        p1.assert_called_once()
-        p2.assert_called_once()
+        p_resample.assert_called_once()
+        p_fit.assert_called_once()
+        p_up_or_down.assert_called_once()
+        p_filter_weekday.assert_called_once()
+        p_filter_time.assert_called_once()
 
         # Since our load data is 3 second (for now) and we're passing an
         # interval_str of '1Min', we should be downsampling.
-        self.assertEqual('downsample', p1.call_args[1]['method'])
+        self.assertEqual('downsample', p_resample.call_args[1]['method'])
 
         # Ensure the interval string was passed through.
-        self.assertEqual('1Min', p1.call_args[1]['interval_str'])
+        self.assertEqual('1Min', p_resample.call_args[1]['interval_str'])
 
         # Ensure the output looks as expected.
         self.assertIsInstance(output, dict)
         self.assertIsInstance(output['zip_gld'], dict)
-        self.assertTrue(output['success'])
+        self.assertTrue(output['sol'].success)
         self.assertEqual('Optimization terminated successfully.',
-                         output['message'])
-        self.assertIsInstance(output['pq_predicted'], pd.DataFrame)
-        self.assertIn('rmsd_p', output)
-        self.assertIn('rmsd_q', output)
+                         output['sol'].message)
+        self.assertIsInstance(output['p_pred'], np.ndarray)
+        self.assertIsInstance(output['q_pred'], np.ndarray)
+        self.assertIn('mse_p', output)
+        self.assertIn('mse_q', output)
+        self.assertIn('data_len', output)
         self.assertIn('k', output)
-
-    # noinspection PyMethodMayBeStatic
-    def test_no_resampling(self):
-        """Pass in simple DataFrames to ensure joining/filling is
-        being done correctly."""
-        # Data to input.
-        a1 = [1., 2., 3., 4.]
-        a2 = [5., 6., 7., 9.]
-        b = [9., 10., 12.]
-
-        # Timeseries index.
-        idx = pd.date_range(start=datetime(2019, 1, 1, 0, 1), periods=4,
-                            freq='1Min')
-        # Leave a gap for the 'b' data.
-        b_idx = idx[[True, True, False, True]]
-
-        # Create DataFrames.
-        a_df = pd.DataFrame({'temperature': a1, 'ghi': a2}, index=idx)
-        b_df = pd.DataFrame({'b': b}, index=b_idx, columns=['b'])
-
-        # Create expected DataFrame.
-        expected = pd.DataFrame({'temperature': a1,
-                                 'ghi': a2,
-                                 'b': [9., 10., 11., 12.]}, index=idx)
-
-        with patch('pyvvo.zip.get_best_fit_from_clustering') as p:
-            load_model.fit_for_load(load_data=a_df,
-                                    weather_data=b_df)
-
-        p.assert_called_once()
-        pd.testing.assert_frame_equal(expected,
-                                      p.call_args[1]['data'])
-        pd.testing.assert_series_equal(a_df.iloc[-1],
-                                       p.call_args[1]['selection_data'])
 
 
 class FixLoadNameTestCase(unittest.TestCase):

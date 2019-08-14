@@ -3,6 +3,7 @@ manipulate it, then perform a ZIP fit.
 """
 # Standard library:
 import logging
+from datetime import timedelta
 
 # Third party:
 import numpy as np
@@ -26,6 +27,9 @@ CIM_TRIPLEX_VOLTAGE = 208
 CIM_TRIPLEX_SUFFIX_SET = {'a', 'b'}
 # For fitting, we need to use a nominal voltage.
 FIT_NOMINAL_VOLTAGE = 240
+
+# Get the configuration. TODO: We may want to load this dynamically.
+CONFIG = utils.read_config()
 
 
 class LoadModelManager:
@@ -307,9 +311,10 @@ def get_data_for_load(sim_id, meas_data,
                         index=idx)
 
 
-def fit_for_load(load_data, weather_data, interval_str=None,
-                 selection_data=None):
-    """Get data for a load, then perform the fit by calling
+def fit_for_load(load_data, weather_data, selection_data=None,
+                 prediction_datetime=None):
+    """Combine load and weather data, filter by time (day of week and
+    time of day), and then get a ZIP model by calling
     pyvvo.zip.get_best_fit_from_clustering.
 
     :param load_data: Pandas DataFrame. Return from get_data_for_load.
@@ -317,17 +322,17 @@ def fit_for_load(load_data, weather_data, interval_str=None,
         gridappsd_platform.PlatformManager.get_weather. The data is
         already assumed to be cleaned, e.g. it has already been passed
         through timeseries.fix_ghi.
-    :param interval_str: String for resampling the data (after
-        joining). This will be passed to timeseries.resample_timeseries,
-        and should be interpretable by Pandas.
-        https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects
-        e.g. '1Min'
     :param selection_data: Pandas Series, used as the point in space to
         which cluster distances are measured. Passed directly to
         zip.get_best_fit_from_clustering. Note all values of the index
-        must be columns in either load_data or weather_data. If None,
-        the last 'temperature' and 'ghi' values after DataFrame merging
-        and interpolation will be used.
+        must be columns in either load_data or weather_data, and voltage
+        ('v') is not allowed. If None, the last 'temperature' and 'ghi'
+        values after DataFrame merging and interpolation will be used.
+    :param prediction_datetime: Optional. datetime.datetime object,
+        representing the starting time of the interval for which the
+        load model will be used to make predictions. If not provided,
+        it will be inferred from the last entry in either load_data or
+        weather_data, whichever has the later time.
 
     NOTE 1: It's assumed that load_data and weather_data were pulled
         using the same starting and ending times.
@@ -338,44 +343,85 @@ def fit_for_load(load_data, weather_data, interval_str=None,
         between the indices of the DataFrames.
 
     :returns output from pyvvo.zip.get_best_fit_from_clustering.
+
+    TODO: Should this filtering and joining be moved? It seems like it
+        could be excessive to do this for every single load. Maybe it
+        would be better to create one big DataFrame with all the load
+        data?
+
+        Back of the napkin:
+        2000 loads * 15 minutes * 4 intervals/hour * 24 hour/day
+            * 7 days/week * 2 weeks * 3 parameters * 8 bytes/parameter
+            * 1 MB/1,000,000 bytes = 968 MB.
+
+        We may not want to suck that into memory. We could "chunk" it
+        somehow. Well, we'll cross that bridge later.
+
     """
     # Join our load_data and weather_data, fill gaps via time-based
     # linear interpolation.
     df = load_data.join(weather_data, how='outer').interpolate(method='time')
 
     # If the indices didn't line up, we'll backfill and forward fill
-    # the rest.
+    # the rest. If this is ever necessary, it should just be for the
+    # first and last rows.
     df.fillna(method='backfill', inplace=True)
     df.fillna(method='ffill', inplace=True)
 
-    if interval_str is not None:
-        # At this point, our df may not have an evenly spaced index. So,
-        # we need to determine if we're upsampling or downsampling.
-        # noinspection PyUnresolvedReferences
-        f1 = pd.tseries.frequencies.to_offset(
-            pd.infer_freq(weather_data.index))
-        # noinspection PyUnresolvedReferences
-        f2 = pd.tseries.frequencies.to_offset(pd.infer_freq(load_data.index))
+    # Get interval string from the configuration.
+    interval_str = CONFIG['load_model']['averaging_interval']
+
+    # At this point, our df may not have an evenly spaced index. So,
+    # we need to determine if we're upsampling or downsampling.
+    # noinspection PyUnresolvedReferences
+    f1 = pd.tseries.frequencies.to_offset(
+        pd.infer_freq(weather_data.index))
+    # noinspection PyUnresolvedReferences
+    f2 = pd.tseries.frequencies.to_offset(pd.infer_freq(load_data.index))
+
+    if (f1 is None) and (f2 is not None):
+        min_f = f2
+    elif (f1 is not None) and (f2 is None):
+        min_f = f1
+    elif (f1 is not None) and (f2 is not None):
         min_f = min(f1, f2)
+    else:
+        raise ValueError('Neither the given load_data nor weather_data '
+                         'have an evenly spaced index. This makes resampling '
+                         'impossible, and is not acceptable.')
 
-        # Determine if we're upsampling or downsampling.
-        method = timeseries.up_or_down_sample(orig_interval=min_f,
-                                              new_interval=interval_str)
+    # Determine if we're upsampling or downsampling.
+    method = timeseries.up_or_down_sample(orig_interval=min_f,
+                                          new_interval=interval_str)
 
-        if method is not None:
-            df = timeseries.resample_timeseries(ts=df, method=method,
-                                                interval_str=interval_str)
+    if method is not None:
+        df = timeseries.resample_timeseries(ts=df, method=method,
+                                            interval_str=interval_str)
 
     # If not given selection_data, use the last weather values.
     if selection_data is None:
         selection_data = df.iloc[-1][['temperature', 'ghi']]
 
+    # If not given prediction_time, infer it from the end of the index.
+    if prediction_datetime is None:
+        prediction_datetime = df.index[-1]
+
+    if timeseries.is_weekday(prediction_datetime):
+        df_dow = timeseries.filter_by_weekday(df)
+    else:
+        df_dow = timeseries.filter_by_weekend(df)
+
+    # Filter data by time. Start by getting some time ranges.
+    t = prediction_datetime.time()
+    td = timedelta(minutes=CONFIG['load_model']['filtering_interval_minutes'])
+    t_start = utils.add_timedelta_to_time(t=t, td=-td)
+    t_end = utils.add_timedelta_to_time(t=t, td=td)
+    df_dow_t = timeseries.filter_by_time(t_start=t_start, t_end=t_end,
+                                         data=df_dow)
+
     # Now that our data's ready, let's perform the fit.
-    # TODO: Find good way to configure.
-    # TODO: Stop hard-coding configuration.
-    # TODO: BEst way to manage selection_data?
     output = zip.get_best_fit_from_clustering(
-        data=df, zip_fit_inputs={'v_n': FIT_NOMINAL_VOLTAGE},
+        data=df_dow_t, zip_fit_inputs={'v_n': FIT_NOMINAL_VOLTAGE},
         selection_data=selection_data
     )
 
