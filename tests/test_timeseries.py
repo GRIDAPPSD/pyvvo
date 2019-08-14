@@ -455,5 +455,37 @@ class FilterByTimeAndFilterByDayTestCase(unittest.TestCase):
         self.assertTrue((out.index.dayofweek <= 6).all())
 
 
+class IsWeekdayTestCase(unittest.TestCase):
+    """Test is_weekday"""
+
+    def test_mon(self):
+        dt = datetime(2019, 8, 12, 0, 0)
+        self.assertTrue(timeseries.is_weekday(dt))
+
+    def test_tue(self):
+        dt = datetime(2019, 8, 13, 0, 0)
+        self.assertTrue(timeseries.is_weekday(dt))
+
+    def test_wed(self):
+        dt = datetime(2019, 8, 14, 0, 0)
+        self.assertTrue(timeseries.is_weekday(dt))
+
+    def test_thur(self):
+        dt = datetime(2019, 8, 15, 0, 0)
+        self.assertTrue(timeseries.is_weekday(dt))
+
+    def test_fri(self):
+        dt = datetime(2019, 8, 16, 0, 0)
+        self.assertTrue(timeseries.is_weekday(dt))
+
+    def test_sat(self):
+        dt = datetime(2019, 8, 17, 0, 0)
+        self.assertFalse(timeseries.is_weekday(dt))
+
+    def test_sun(self):
+        dt = datetime(2019, 8, 18, 0, 0)
+        self.assertFalse(timeseries.is_weekday(dt))
+
+
 if __name__ == '__main__':
     unittest.main()

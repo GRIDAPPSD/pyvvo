@@ -234,8 +234,27 @@ def filter_by_time(data, t_start, t_end):
         raise ValueError('t_start and t_end must be datetime.time objects!')
 
     # Return the filtered data set.
-    return data.loc[(data.index.time >= t_start) \
-                 & (data.index.time <= t_end), :]
+    return data.loc[(data.index.time >= t_start)
+                    & (data.index.time <= t_end), :]
+
+
+def is_weekday(dt):
+    """Indicate if datetime object represents a weekday (True) or not
+    (False).
+
+    :param dt: datetime.datetime like object.
+
+    :returns: True if dt represents a weekday, False if dt represents a
+        weekend.
+    """
+    dow = dt.weekday()
+
+    if (dow == 5) or (dow == 6):
+        return False
+    elif (dow >= 0) and (dow <= 4):
+        return True
+    else:
+        raise ValueError('day_of_week must be >= 0 and <= 6!')
 
 
 def filter_by_weekday(data):
