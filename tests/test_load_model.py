@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from copy import deepcopy
-from datetime import datetime
 
 from tests import data_files as _df
 from tests import models
@@ -10,7 +9,6 @@ from pyvvo import load_model, timeseries, zip
 
 import numpy as np
 import pandas as pd
-import simplejson as json
 
 
 class LoadModelManager9500TestCase(unittest.TestCase):
@@ -21,9 +19,8 @@ class LoadModelManager9500TestCase(unittest.TestCase):
         cls.glm_mgr = GLMManager(models.IEEE_9500, model_is_path=True)
         cls.load_names_glm = \
             list(
-                cls.glm_mgr.get_items_by_type(item_type='object',
-                                              object_type=
-                                              'triplex_load').keys()
+                cls.glm_mgr.get_items_by_type(
+                    item_type='object', object_type='triplex_load').keys()
             )
 
     def test_successful_init(self):
@@ -54,10 +51,10 @@ class LoadModelManager9500TestCase(unittest.TestCase):
         """Drop a measurement and ensure we get an error."""
         with self.assertRaisesRegex(ValueError,
                                     'The number of triplex loads in load'):
-            load_model.LoadModelManager(load_nominal_voltage=self.load_nom_v,
-                                        load_measurements=
-                                        self.load_meas.drop(index=0),
-                                        load_names_glm=self.load_names_glm)
+            load_model.LoadModelManager(
+                load_nominal_voltage=self.load_nom_v,
+                load_measurements=self.load_meas.drop(index=0),
+                load_names_glm=self.load_names_glm)
 
     def test_duplicate_measurement(self):
         """Having more than 4 measurements per triplex load should raise
@@ -93,9 +90,8 @@ class LoadModelManager13TestCase(unittest.TestCase):
         cls.glm_mgr = GLMManager(models.IEEE_13, model_is_path=True)
         cls.load_names_glm = \
             list(
-                cls.glm_mgr.get_items_by_type(item_type='object',
-                                              object_type=
-                                              'triplex_load').keys()
+                cls.glm_mgr.get_items_by_type(
+                    item_type='object', object_type='triplex_load').keys()
             )
 
     def test_warns(self):
@@ -228,6 +224,11 @@ def pass_through(*args, **kwargs):
 
 
 class FitForLoadTestCase(unittest.TestCase):
+    """Test fit_for_load.
+
+    TODO: This method could use some more tests...
+    """
+
     @classmethod
     def setUpClass(cls):
         cls.load_data = _df.read_pickle(_df.PARSED_SENSOR_VPQ)
