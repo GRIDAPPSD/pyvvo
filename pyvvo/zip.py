@@ -611,7 +611,8 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
     be true, as this function won't work otherwise.
 
     :returns: best_fit. 'Best' output (smallest normalized mse_p
-        + mse_q) from calling cluster_and_fit
+        + mse_q) from calling cluster_and_fit. It will also have a 'k'
+        field added, indicating the number of clusters used.
     """
 
     # Override zip_fit_inputs

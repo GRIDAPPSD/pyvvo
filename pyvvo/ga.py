@@ -1386,6 +1386,8 @@ class Population:
         n_jobs = mp.cpu_count() - 1
 
         # Initialize processes.
+        # TODO: Move this to a method like load_model.LoadModelManager.
+        # TODO: Should probably have a method
         self._processes = []
         for n in range(n_jobs):
             # Initialize process, attaching it to the _evaluate_worker

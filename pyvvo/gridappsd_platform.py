@@ -274,9 +274,12 @@ class PlatformManager:
     """
 
     def __init__(self, timeout=30):
-        """Gather environment variables, etc.
+        """Connect to the GridAPPS-D platform by initializing a
+        gridappsd.GridAPPSD object.
 
         :param timeout: Timeout for GridAPPS-D API requests.
+
+        :returns: Initialized PlatformManager object.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -296,22 +299,6 @@ class PlatformManager:
         # We'll also use a property for tracking if a simulation is
         # complete.
         self.sim_complete = None
-
-        # # Get information on available models.
-        # self.platform_model_info = self.gad_object.query_model_info()
-        #
-        # # Ensure the query succeeded.
-        # if not self.platform_model_info['responseComplete']:
-        #     # TODO: Try again?
-        #     # TODO: Exception handling, etc.
-        #     raise UserWarning('GridAPPS-D query failed.')
-        #
-        # # Assign model name.
-        # self.model_name = model_name
-        # # Get the ID for the given model name.
-        # self.model_id = self._get_model_id(self.model_name)
-
-        pass
 
     def send_command(self, object_ids, attributes, forward_values,
                      reverse_values, sim_id=None):
