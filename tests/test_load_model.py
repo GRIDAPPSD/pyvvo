@@ -328,5 +328,29 @@ class FixLoadNameTestCase(unittest.TestCase):
             load_model.fix_load_name(75)
 
 
+class GetDataAndFitTestCase(unittest.TestCase):
+    """Test get_data_and_fit. Since get_data_and_fit is a very simple
+    wrapper, we'll patch the functions it calls and check that they were
+    called correctly.
+    """
+
+    @patch('pyvvo.load_model.fit_for_load', return_value=17)
+    @patch('pyvvo.load_model.get_data_for_load', return_value=10)
+    def test_correct_calls(self, p_gdfl, p_ffl):
+        """Simply call function, check patched functions used."""
+        d1 = {'some': 'stuff', 'for': 'function'}
+        d2 = {'more': 'things', '42': 24}
+
+        result = load_model.get_data_and_fit(gdfl_kwargs=d1, ffl_kwargs=d2)
+
+        p_gdfl.assert_called_once()
+        p_gdfl.assert_called_with(**d1)
+
+        p_ffl.assert_called_once()
+        p_ffl.assert_called_with(load_data=10, **d2)
+
+        self.assertEqual(result, 17)
+
+
 if __name__ == '__main__':
     unittest.main()

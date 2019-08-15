@@ -220,7 +220,8 @@ def get_data_for_load(sim_id, meas_data,
     :param meas_data: Pandas DataFrame with 4 rows (one for each
         measurement object on a triplex load) and 2 columns:
         meas_type and meas_mrid. meas_type must be PNV or VA, and there
-        must be two of each type.
+        must be two of each type. An easy way to get this DataFrame is
+        to group a LoadModelManager's load_df DataFrame by load_name.
     :param query_measurement: String, defaults to
         'gridappsd-sensor-simulator.'
     :param starttime: datetime.datetime. Filters measurements.
@@ -241,6 +242,8 @@ def get_data_for_load(sim_id, meas_data,
     # Get a PlatformManager to query the time series database.
     # NOTE: This is created on demand rather than being an input to
     # make this more robust for running in parallel.
+    # TODO: Is this on-demand strategy good? Or should we be passing
+    #   a PlatformManager around?
     mgr = PlatformManager()
 
     # Initialize dictionary to hold DataFrames. It will be keyed by
@@ -428,5 +431,21 @@ def fit_for_load(load_data, weather_data, selection_data=None,
     return output
 
 
+# noinspection SpellCheckingInspection
+def get_data_and_fit(gdfl_kwargs, ffl_kwargs):
+    """Get data via get_data_for_load, perform ZIP fit via fit_for_load.
+
+    :param gdfl_kwargs: Keyword arguments to pass to get_data_for_load.
+    :param ffl_kwargs: Keyword arguments to pass to fit_for_load, except
+        load_data. The load_data comes from get_data_for_load.
+
+    :returns: result from calling fit_for_load. See that docstring for
+        more details.
+    """
+    # Get data.
+    load_data = get_data_for_load(**gdfl_kwargs)
+
+    # Perform the fit for this load and return.
+    return fit_for_load(load_data=load_data, **ffl_kwargs)
 
 
