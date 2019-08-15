@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from copy import deepcopy
+import time
 
 from tests import data_files as _df
 from tests import models
@@ -36,6 +37,20 @@ class LoadModelManager9500TestCase(unittest.TestCase):
         expected_columns = ['meas_type', 'meas_mrid', 'load_name']
         for c in list(lm.load_df.columns):
             self.assertIn(c, expected_columns)
+
+    def test_fit_for_all(self):
+        self.assertTrue(False, "Need to finish this method.")
+        #
+        # # TODO: Migrate this method elsewhere to use the modified 123
+        # #   node model.
+        #
+        # # Construct the manager.
+        # lm = load_model.LoadModelManager(load_nominal_voltage=self.load_nom_v,
+        #                                  load_measurements=self.load_meas,
+        #                                  load_names_glm=self.load_names_glm)
+        #
+        # # Fit for all, using the appropriate times.
+        # lm.fit_for_all()
 
     def test_misaligned_load_names(self):
         """Misaligned names leads to an incorrect length after merging.
@@ -78,9 +93,21 @@ class LoadModelManager9500TestCase(unittest.TestCase):
                                         load_names_glm=load_names_glm)
 
 
+class MockOptimizeResult:
+    """Helper mock class since we can't pickle Mock/MagicMock objects.
+    """
+    def __init__(self, success, status, message):
+        self.success = success
+        self.status = status
+        self.message = message
+
+
 class LoadModelManager13TestCase(unittest.TestCase):
     """The 13 bus model has only one triplex load, but several other
     loads at different voltages.
+
+    This test case will also have an initialized LoadModelManager to
+    ease testing some methods like _start_processes and _stop_processes.
     """
 
     @classmethod
@@ -93,6 +120,11 @@ class LoadModelManager13TestCase(unittest.TestCase):
                 cls.glm_mgr.get_items_by_type(
                     item_type='object', object_type='triplex_load').keys()
             )
+        # Create a manager.
+        cls.load_mgr = load_model.LoadModelManager(
+            load_nominal_voltage=cls.load_nom_v,
+            load_measurements=cls.load_meas,
+            load_names_glm=cls.load_names_glm)
 
     def test_warns(self):
         """Should get a warning that not all loads are triplex."""
@@ -101,9 +133,54 @@ class LoadModelManager13TestCase(unittest.TestCase):
                                         load_measurements=self.load_meas,
                                         load_names_glm=self.load_names_glm)
 
+    def test_start_stop_processes(self):
+        """Test _start_processes and stop_processes methods."""
+        self.load_mgr._start_processes()
+
+        for p in self.load_mgr.processes:
+            self.assertTrue(p.is_alive())
+
+        # Attempting to start the processes again should warn.
+        with self.assertLogs(logger=self.load_mgr.log, level='WARNING'):
+            self.load_mgr._start_processes()
+
+        # Now, stop the processes.
+        self.load_mgr._stop_processes()
+
+        # The processes attribute should now be None.
+        self.assertIsNone(self.load_mgr.processes)
+
+        # Attempting to stop the processes again should warn.
+        with self.assertLogs(logger=self.load_mgr.log, level='WARNING'):
+            self.load_mgr._stop_processes()
+
+    def test_logging_worker(self):
+        """Put a log entry into the logging queue and ensure things
+        work.
+        """
+        # Create a successful optimize result
+        sol = MockOptimizeResult(success=True, status=42, message="Testing...")
+
+        d = {'load_name': 'test_name', 'time': 1.4598, 'clusters': 3,
+             'data_samples': 10, 'sol': sol}
+
+        with self.assertLogs(logger=load_model.LOG, level='INFO'):
+            self.load_mgr.logging_queue.put(d)
+            # Sleep to let all the work happen.
+            time.sleep(0.01)
+
+        # Now, create an entry which should trigger a warning.
+        sol = MockOptimizeResult(success=False, status=42, message="Testing...")
+
+        d['sol'] = sol
+
+        with self.assertLogs(logger=load_model.LOG, level='WARNING'):
+            self.load_mgr.logging_queue.put(d)
+            time.sleep(0.01)
+
 
 class LoadModelManager123TestCase(unittest.TestCase):
-    """The 123 load model has not triplex loads."""
+    """The 123 load model has no triplex loads."""
 
     @classmethod
     def setUpClass(cls):
@@ -122,6 +199,17 @@ class LoadModelManager123TestCase(unittest.TestCase):
             load_model.LoadModelManager(load_nominal_voltage=self.load_nom_v,
                                         load_measurements=self.load_meas,
                                         load_names_glm=self.load_names_glm)
+
+
+class LoadModelManagerModified123TestCase(unittest.TestCase):
+    """As of platform version v2019.08.0, there should exist a version
+    of the 123 node model with triplex_loads. This will be a good model
+    to run tests on since they won't take as long to run as the 9500
+    node model.
+    """
+    def test_stuff(self):
+        self.assertTrue(False, "Write these tests once the time series API"
+                        " is fixed.")
 
 
 class GetDataForLoadTestCase(unittest.TestCase):
@@ -216,11 +304,6 @@ class GetDataForLoadTestCase(unittest.TestCase):
         self.assertEqual(1, p.call_count)
         self.assertEqual(4, mock_mgr.get_simulation_output.call_count)
         pd.testing.assert_frame_equal(expected, actual)
-
-
-def pass_through(*args, **kwargs):
-    """Return what's given."""
-    return args, kwargs
 
 
 class FitForLoadTestCase(unittest.TestCase):

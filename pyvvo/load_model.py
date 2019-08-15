@@ -4,6 +4,9 @@ manipulate it, then perform a ZIP fit.
 # Standard library:
 import logging
 from datetime import timedelta
+import time
+import multiprocessing as mp
+import threading
 
 # Third party:
 import numpy as np
@@ -52,6 +55,99 @@ class LoadModelManager:
         """
         # Initialize the log.
         self.log = logging.getLogger(self.__class__.__name__)
+
+        # Map our inputs together, resulting in a single DataFrame.
+        self._load_df = self._map_names_to_measurements(load_nominal_voltage,
+                                                        load_measurements,
+                                                        load_names_glm)
+
+        # Log success.
+        self.log.info('GridLAB-D load names successfully mapped to CIM '
+                      'measurements.')
+
+        # Get a PlatformManager for weather queries.
+        self._platform = PlatformManager()
+        self.log.info('PlatformManager initialized.')
+
+        # Initialize queues to be used for creating load models in
+        # parallel.
+        self._input_queue = mp.JoinableQueue()
+        self._output_queue = mp.Queue()
+        self._logging_queue = mp.Queue()
+
+        # Start the logging thread.
+        self._logging_thread = \
+            threading.Thread(target=_logging_worker,
+                             kwargs={'logging_queue': self.logging_queue})
+        self.log.info('Logging thread started.')
+
+        self.logging_thread.start()
+
+        # Initialize processes to be None.
+        self._processes = None
+
+        # Determine how many processes to run.
+        # TODO: We'll want to make this configurable in the future.
+        self._n_jobs = mp.cpu_count() - 1
+        self.log.info('Initialization complete.')
+
+    @property
+    def load_df(self):
+        """Pandas DataFrame with three columns: meas_type, meas_mrid,
+        and load_name.
+        """
+        return self._load_df
+
+    @property
+    def input_queue(self):
+        """Multiprocessing JoinableQueue which provides input to the
+        _get_data_and_fit_worker method.
+        """
+        return self._input_queue
+
+    @property
+    def output_queue(self):
+        """Multiprocessing Queue where output from
+        _get_data_and_fit_worker is placed.
+        """
+        return self._output_queue
+
+    @property
+    def logging_queue(self):
+        """Multiprocessing Queue where logging information from
+        _get_data_and_fit_worker is placed.
+        """
+        return self._logging_queue
+
+    @property
+    def logging_thread(self):
+        """threading.Thread object targeted at _logging_worker.
+        """
+        return self._logging_thread
+
+    @property
+    def processes(self):
+        """list of multiprocessing.Process objects, targeted at
+        _get_data_and_fit_worker.
+        """
+        return self._processes
+
+    @property
+    def n_jobs(self):
+        """Integer number of processes/jobs to run."""
+        return self._n_jobs
+
+    @property
+    def platform(self):
+        """gridappsd_platform.PlatformManager object, intended for
+        getting weather data.
+        """
+        return self._platform
+
+    def _map_names_to_measurements(self, load_nominal_voltage,
+                                   load_measurements, load_names_glm):
+        """Initialization helper to create the load_df attribute.
+        """
 
         # For starters, ensure we actually have triplex loads from the
         # GridLAB-D model.
@@ -153,16 +249,78 @@ class LoadModelManager:
         if final_df.isna().any().any():
             raise ValueError('Our final DataFrame has NaNs in it!')
 
-        # Alrighty, we're almost done. Keep our final_df.
-        self.load_df = final_df
-        self.log.info('Initialization complete. GridLAB-D load names '
-                      'successfully mapped to CIM measurements.')
+        return final_df
 
-    def get_zip_for_load(self, load_meas_data, weather_data):
-        """Given measurement data from the platform, come up with a
-        ZIP load model.
+    def _start_processes(self):
+        """Helper to start up processes for fitting."""
+        # If the processes have already been started, log and do
+        # nothing.
+        if self.processes is not None:
+            self.log.warning('_start_processes called when the processes '
+                             'attribute is not None! Doing nothing.')
+            return
+
+        # Overwrite self._processes to be a list.
+        self._processes = []
+        for n in range(self.n_jobs):
+            # Initialize process, attaching it to the _evaluate_worker
+            # method.
+            p = mp.Process(target=_get_data_and_fit_worker, name=str(n),
+                           kwargs={'input_queue': self.input_queue,
+                                   'output_queue': self.output_queue,
+                                   'logging_queue': self.logging_queue})
+
+            # Add this process to the list.
+            self.processes.append(p)
+            # Start this process.
+            p.start()
+
+        # All done.
+        self.log.info('Processes started.')
+
+    def _stop_processes(self):
+        """Helper to stop all our processes.
+
+        It will be assumed that the input_queue has been cleared out.
         """
+        if self.processes is None:
+            self.log.warning('_stop_processes called, but self.processes '
+                             'is None! Doing nothing.')
+            return
 
+        # Send in the termination signal.
+        for _ in range(len(self.processes)):
+            self.input_queue.put(None)
+
+        # Wait for all the process functions to return.
+        for p in self.processes:
+            p.join(timeout=None)
+            p.close()
+
+        # Set the processes property to None.
+        self._processes = None
+
+        self.log.info('Processes closed.')
+
+    # def fit_for_all(self, sim_id, starttime, endtime):
+    #     """"""
+    #     # Fire up processes.
+    #     self._start_processes()
+    #
+    #     # Get weather data.
+    #     weather_data = self.platform.get_weather(start_time=starttime,
+    #                                              end_time=endtime)
+    #
+    #     # Initialize get_data_for_load arguments.
+    #     gdfl_kwargs = {'sim_id': sim_id, 'starttime': starttime,
+    #                    'endtime': endtime}
+    #
+    #     # Initialize fit_for_load arguments.
+    #     # TODO: Add options for selection_data and prediction_datetime.
+    #     ffl_kwargs = {'weather_data': weather_data}
+    #
+    #     #
+    #     # Fill up queue.
 
 def fix_load_name(n):
     """Strip quotes, remove prefix, and remove suffix from load names.
@@ -449,3 +607,96 @@ def get_data_and_fit(gdfl_kwargs, ffl_kwargs):
     return fit_for_load(load_data=load_data, **ffl_kwargs)
 
 
+def _get_data_and_fit_worker(input_queue, output_queue, logging_queue):
+    """Method designed to be used with threading/multiprocessing to run
+    get_data_and_fit.
+
+    :param input_queue: Multiprocessing.JoinableQueue instance. The
+        objects in the queue should be dictionaries with two fields:
+        'gdfl_kwargs' and 'ffl_kwargs'. The dictionary will simply be
+        unpacked into the get_data_and_fit method. Putting None in the
+        queue is used as the termination signal for the worker, causing
+        this method to return.
+    :param output_queue: Multiprocessing.Queue instance. The output from
+        calling get_data_and_fit will be placed in the output_queue.
+        Note that a 'load_name' field will also be added.
+    :param logging_queue: Multiprocessing.Queue instance. Dictionaries
+        with the following fields will be placed into this queue:
+        - load_name: Name of the load in question.
+        - time: Total time to get data and perform the ZIP fit.
+        - clusters: Number of clusters used in the fitting.
+        - data_samples: Number of data samples used to create the fit.
+        - sol: scipy.optimize.OptimizeResult object.
+
+    :returns: None
+    """
+
+    # Loop until the termination signal is received.
+    while True:
+        # Grab data from the queue.
+        d = input_queue.get(block=True, timeout=None)
+
+        # None is the termination signal.
+        if d is None:
+            return
+
+        # Do the work.
+        t0 = time.time()
+        result = get_data_and_fit(**d)
+        t1 = time.time()
+
+        load_name = d['meas_data'].iloc[0]['load_name']
+        # Dump information into the logging queue.
+        logging_queue.put({'load_name': load_name,
+                           'time': t1 - t0, 'clusters': result['k'],
+                           'data_samples': result['data_len'],
+                           'sol': result['sol']})
+
+        # Add a load_name field to the result.
+        result['load_name'] = load_name
+
+        # Put the result in the output queue.
+        output_queue.put(result)
+
+        # Mark task as complete.
+        input_queue.task_done()
+
+
+def _logging_worker(logging_queue):
+    """Method to do the logging for _get_data_and_fit_worker. This
+    should be used with a thread.
+
+    :param logging_queue: Multiprocessing.Queue object, which will have
+        dictionaries put in it by _get_data_and_fit_worker. For a full
+        description of the fields, check that function's docstring and
+        code. A None input will be the termination signal.
+
+    :returns: None
+    """
+
+    # Loop.
+    while True:
+        d = logging_queue.get(block=True, timeout=None)
+
+        # None is the termination signal.
+        if d is None:
+            return
+
+        # Log.
+        if d['sol'].success:
+            # TODO: Should this be debug instead of info?
+            LOG.info('Fit for load {} complete in {:.2f} seconds'
+                     .format(d['load_name'], d['time']))
+        else:
+            # Warn on failure.
+            LOG.warning('Fit for load {} FAILED. Solver status: {}. Solver'
+                        ' message: {}'.format(d['load_name'], d['sol'].status,
+                                              d['sol'].message))
+
+        # Add detailed debugging information.
+        LOG.debug('Fit details for load {}:\n\tNumber of clusters: {}'
+                  '\n\tNumber of data samples: {}\n\tOptimizeResult:\n{}'
+                  .format(d['load_name'], d['clusters'], d['data_samples'],
+                          str(d['sol'])))
+
+        # That's all, folks.
