@@ -12,6 +12,8 @@ try:
     import simplejson as json
 except AttributeError:
     import json
+import signal
+from contextlib import contextmanager
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -325,3 +327,42 @@ def add_timedelta_to_time(t, td):
 
     # Return the resulting time, including timezone information.
     return new_datetime.timetz()
+
+
+class TimeoutException(Exception):
+    """Exception raised by the time_limit context manager."""
+    pass
+
+
+@contextmanager
+def time_limit(seconds: int):
+    """Context manager to run code with a timeout.
+
+    Source: https://stackoverflow.com/a/601168/11052174
+
+    Caveats:
+        - Some S.O. users have noted that signals and threads don't
+            mix well.
+        - Not all functions can be interrupted by signals:
+            https://stackoverflow.com/a/34895076/11052174
+        - If alarms are being used elsewhere, this may be a problem.
+
+    :param seconds: Integer number of seconds allowed before a
+        TimeoutException is raised.
+
+    :raises TimeoutException: Raised if code doesn't complete within
+        seconds.
+    """
+
+    # noinspection PyUnusedLocal
+    def signal_handler(signum, frame):
+        raise TimeoutException("Timed out!")
+
+    signal.signal(signal.SIGALRM, signal_handler)
+    signal.alarm(seconds)
+
+    try:
+        yield
+    finally:
+        # Disable the alarm.
+        signal.alarm(0)

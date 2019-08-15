@@ -3,6 +3,7 @@ import math
 import cmath
 from pyvvo import utils
 from datetime import datetime, timezone, timedelta, time
+from time import sleep
 import pandas as pd
 import os
 import numpy as np
@@ -328,6 +329,21 @@ class AddTimedeltaToTimeTestCase(unittest.TestCase):
         t_expected = time(hour=14, minute=20, tzinfo=timezone.utc)
         t_actual = utils.add_timedelta_to_time(t=t, td=td)
         self.assertEqual(t_expected, t_actual)
+
+
+class TimeLimitTestCase(unittest.TestCase):
+    """Test the time_limit context manager."""
+
+    def test_times_out(self):
+        with self.assertRaises(utils.TimeoutException):
+            with utils.time_limit(1):
+                sleep(1.1)
+
+    def test_no_timeout(self):
+        with utils.time_limit(1):
+            sleep(0.1)
+
+        self.assertTrue(True, "We made it here without an exception.")
 
 
 if __name__ == '__main__':
