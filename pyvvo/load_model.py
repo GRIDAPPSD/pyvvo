@@ -226,7 +226,7 @@ def get_data_for_load(sim_id, meas_data,
     :param starttime: datetime.datetime. Filters measurements.
     :param endtime: datetime.datetime. Filters measurements.
 
-    :returns pandas DataFrame with three columns, 'v', 'p', and 'q'.
+    :returns: pandas DataFrame with three columns, 'v', 'p', and 'q'.
         Indexed by time as returned by
         gridappsd_platform.PlatformManager.get_simulation_output.
     """
@@ -342,7 +342,7 @@ def fit_for_load(load_data, weather_data, selection_data=None,
         it's the caller's responsibility to ensure reasonable alignment
         between the indices of the DataFrames.
 
-    :returns output from pyvvo.zip.get_best_fit_from_clustering.
+    :returns: output from pyvvo.zip.get_best_fit_from_clustering.
 
     TODO: Should this filtering and joining be moved? It seems like it
         could be excessive to do this for every single load. Maybe it

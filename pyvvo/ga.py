@@ -260,7 +260,7 @@ def _reg_bin_length(reg):
 
     :param reg: regulator.RegulatorSinglePhase object.
 
-    :returns integer representing how many bits are needed to represent
+    :returns: integer representing how many bits are needed to represent
     a regulators tap positions.
     """
     # Use raise_taps and lower_taps from GridLAB-D to compute the number
@@ -628,7 +628,7 @@ class Individual:
         :param chromosome: np.ndarray, dtype np.bool, shape
             (self.chrom_len,).
 
-        :returns Possibly altered chromosome.
+        :returns: Possibly altered chromosome.
         :raises TypeError, ValueError
         """
         # Input checking.
@@ -750,7 +750,7 @@ class Individual:
         :param uid1: uid of first child.
         :param uid2: uid of second child.
 
-        :returns child1, child2, both are Individuals.
+        :returns: child1, child2, both are Individuals.
         """
         if mask.shape != (self.chrom_len,):
             raise ValueError('Bad map shape, {}. Expected ({},).'
@@ -1755,7 +1755,7 @@ class Population:
         """Simple helper to get two parents via a tournament for
         crossover and/or mutation.
 
-        :returns parent1, parent2. Both are Individuals from the
+        :returns: parent1, parent2. Both are Individuals from the
         population.
         """
         # Get two parent indices via a tournament.
@@ -1772,7 +1772,7 @@ class Population:
 
         :param ind: Individual object to mutate.
 
-        :returns None. The individual is mutated in place.
+        :returns: None. The individual is mutated in place.
         :raises ChromosomeAlreadyExistedError if 100 mutation attempts
             don't get us an individual which hasn't already existed.
         """
@@ -1797,7 +1797,7 @@ class Population:
         possibly mutate them. This is a helper for part of the
         crossover_and_mutate method.
 
-        :returns child1, child2: Resultant children from the crossover
+        :returns: child1, child2: Resultant children from the crossover
             and possible mutation.
         """
         # Create children via crossover.
@@ -2053,7 +2053,7 @@ def _dump_queue(q, i):
         multiprocessing.JoinableQueue)
     :param i: A list object, for which items from q will be appended to.
 
-    :returns i. While this isn't necessary, it's explicit.
+    :returns: i. While this isn't necessary, it's explicit.
     """
     while True:
         try:
@@ -2092,7 +2092,7 @@ def _update_equipment_with_individual(ind, regs, caps):
         which then get pickled, but it likely isn't worth the effort for
         a very minimal gain.
 
-    :returns None. regs and caps are updated in place.
+    :returns: None. regs and caps are updated in place.
     """
     # Loop over the individual's map.
     for phase_dict in ind.chrom_map.values():
@@ -2156,7 +2156,7 @@ def main(regulators, capacitors, glm_mgr, starttime, stoptime):
     :param stoptime: Python datetime object for simulation end. See
         prep_glm_mgr.
 
-    :returns regulators, capacitors after state modification.
+    :returns: regulators, capacitors after state modification.
     """
     # We'll time the algorithm runtime.
     t0 = time.time()

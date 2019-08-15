@@ -24,7 +24,7 @@ def parse_timeseries(data):
         API (either for weather data or simulation data). Ultimately,
         this is a return from gridappsd.GridAPPSD.get_response.
 
-    :returns pandas DataFrame representing the data. Data types in
+    :returns: pandas DataFrame representing the data. Data types in
         NUMERIC_COLS will be cast to np.float. Note NaNs may be present.
     """
     # Ensure data is a dictionary.
@@ -262,7 +262,7 @@ def filter_by_weekday(data):
 
     :param data: pandas DataFrame or Timeseries indexed by time.
 
-    :returns the subset of data which occurs on weekdays.
+    :returns: the subset of data which occurs on weekdays.
     """
     return _filter_by_day_of_week(data=data, day_start=0, day_end=4)
 
@@ -272,7 +272,7 @@ def filter_by_weekend(data):
 
     :param data: pandas DataFrame or Timeseries indexed by time.
 
-    :returns the subset of data which occurs on weekends.
+    :returns: the subset of data which occurs on weekends.
     """
     return _filter_by_day_of_week(data=data, day_start=5, day_end=6)
 

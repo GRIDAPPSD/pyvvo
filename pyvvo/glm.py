@@ -1104,7 +1104,7 @@ class GLMManager:
         These will simply be looked up in the model_map.
 
         :param object_type: string of desired object type to look up.
-        :returns object_list: list of dictionaries for the given object
+        :returns: object_list: list of dictionaries for the given object
                  type. Will return None if the object type isn't in the
                  model.
         """

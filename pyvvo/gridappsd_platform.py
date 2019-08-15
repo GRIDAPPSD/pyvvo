@@ -191,7 +191,7 @@ class SimOutRouter:
         measurements with mrid's that we care about.
 
         :param message: dictionary, message from simulator subscription.
-        :returns list of list of measurements from message which
+        :returns: list of list of measurements from message which
             correspond to the list of lists of mrids in self.mrids.
         """
         # Simply type check for message:

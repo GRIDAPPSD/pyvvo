@@ -293,7 +293,7 @@ def _zip_obj_and_jac(zip_terms, v_s, v_bar, p_bar, q_bar):
     :param p_bar: numpy array, p / |s_n|
     :param q_bar: numpy array, q / |s_n|
 
-    :returns obj, jac. obj is the scalar value of the objective
+    :returns: obj, jac. obj is the scalar value of the objective
         function, and jac is a numpy array the same shape as zip_terms
         with the partial derivative of the objective function with
         respect to each term in zip_terms.

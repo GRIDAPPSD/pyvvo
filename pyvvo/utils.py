@@ -39,7 +39,7 @@ def parse_complex_str(s):
         +15-20d V
         +12-3.14r I
 
-    :returns complex number, unit associated with it.
+    :returns: complex number, unit associated with it.
     """
     # Return a ValueError if the input is not a string.
     if not isinstance(s, str):
@@ -210,7 +210,7 @@ def dt_to_s_from_epoch(dt):
     a string.
     :param dt: Python datetime.datetime object.
 
-    :returns seconds since the epoch as a string.
+    :returns: seconds since the epoch as a string.
     """
     return '{:.0f}'.format(dt.timestamp())
 
@@ -223,7 +223,7 @@ def platform_header_timestamp_to_dt(timestamp):
     :param timestamp: Integer or float. Milliseconds since
         1970-01-01 00:00:00.000. Assumed to be in UTC.
 
-    :returns dt: timezone aware (UTC) datetime.datetime object.
+    :returns: dt: timezone aware (UTC) datetime.datetime object.
     """
     return datetime.fromtimestamp(timestamp / 1000, timezone.utc)
 

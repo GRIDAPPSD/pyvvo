@@ -48,7 +48,7 @@ def _tap_cim_to_gld(step, neutral_step):
     :param neutral_step: CIM neutral tap position. This will likely and
         often be 16 on a 32 tap regulator.
 
-    :returns tap_pos: tap position as GridLAB-D would denote it. E.g.
+    :returns: tap_pos: tap position as GridLAB-D would denote it. E.g.
         10 or -2.
 
     NOTE: This method is private to this module, so don't go calling it,
@@ -66,7 +66,7 @@ def _tap_gld_to_cim(tap_pos, neutral_step):
     :param neutral_step: CIM neutral tap position. This will likely and
         often be 16 on a 32 tap regulator.
 
-    :returns step: CIM tap position of the voltage regulator.
+    :returns: step: CIM tap position of the voltage regulator.
 
     NOTE: This method is private to this module, so don't go calling it,
     as inputs are not checked.
@@ -745,7 +745,7 @@ class EquipmentManager:
             will be what the equipment in the simulation will be
             commanded to.
 
-        :returns dictionary with keys corresponding to the send_command
+        :returns: dictionary with keys corresponding to the send_command
             method of a gridappsd_platform.PlatformManager object.
 
         NOTE: eq_dict_forward and self.eq_dict should be identical
@@ -879,7 +879,7 @@ def initialize_regulators(df):
     :param df: Pandas DataFrame object from
         sparql.SPARQLManager.query_regulators
 
-    :returns out: dictionary, keyed by tap_changer_mrid, of
+    :returns: out: dictionary, keyed by tap_changer_mrid, of
         RegulatorSinglePhase objects. Note that all regulators are
         included, even if they aren't controllable.
     """
