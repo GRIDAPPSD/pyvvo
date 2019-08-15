@@ -553,6 +553,15 @@ class TestClusterAndFit(unittest.TestCase):
 
         self.check_pq(expected=self.results[2], predicted=fit_data)
 
+    def test_get_best_fit_from_clustering_not_enough_data(self):
+        """Ensure a ValueError is raised if not enough data is provided.
+        """
+        data = self.results[3]
+        with self.assertRaisesRegex(ValueError, 'The given data has length'):
+            zip.get_best_fit_from_clustering(data=data.iloc[0:3],
+                                             min_cluster_size=4,
+                                             zip_fit_inputs={'some': 'dict'})
+
 
 @unittest.skipIf(condition=(not GLD_PRESENT),
                  reason='gridlabd could not be found.')

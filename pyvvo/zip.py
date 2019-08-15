@@ -614,6 +614,12 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
         + mse_q) from calling cluster_and_fit. It will also have a 'k'
         field added, indicating the number of clusters used.
     """
+    # The length of our data must be larger than our minimum cluster
+    # size.
+    if len(data) < min_cluster_size:
+        raise ValueError('The given data has length {}, but the given '
+                         'minimum cluster size is {}.'
+                         .format(len(data), min_cluster_size))
 
     # Override zip_fit_inputs
     zip_fit_inputs['fit_data'] = True
