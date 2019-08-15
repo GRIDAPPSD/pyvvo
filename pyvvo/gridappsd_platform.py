@@ -13,6 +13,7 @@ import logging
 import re
 from datetime import datetime
 import copy
+import time
 from pyvvo import utils
 from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
 from pyvvo.utils import simulation_output_timestamp_to_dt as simulation_dt
@@ -557,23 +558,22 @@ class PlatformManager:
                 "SubGeographicalRegion_name": subgeo_name,
                 "Line_name": feeder_id},
                 "application_config": {"applications": applications},
-                "simulation_config": {"start_time":
-                                        utils.dt_to_s_from_epoch(start_time),
-                                      "duration": str(duration),
-                                      "simulator": "GridLAB-D",
-                                      "timestep_frequency": "1000",
-                                      "timestep_increment": "1000",
-                                      "run_realtime": realtime,
-                                      "simulation_name": "ieee8500",
-                                      "power_flow_solver_method": "NR",
-                                      "model_creation_config": {
-                                          "load_scaling_factor": "1",
-                                          "schedule_name": "ieeezipload",
-                                          "z_fraction": "0", "i_fraction": "1",
-                                          "p_fraction": "0",
-                                          "randomize_zipload_fractions":
-                                              random_zip,
-                                          "use_houses": houses}},
+                "simulation_config": {
+                    "start_time": utils.dt_to_s_from_epoch(start_time),
+                    "duration": str(duration),
+                    "simulator": "GridLAB-D",
+                    "timestep_frequency": "1000",
+                    "timestep_increment": "1000",
+                    "run_realtime": realtime,
+                    "simulation_name": "ieee8500",
+                    "power_flow_solver_method": "NR",
+                    "model_creation_config": {
+                        "load_scaling_factor": "1",
+                        "schedule_name": "ieeezipload",
+                        "z_fraction": "0", "i_fraction": "1",
+                        "p_fraction": "0",
+                        "randomize_zipload_fractions": random_zip,
+                        "use_houses": houses}},
                 "test_config": {"events": [],
                                 "appId": feeder_id}}
 
@@ -599,6 +599,29 @@ class PlatformManager:
     def _update_sim_complete(self, *args):
         self.sim_complete = True
         self.log.info('Simulation complete!')
+
+    def wait_for_simulation(self):
+        """Method to block until the current simulation is complete, and
+        then update self.sim_complete to be None.
+
+        NOTE: This is not robust, and will hang if a simulation
+        crashes.
+        """
+        # If we don't have a simulation, warn and return.
+        if self.sim_complete is None:
+            self.log.warning('wait_for_simulation called, but sim_complete '
+                             'is None! Doing nothing.')
+            return
+
+        # Use a crude while loop and sleep call to wait.
+        while not self.sim_complete:
+            time.sleep(0.1)
+
+        # Update sim_complete indicating there's not an active
+        # simulation.
+        self.sim_complete = None
+
+        # All done!
 
 
 class Error(Exception):

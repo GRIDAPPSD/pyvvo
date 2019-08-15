@@ -277,14 +277,6 @@ def get_non_id_cols(df):
     return non_id_cols, id_cols
 
 
-def wait_for_simulation(platform):
-    """Helper to wait for a simulation to complete."""
-    while not platform.sim_complete:
-        time.sleep(0.1)
-
-    print('Simulation complete!', flush=True)
-
-
 def generate_all_measurements_13():
     """Generate the file all_measurements_13.json."""
     platform = gridappsd_platform.PlatformManager()
@@ -294,7 +286,7 @@ def generate_all_measurements_13():
                                      duration=20, realtime=False)
 
     # Wait for simulation completion.
-    wait_for_simulation(platform)
+    platform.wait_for_simulation()
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -319,7 +311,7 @@ def generate_energy_consumer_measurements_9500():
     mrid = load_meas.iloc[0]['id']
 
     # Wait for simulation completion.
-    wait_for_simulation(platform)
+    platform.wait_for_simulation()
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -365,7 +357,7 @@ def generate_cap_and_reg_meas_message_8500():
                                              fn_mrid_list=fn_mrid_list)
 
     # Wait for simulation completion.
-    wait_for_simulation(platform)
+    platform.wait_for_simulation()
 
 
 def generate_model_info():
@@ -423,7 +415,7 @@ def generate_sensor_service_measurements_9500():
                                      random_zip=False, houses=False)
 
     # Wait for simulation completion.
-    wait_for_simulation(platform)
+    platform.wait_for_simulation()
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):

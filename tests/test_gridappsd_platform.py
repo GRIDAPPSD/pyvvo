@@ -5,8 +5,8 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
 
 # PyVVO + GridAPPS-D
-from pyvvo import gridappsd_platform
-from gridappsd import GridAPPSD, topics
+from pyvvo import gridappsd_platform, utils
+from gridappsd import GridAPPSD, topics, simulation
 from pyvvo.timeseries import parse_weather
 import tests.data_files as _df
 from tests.models import IEEE_8500, IEEE_13
@@ -547,6 +547,43 @@ class PlatformManagerTestCase(unittest.TestCase):
         p2.assert_called_with(42)
 
         self.assertEqual(21, out)
+
+    def test_run_simulation_actually_run(self):
+        """Test run_simulation, and legitimately run a simulation. Note
+        this is more of an integration test, and also tests
+        _update_sim_complete and wait_for_simulation.
+        """
+        # Get a fresh manager.
+        p = gridappsd_platform.PlatformManager()
+
+        # Use the smallest model we've got.
+        feeder_id = _df.FEEDER_MRID_13
+
+        # sim and sim_complete should be None.
+        self.assertIsNone(p.sim_complete)
+        self.assertIsNone(p.sim)
+
+        # Run the simulation.
+        p.run_simulation(feeder_id=feeder_id,
+                         start_time=datetime(2013, 1, 1, 0, 0, 0),
+                         duration=5, realtime=False, random_zip=False,
+                         houses=False)
+
+        # While the simulation is still running, sim_complete should be
+        # False. NOTE: This builds in the assumption that this Python
+        # code will take less time than the platform does to generate
+        # and run the model. Seems reasonable.
+        self.assertFalse(p.sim_complete)
+
+        # sim should now be a gridappsd.simulation.Simulation object.
+        self.assertIsInstance(p.sim, simulation.Simulation)
+
+        # Wait for the simulation to complete.
+        with utils.time_limit(10):
+            p.wait_for_simulation()
+
+        # Now, sim_complete should be None.
+        self.assertIsNone(p.sim_complete)
 
 
 if __name__ == '__main__':
