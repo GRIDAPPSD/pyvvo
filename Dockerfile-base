@@ -21,7 +21,7 @@ ADD $GLD $mysql_apt install_libmysqlclient-dev.sh ${TEMP_DIR}/
 ENV CXXFLAGS=-I${PYVVO}/share/gridlabd \
     LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${PYVVO}/lib:/usr/lib/x86_64-linux-gnu \
     PATH=${PATH}:/${PYVVO}/bin \
-    BUILD_PACKAGES="autoconf automake g++ libtool make gcc"
+    BUILD_PACKAGES="autoconf automake g++ libtool make gcc git"
 
 # TODO: In an ideal world, there would be a seperate docker container
 # which contains GridLAB-D, rather than installing GridLAB-D into the
