@@ -14,7 +14,9 @@ pwd=$PWD
 # NOTE: When updating this branch, you probably should delete the
 # GridLAB-D directory ($gld_dir) first - the behavior of using
 # --single-branch with git clone does some weird stuff.
-gld_branch=release/v4.2
+# 2019-08-30 - switching to the 'develop' branch as there are some
+# critical fixes in there.
+gld_branch=develop
 
 # Collect arguments.
 tag=${1:-latest}
