@@ -135,6 +135,11 @@ WEATHER_TWO_WEEK = os.path.join(DATA_DIR, 'weather_two_week.csv')
 WEATHER_TWO_WEEK_START = datetime(2013, 7, 14, 0, 0)
 WEATHER_TWO_WEEK_END = datetime(2013, 7, 28, 0, 0)
 
+# Simple, single entry weather file.
+WEATHER_SIMPLE_JSON = os.path.join(DATA_DIR, 'weather_simple.json')
+WEATHER_SIMPLE_START = datetime(2013, 1, 1, 6)
+WEATHER_SIMPLE_END = WEATHER_SIMPLE_START
+
 
 def read_pickle(csv_file):
     """Helper to read a pickle file corresponding to a csv file."""
@@ -487,6 +492,16 @@ def generate_weather_two_week():
                       end_time=WEATHER_TWO_WEEK_END)
     to_file(d.resample('15Min', closed='right', label='right').mean(),
             WEATHER_TWO_WEEK, index=True)
+
+
+def generate_weather_simple():
+    """Generate simple single-entry weather data."""
+    p = gridappsd_platform.PlatformManager()
+    # Start with the json file.
+    # noinspection PyProtectedMember
+    j = p._query_weather(start_time=WEATHER_SIMPLE_START,
+                         end_time=WEATHER_SIMPLE_END)
+    _dict_to_json(j, WEATHER_SIMPLE_JSON)
 
 
 if __name__ == '__main__':
