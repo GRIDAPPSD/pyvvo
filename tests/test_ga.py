@@ -928,14 +928,15 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
         # 9 single phase caps switching.
         self.assertEqual(9 * 10, cap_penalty)
 
-        # 3 phases per regulator, 4 regulators, each moving 32 taps,
+        # 3 phases per regulator, 6 regulators, each moving 32 taps,
         # with a cost of 10 per tap
-        self.assertEqual(3 * 4 * 32 * 10, reg_penalty)
+        self.assertEqual(3 * 6 * 32 * 10, reg_penalty)
 
         # Ensure our helper methods are called the appropriate number of
-        # times.
+        # times. We have 9 capacitor phases, and the regulators are
+        # now modeled as single phase (rather than 3 phase). 6 * 3 = 18.
         self.assertEqual(9, pc.call_count)
-        self.assertEqual(4, pr.call_count)
+        self.assertEqual(18, pr.call_count)
 
 
 class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
