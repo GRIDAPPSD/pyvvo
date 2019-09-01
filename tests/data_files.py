@@ -89,8 +89,6 @@ CAP_MEAS_MSG_8500 = os.path.join(DATA_DIR, 'cap_meas_message_8500.json')
 MEASUREMENTS_13 = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
 HEADER_13 = os.path.join(DATA_DIR, 'simulation_measurements_header_13.json')
 
-WEATHER = os.path.join(DATA_DIR, 'weather_simple.json')
-
 MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 
 E_CONS_MEAS_9500 =\
@@ -126,9 +124,13 @@ PARSED_SENSOR_LIST = [PARSED_SENSOR_9500_0, PARSED_SENSOR_9500_1,
 
 PARSED_SENSOR_VPQ = os.path.join(DATA_DIR, 'parsed_sensor_vpq_9500.csv')
 
+WEATHER_FOR_SENSOR_DATA_9500_JSON = \
+    os.path.join(DATA_DIR, 'weather_for_sensors_data_9500.json')
 WEATHER_FOR_SENSOR_DATA_9500 = \
     os.path.join(DATA_DIR, 'weather_for_sensors_data_9500.csv')
 
+# The two-week weather is parsed and re-sampled into 15 minute
+# intervals.
 WEATHER_TWO_WEEK = os.path.join(DATA_DIR, 'weather_two_week.csv')
 WEATHER_TWO_WEEK_START = datetime(2013, 7, 14, 0, 0)
 WEATHER_TWO_WEEK_END = datetime(2013, 7, 28, 0, 0)
@@ -469,6 +471,10 @@ def generate_weather_for_sensor_data_9500():
     """Get weather data that lines up with the sensor data.
     """
     p = gridappsd_platform.PlatformManager()
+    # Start with the json file.
+    j = p._query_weather(start_time=SENSOR_MEASUREMENT_TIME_START,
+                         end_time=SENSOR_MEASUREMENT_TIME_END)
+    _dict_to_json(j, WEATHER_FOR_SENSOR_DATA_9500_JSON)
     d = p.get_weather(start_time=SENSOR_MEASUREMENT_TIME_START,
                       end_time=SENSOR_MEASUREMENT_TIME_END)
     to_file(d, WEATHER_FOR_SENSOR_DATA_9500)
