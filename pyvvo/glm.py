@@ -39,8 +39,11 @@ from functools import reduce
 from datetime import datetime
 import logging
 
+# 2019-09-01 - not renaming any more. It's not particularly
+# maintainable, leads to hard to track down bugs, and doesn't do any
+# good for pyvvo.
 # List of object properties which will have '-' replaced with '_'
-RENAME = ['name', 'parent', 'from', 'to', 'configuration']
+# RENAME = ['name', 'parent', 'from', 'to', 'configuration']
 
 # List of classes in GridLAB-D's module, generators. NOTE: intentionally
 # ordering this so the most likely to appear show up first.
@@ -258,20 +261,19 @@ def _fix_old_syntax(tree):
 
             # if we are working with fuses let's set the mean replace time to 1
             # hour if not specified. Then we aviod a warning!
-            if tree[key][
-                'object'] == 'fuse' and 'mean_replacement_time' not in list(
-                tree[key].keys()):
+            if tree[key]['object'] == 'fuse' \
+                    and 'mean_replacement_time' not in list(tree[key].keys()):
                 tree[key]['mean_replacement_time'] = 3600.0
 
-            # FNCS is not able to handle names that include "-" so we will
-            # replace that with "_".
-            for prop in RENAME:
-                try:
-                    # Attempt to fix the property.
-                    tree[key][prop] = tree[key][prop].replace('-', '_')
-                except KeyError:
-                    # Property isn't present - move along.
-                    pass
+            # # FNCS is not able to handle names that include "-" so we will
+            # # replace that with "_".
+            # for prop in RENAME:
+            #     try:
+            #         # Attempt to fix the property.
+            #         tree[key][prop] = tree[key][prop].replace('-', '_')
+            #     except KeyError:
+            #         # Property isn't present - move along.
+            #         pass
 
     # No return, as we're modifying in place.
     return None
