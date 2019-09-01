@@ -367,8 +367,7 @@ def generate_model_info():
 
     info = platform.gad.query_model_info()
 
-    with open(MODEL_INFO, 'w') as f:
-        json.dump(info, f)
+    _dict_to_json(data=info, fname=MODEL_INFO)
 
 
 def _get_9500_meas_data_for_one_node():
@@ -425,8 +424,7 @@ def generate_sensor_service_measurements_9500():
             query_measurement='gridappsd-sensor-simulator')
 
         # Save the output to file.
-        with open(SENSOR_MEAS_LIST[idx], 'w') as f:
-            json.dump(out, f)
+        _dict_to_json(data=out, fname=SENSOR_MEAS_LIST[idx])
 
 
 def generate_parsed_sensor_service_measurements_9500():
