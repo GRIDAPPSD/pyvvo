@@ -160,12 +160,12 @@ class ParseWeatherTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Load the simple weather data dictionary.
-        with open(_df.WEATHER, 'r') as f:
+        with open(_df.WEATHER_SIMPLE_JSON, 'r') as f:
             cls.weather_simple = json.load(f)
 
         # Create the expected DataFrame.
         # Weather data starts at 2013-01-01 00:00:00 Mountain Time.
-        dt = datetime(2013, 1, 1, 6)
+        dt = _df.WEATHER_SIMPLE_START
         dt_index = pd.to_datetime([dt], utc=True)
 
         # Expected data.
@@ -182,10 +182,9 @@ class ParseWeatherTestCase(unittest.TestCase):
         # Create an entry with two rows.
         cls.weather_two = copy.deepcopy(cls.weather_simple)
 
-        row = copy.deepcopy(
-                cls.weather_two['data']['measurements'][0]['points'][0])
+        row = copy.deepcopy(cls.weather_two['data'][0])
 
-        cls.weather_two['data']['measurements'][0]['points'].append(row)
+        cls.weather_two['data'].append(row)
 
         # Create the expected return for the two-row case.
         dt_index_two = pd.to_datetime([dt, dt], utc=True)
@@ -196,11 +195,6 @@ class ParseWeatherTestCase(unittest.TestCase):
 
     def test_parse_weather_bad_input_type(self):
         self.assertRaises(TypeError, timeseries.parse_weather, 10)
-
-    def test_parse_weather_bad_input_value(self):
-        """This will raise an AssertionError."""
-        self.assertRaises(AssertionError, timeseries.parse_weather,
-                          {'data': {'measurements': [1, 2, 3]}})
 
     # noinspection PyMethodMayBeStatic
     def test_parse_weather_weather_simple_json(self):
@@ -217,7 +211,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_simple)
 
         # Remove temperature
-        del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
+        del data['data'][0]['TowerDryBulbTemp']
 
         self.assertRaises(KeyError, timeseries.parse_weather, data)
 
@@ -226,7 +220,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_simple)
 
         # Remove ghi
-        del data['data']['measurements'][0]['points'][0]['row']['entry'][8]
+        del data['data'][0]['GlobalCM22']
 
         self.assertRaises(KeyError, timeseries.parse_weather, data)
 
@@ -235,17 +229,17 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_simple)
 
         # Remove time
-        del data['data']['measurements'][0]['points'][0]['row']['entry'][10]
+        del data['data'][0]['time']
 
         self.assertRaises(KeyError, timeseries.parse_weather, data)
 
     def test_parse_weather_data_no_wind(self):
-        """We aren't using wind speed."""
+        """We aren't using wind speed, so there should be no problem."""
         # Get a copy of the data.
         data = copy.deepcopy(self.weather_simple)
 
         # Remove average wind speed
-        del data['data']['measurements'][0]['points'][0]['row']['entry'][1]
+        del data['data'][0]['AvgWindSpeed']
 
         # We should not get a ValueError.
         # noinspection PyBroadException
@@ -266,7 +260,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_two)
 
         # Remove a temperature entry.
-        del data['data']['measurements'][0]['points'][0]['row']['entry'][5]
+        del data['data'][1]['TowerDryBulbTemp']
 
         actual = timeseries.parse_weather(data)
 
@@ -278,7 +272,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_two)
 
         # Remove a ghi entry.
-        del data['data']['measurements'][0]['points'][1]['row']['entry'][8]
+        del data['data'][0]['GlobalCM22']
 
         actual = timeseries.parse_weather(data)
 
@@ -290,7 +284,7 @@ class ParseWeatherTestCase(unittest.TestCase):
         data = copy.deepcopy(self.weather_two)
 
         # Remove a time entry.
-        del data['data']['measurements'][0]['points'][1]['row']['entry'][10]
+        del data['data'][0]['time']
 
         actual = timeseries.parse_weather(data)
 
