@@ -300,7 +300,7 @@ def generate_all_measurements_13():
     data = platform._query_simulation_output(simulation_id=sim_id)
 
     # Write to file.
-    _dict_to_json(fname='all_measurements_13.json',
+    _dict_to_json(fname=ALL_MEAS_13,
                   data=data)
 
 
@@ -319,6 +319,11 @@ def generate_energy_consumer_measurements_9500():
 
     # Wait for simulation completion.
     platform.wait_for_simulation()
+
+    # TODO: Remove this time.sleep when
+    #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/24#issue-487936782
+    #  has been addressed.
+    time.sleep(10)
 
     # Get the measurements.
     # noinspection PyProtectedMember
@@ -477,6 +482,7 @@ def generate_weather_for_sensor_data_9500():
     """
     p = gridappsd_platform.PlatformManager()
     # Start with the json file.
+    # noinspection PyProtectedMember
     j = p._query_weather(start_time=SENSOR_MEASUREMENT_TIME_START,
                          end_time=SENSOR_MEASUREMENT_TIME_END)
     _dict_to_json(j, WEATHER_FOR_SENSOR_DATA_9500_JSON)
