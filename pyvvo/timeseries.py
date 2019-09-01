@@ -25,8 +25,8 @@ def parse_timeseries(data):
     if not isinstance(data, dict):
         raise TypeError('data must be a dictionary!')
 
-    # Simply use data['data']['measurements'] to create a DataFrame.
-    df = pd.DataFrame(data['data']['measurements'])
+    # Simply use data['data'] to create a DataFrame.
+    df = pd.DataFrame(data['data'])
 
     # Get the timestamps as Datetime-esque objects. Note that Proven
     # returns timestamps as seconds from the epoch, UTC. I think the
