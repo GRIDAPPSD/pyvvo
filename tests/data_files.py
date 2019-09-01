@@ -325,7 +325,7 @@ def generate_energy_consumer_measurements_9500():
 
 def _dict_to_json(data, fname):
     with open(os.path.join(DATA_DIR, fname), 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=2)
 
 
 def generate_cap_and_reg_meas_message_8500():
