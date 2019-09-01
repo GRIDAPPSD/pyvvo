@@ -851,7 +851,7 @@ class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
 
 class InitializeCapacitorsTestCase(unittest.TestCase):
-    """Test initialize_capacitors"""
+    """Test initialize_capacitors for the 9500 node model."""
 
     @classmethod
     def setUpClass(cls):
