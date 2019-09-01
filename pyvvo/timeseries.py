@@ -10,12 +10,6 @@ import logging
 # Setup log.
 LOG = logging.getLogger(__name__)
 
-# List of numeric columns.
-# https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
-NUMERIC_COLS = ['GlobalCM22', 'DirectCH1', 'Diffuse', 'TowerDryBulbTemp',
-                'TowerRH', 'AvgWindSpeed', 'AvgWindDirection',
-                'angle', 'magnitude', 'value']
-
 
 def parse_timeseries(data):
     """Helper to parse platform timeseries data.
@@ -31,70 +25,16 @@ def parse_timeseries(data):
     if not isinstance(data, dict):
         raise TypeError('data must be a dictionary!')
 
-    # The data formatting/data model returned from the platform's time
-    # series database is pretty ridiculous. There's all sorts of
-    # unnecessary nesting. Since this nesting is present, we have a lot
-    # of safety checks we need to do. To keep the code clean/short, I'm
-    # just going to use asserts.
-    assert 'data' in data.keys()
-    assert 'measurements' in data['data'].keys()
-    assert len(data['data']) == 1
-    assert len(data['data']['measurements']) == 1
-    assert 'name' in data['data']['measurements'][0].keys()
-    assert 'points' in data['data']['measurements'][0].keys()
-    assert isinstance(data['data']['measurements'][0]['points'], list)
-
-    # Alrighty, there's our initial checks. Now move on.
-
-    # Initialize our data list. This is eventually going to be used to
-    # create a Pandas DataFrame.
-    dl = []
-    # Loop over the "points," which contain the data we need.
-    for point in data['data']['measurements'][0]['points']:
-        # We're expecting a dictionary with a single entry.
-        assert len(point) == 1
-
-        # Extract the row.
-        row = point['row']
-
-        # Again, we're expecting a dictionary with a single entry.
-        assert len(row) == 1
-
-        # Extract the "entry"
-        entry = row['entry']
-
-        # Create a dictionary for this entry.
-        this_entry = {}
-
-        # Loop over the values in entry.
-        for d in entry:
-            # We should have just 'key' and 'value' keys.
-            assert len(d) == 2
-
-            # Use the key as well, a key, and the value as well, a
-            # value. The fact that I have to do this seems crazy.
-            this_entry[d['key']] = d['value']
-
-        # Append to our list.
-        dl.append(this_entry)
-
-    # Create our DataFrame.
-    df = pd.DataFrame(dl)
+    # Simply use data['data'] to create a DataFrame.
+    df = pd.DataFrame(data['data'])
 
     # Get the timestamps as Datetime-esque objects. Note that Proven
     # returns timestamps as seconds from the epoch, UTC. I think the
     # source of the timestamps is the simulation itself.
     df['time'] = pd.to_datetime(df['time'], unit='s', utc=True, origin='unix')
 
-    # Set the time index.
-    df.set_index(keys='time', drop=True, inplace=True)
-
-    # Get dictionary of numeric types for this data.
-    dtype_dict = {key: np.float for key in df.columns.to_list()
-                  if key in NUMERIC_COLS}
-
-    # Return the DataFrame with numeric types properly casted.
-    return df.astype(dtype=dtype_dict, copy=False, errors="raise")
+    # Set the time index and return
+    return df.set_index(keys='time', drop=True, inplace=False)
 
 
 def parse_weather(data):
