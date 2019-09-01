@@ -973,7 +973,7 @@ class InitializeSwitchesTestCase(unittest.TestCase):
 
     def test_length(self):
         """Hard-code number of expected switches."""
-        self.assertEqual(len(self.switches), 93)
+        self.assertEqual(len(self.switches), 107)
 
     def test_switch_or_dict_of_switches(self):
         """Ensure all objects are the correct type."""
