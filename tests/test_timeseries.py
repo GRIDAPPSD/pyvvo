@@ -12,6 +12,9 @@ import pandas as pd
 from pyvvo import timeseries
 import tests.data_files as _df
 
+# For measurement data, we expect the following to be numeric:
+NUMERIC_COLS = ['magnitude', 'angle', 'value']
+
 
 class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
     """Test parse_timeseries, and pass it simulation measurements which
@@ -39,11 +42,8 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
         # Parse the data.
         parsed_data = timeseries.parse_timeseries(data=self.meas_13)
 
-        # We should get back as many rows as there are "points"
-        self.assertEqual(
-            len(self.meas_13['data']['measurements'][0]['points']),
-            parsed_data.shape[0]
-        )
+        # We should get back as many rows as there are entries in 'data'
+        self.assertEqual(len(self.meas_13['data']), parsed_data.shape[0])
 
         # For the 13 node "all measurements" we'll be getting back
         # mixed types which results in columns which are not used for
@@ -78,7 +78,7 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
 
         # Ensure all columns which should be numeric are numeric.
         for c in parsed_data.columns.to_list():
-            if c in timeseries.NUMERIC_COLS:
+            if c in NUMERIC_COLS:
                 self.assertEqual(np.dtype('float'), parsed_data[c].dtype)
 
     def test_9500(self):
@@ -104,7 +104,7 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
 
         # Ensure all columns which should be numeric are numeric.
         for c in parsed_data.columns.to_list():
-            if c in timeseries.NUMERIC_COLS:
+            if c in NUMERIC_COLS:
                 self.assertEqual(np.dtype('float'), parsed_data[c].dtype)
 
     def test_sensor_service_9500(self):
