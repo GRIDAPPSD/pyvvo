@@ -336,7 +336,10 @@ def generate_energy_consumer_measurements_9500():
                   data=data)
 
 
-def _dict_to_json(data, fname):
+def _dict_to_json(data, fname, sim_dt=None):
+    """Helper to dump a dictionary to file. the sim_dt argument is there
+     because we use this function with the SimOutRouter.
+     """
     with open(os.path.join(DATA_DIR, fname), 'w') as f:
         json.dump(data, f, indent=2)
 

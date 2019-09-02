@@ -219,6 +219,10 @@ class SimOutRouterTestCase(unittest.TestCase):
             _ = self.router._on_message(header=self.header,
                                         message=self.meas)
 
+        # Grab the time.
+        t = utils.simulation_output_timestamp_to_dt(
+            int(self.meas['message']['timestamp']))
+
         # Ensure each method was called appropriately.
         for idx, mock_func in enumerate(self.router.functions):
             try:
@@ -228,11 +232,11 @@ class SimOutRouterTestCase(unittest.TestCase):
                 else:
                     kwargs = {}
                 mock_func.assert_called_once_with(m2.return_value[idx],
-                                                  **kwargs)
+                                                  sim_dt=t, **kwargs)
             except AttributeError:
                 # List of functions case.
                 for f in self.router.functions[idx]:
-                    f.assert_called_once_with(m2.return_value[idx])
+                    f.assert_called_once_with(m2.return_value[idx], sim_dt=t)
 
     def test_queue(self):
         """Ensure the queue (_q property) is working as expected"""

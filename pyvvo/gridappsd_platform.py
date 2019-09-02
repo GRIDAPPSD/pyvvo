@@ -147,11 +147,12 @@ class SimOutRouter:
             'kwargs': {'dict': 'of keyword args',
                        'to': 'pass to function'}}
             where 'functions' can either be a callable or list of
-            callables that will accept a list of measurements, and
-            'mrids' is a list of mrids to extract from the simulation
-            output, which will correspond to measurements. 'kwargs' is
-            optional, and consists of key word arguments to pass to the
-            function.
+            callables that will accept both a list of measurements as
+            a positional argument and 'sim_dt' (of type
+            datetime.datetime) as a keyword argument. The 'mrids' field
+            is a list of mrids to extract from the simulation output,
+            which will correspond to measurements. 'kwargs' is optional,
+            and consists of key word arguments to pass to the function.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -213,10 +214,10 @@ class SimOutRouter:
         )
 
         # Log simulation time.
+        sim_dt = simulation_dt(int(message['message']['timestamp']))
+
         self.log.debug(
-            'Simulation timestamp: '
-            + simulation_dt(
-                int(message['message']['timestamp'])).strftime(DATE_FORMAT))
+            'Simulation timestamp: {}'.format(sim_dt.strftime(DATE_FORMAT)))
 
         # Filter the message.
         result = self._filter_output_by_mrid(message=message)
@@ -230,11 +231,11 @@ class SimOutRouter:
             except TypeError:
                 # We have a simple function, which isn't iterable. Call
                 # it.
-                self.functions[idx](output, **self.kwargs[idx])
+                self.functions[idx](output, sim_dt=sim_dt, **self.kwargs[idx])
             else:
                 # Call each function.
                 for f in func_iter:
-                    f(output, **self.kwargs[idx])
+                    f(output, sim_dt=sim_dt, **self.kwargs[idx])
 
     def _filter_output_by_mrid(self, message):
         """Given an output message from the simulator, return only the
@@ -244,7 +245,7 @@ class SimOutRouter:
         :returns: list of list of measurements from message which
             correspond to the list of lists of mrids in self.mrids.
         """
-        # Simply type check for message:
+        # Simple type check for message:
         if not isinstance(message, dict):
             raise TypeError('message must be a dictionary!')
 
@@ -356,8 +357,8 @@ class PlatformManager:
         This is partly a wrapper to DifferenceBuilder, but also sends
         the command into the simulation.
 
-        Note all parameters below must be 1:1. In other words,
-        object_id[3] should correspond to attribute[3].
+        Note all list parameters below must be 1:1. In other words,
+        object_ids[3] should correspond to attributes[3], etc.
 
         :param object_ids: List of mrids of objects to command.
         :param attributes: List of CIM attributes belonging to the
@@ -367,8 +368,8 @@ class PlatformManager:
         :param reverse_values: List of old (current) values for
             attributes.
         :param sim_id: Simulation ID. If None, will attempt to use
-            self.sim_id. If self.sim_id is also None, ValueError will
-            be raised.
+            self.sim.simulation_id. If that is also None, ValueError
+            will be raised.
         """
         # Ensure we get lists.
         if ((not isinstance(object_ids, list))
