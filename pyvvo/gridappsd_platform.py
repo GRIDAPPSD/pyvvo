@@ -14,7 +14,7 @@ import re
 from datetime import datetime
 import copy
 import time
-from queue import Queue
+from threading import Lock
 from functools import wraps
 
 from pyvvo import utils
@@ -34,7 +34,7 @@ REGEX_1 = re.compile(r'^\s*\{\s*"data"\s*:\s*')
 REGEX_2 = re.compile(r'\s*,\s*"responseComplete".+$')
 
 # Timeout for SimOutRouter's queue (seconds)
-QUEUE_TIMEOUT = 60
+LOCK_TIMEOUT = 60
 
 
 def get_platform_env_var():
@@ -111,7 +111,7 @@ def get_gad_address():
     return address
 
 
-def wait_for_queue(method):
+def wait_for_lock(method):
     """Wrapper used by the SimOutRouter to avoid collisions due to
     multi-threading.
 
@@ -119,15 +119,19 @@ def wait_for_queue(method):
     """
     @wraps(method)
     def wrapper(self, *args, **kwargs):
-        # Block. For now, hard-code 60 seconds.
-        self._q.get(timeout=QUEUE_TIMEOUT)
+        # Block.
+        acquired = self._lock.acquire(blocking=True, timeout=LOCK_TIMEOUT)
+
+        if not acquired:
+            raise LockTimeoutError('Failed to acquire lock within {} seconds'
+                                   .format(LOCK_TIMEOUT))
 
         # Execute the method
         try:
             result = method(self, *args, **kwargs)
         finally:
             # Always indicate we're done.
-            self._q.put_nowait(True)
+            self._lock.release()
 
         return result
 
@@ -169,13 +173,8 @@ class SimOutRouter:
         self.functions = []
         self.kwargs = []
 
-        # Initialize a Queue to ensure we don't have conflicts between
-        # add_funcs_and_mrids and _on_message.
-        self._q = Queue(maxsize=1)
-
-        # Simply put a boolean into the queue to indicate we're ready
-        # to process messages.
-        self._q.put_nowait(True)
+        # Initialize a lock
+        self._lock = Lock()
 
         # Add the functions and mrids to our lists.
         self.add_funcs_and_mrids(fn_mrid_list=fn_mrid_list)
@@ -184,7 +183,7 @@ class SimOutRouter:
         self.platform.gad.subscribe(topic=self.output_topic,
                                     callback=self._on_message)
 
-    @wait_for_queue
+    @wait_for_lock
     def add_funcs_and_mrids(self, fn_mrid_list):
         """Helper to add functions and MRIDs to the router.
 
@@ -202,7 +201,7 @@ class SimOutRouter:
                 # Not given kwargs, so no worries.
                 self.kwargs.append({})
 
-    @wait_for_queue
+    @wait_for_lock
     def _on_message(self, header, message):
         """Callback which is hit each time a new simulation output
         message comes in.
@@ -694,3 +693,10 @@ class QueryReturnEmptyError(Error):
         self.message = 'Query on topic {} returned no data! Query: {}'.format(
             self.topic, self.query
         )
+
+
+class LockTimeoutError(Error):
+    """Raised if a call to a threading.Lock object's acquire method
+    time out.
+    """
+    pass

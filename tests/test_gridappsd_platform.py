@@ -3,14 +3,13 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
-from queue import Queue, Empty
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform, utils
 from gridappsd import GridAPPSD, topics, simulation
 from pyvvo.timeseries import parse_weather
 import tests.data_files as _df
-from tests.models import IEEE_8500, IEEE_13
+from tests.models import IEEE_13
 
 # Third-party
 from stomp.exception import ConnectFailedException
@@ -238,41 +237,40 @@ class SimOutRouterTestCase(unittest.TestCase):
                 for f in self.router.functions[idx]:
                     f.assert_called_once_with(m2.return_value[idx], sim_dt=t)
 
-    def test_queue(self):
-        """Ensure the queue (_q property) is working as expected"""
-        # Start with basic checks.
-        self.assertIsInstance(self.router._q, Queue)
-        self.assertEqual(1, self.router._q.qsize())
+    def test_lock(self):
+        """Ensure the lock (_lock property) is working as expected"""
+        # Acquire the lock
+        acquired = self.router._lock.acquire(timeout=0.01)
+        self.assertTrue(acquired)
 
-        # On to the slightly more sophisticated testing.
-        # Remove the item from the queue so that decorated functions
-        # will block.
-        self.router._q.get()
+        with patch('pyvvo.gridappsd_platform.LOCK_TIMEOUT', 0.01):
+            self.assertRaises(gridappsd_platform.LockTimeoutError,
+                              self.router.add_funcs_and_mrids, 'stuff')
+            self.assertRaises(gridappsd_platform.LockTimeoutError,
+                              self.router._on_message, 'stuff', 'thing')
 
-        with patch('pyvvo.gridappsd_platform.QUEUE_TIMEOUT', 0.01):
-            self.assertRaises(Empty, self.router.add_funcs_and_mrids, 'stuff')
-            self.assertRaises(Empty, self.router._on_message, 'stuff', 'thing')
-
-        # Put something back in the queue and call the functions again.
-        self.router._q.put(True)
-        with patch('pyvvo.gridappsd_platform.QUEUE_TIMEOUT', 0.01):
+        # Release the lock and call the functions again.
+        self.router._lock.release()
+        with patch('pyvvo.gridappsd_platform.LOCK_TIMEOUT', 0.01):
             # Run the function. Expect a type error since we'll just
             # pass a string.
             with self.assertRaises(TypeError):
                 self.router.add_funcs_and_mrids('stuff')
 
-            # After the call, we should still have an item in the queue
-            # due to the finally block in wait_for_queue
-            self.assertEqual(1, self.router._q.qsize())
+            # After the call, we should be able to acquire the lock.
+            acquired = self.router._lock.acquire(timeout=0.01)
+            self.assertTrue(acquired)
+            self.router._lock.release()
 
             # Run the function. Expect a type error since we'll just
             # pass a string.
             with self.assertRaises(TypeError):
                 self.router._on_message('stuff', 'thing')
 
-            # After the call, we should still have an item in the queue
-            # due to the finally block in wait_for_queue
-            self.assertEqual(1, self.router._q.qsize())
+            # After the call, we should be able to acquire the lock.
+            acquired = self.router._lock.acquire(timeout=0.01)
+            self.assertTrue(acquired)
+            self.router._lock.release()
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
