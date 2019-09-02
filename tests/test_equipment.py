@@ -503,18 +503,19 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
                 eq_mrid_col=SWITCH_MEAS_SWITCH_MRID_COL
             )
 
+    def state_none(self, switch):
+        """Helper to ensure a switch state is None."""
+        self.assertIsNone(switch.state)
+
+    def state_valid(self, switch):
+        """Helper to ensure a switch state is valid."""
+        self.assertIn(switch.state, equipment.SwitchSinglePhase.STATES)
+
     def test_update(self):
         """Send in an update message and ensure state changed."""
         # Start by ensuring all switches start with a status of None.
-        for switch_or_dict in self.switch_mgr.eq_dict.values():
-            if isinstance(switch_or_dict, dict):
-                # Loop over the phases.
-                for switch in switch_or_dict.values():
-                    self.assertIsNone(switch.state)
-            elif isinstance(switch_or_dict, equipment.SwitchSinglePhase):
-                self.assertIsNone(switch_or_dict.state)
-            else:
-                raise TypeError('Something went wrong.')
+        equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
+                              func=self.state_none)
 
         # Now that we've ensure all switches start with None status,
         # update them all.
@@ -522,17 +523,9 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
 
         # Loop again and ensure the states are now not None and are
         # valid.
-        valid_states = equipment.SwitchSinglePhase.STATES
-        for switch_or_dict in self.switch_mgr.eq_dict.values():
-            if isinstance(switch_or_dict, dict):
-                # Loop over the phases.
-                for switch in switch_or_dict.values():
-                    self.assertIn(switch.state, valid_states)
-            elif isinstance(switch_or_dict, equipment.SwitchSinglePhase):
-                self.assertIn(switch_or_dict.state, valid_states)
-            else:
-                raise TypeError('Something went wrong.')
-
+        equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
+                              func=self.state_valid)
+        
 
 class InitializeRegulatorsTestCase(unittest.TestCase):
     """Test initialize_regulators"""

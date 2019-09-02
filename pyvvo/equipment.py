@@ -696,7 +696,7 @@ class EquipmentManager:
 
     def update_state(self, msg):
         """Given a message from a gridappsd_platform SimOutRouter,
-        update regulator positions.
+        update equipment state.
 
         :param msg: list passed to this method via a SimOutRouter's
             "_on_message" method.
@@ -951,5 +951,32 @@ def initialize_switches(df):
             out[row.mrid] = SwitchSinglePhase(**row_dict)
 
     return out
+
+
+def loop_helper(eq_dict, func):
+    """Loop over an equipment dictionary returned from one of the
+    initialize_* functions and apply a function to each
+    EquipmentSinglePhase object.
+
+    I constantly find myself re-writing these annoying loops due to
+    the poor design decision to allow the initialize_* functions to
+    have either EquipmentSinglePhase objects or dictionaries as the
+    values for the top level keys of their respective returns. So, this
+    method hopefully mitigates that.
+
+    :param eq_dict: Dictionary from one of this modules initialize_*
+        functions (e.g. initialize_regulators).
+    :param func: Function which takes two positional inputs: a single EquipmentSinglePhase
+        object as input.
+    """
+    for eq_or_dict in eq_dict.values():
+        if isinstance(eq_or_dict, dict):
+            # Loop over the phases.
+            for eq in eq_or_dict.values():
+                func(eq)
+        elif isinstance(eq_or_dict, EquipmentSinglePhase):
+            func(eq_or_dict)
+        else:
+            raise TypeError('Value was not a dict or EquipmentSinglePhase.')
 
 ########################################################################
