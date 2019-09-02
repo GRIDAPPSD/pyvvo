@@ -406,18 +406,14 @@ def generate_sensor_service_measurements_9500():
 
     This method is also going to produce different results depending
     on how the sensor service is configured.
-
-    TODO: Re-run when
-        https://github.com/GRIDAPPSD/gridappsd-forum/issues/21#issue-475728176
-        is addressed.
     """
     meas_data = _get_9500_meas_data_for_one_node()
 
     platform = gridappsd_platform.PlatformManager()
     time_diff = SENSOR_MEASUREMENT_TIME_END - SENSOR_MEASUREMENT_TIME_START
     # TODO: Use houses when
-    #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/20#issue-475398545
-    #  is resolved.
+    #   https://github.com/GRIDAPPSD/gridappsd-forum/issues/26#issue-487939149
+    #   is resolved.
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
                                      start_time=SENSOR_MEASUREMENT_TIME_START,
                                      duration=time_diff.seconds,
@@ -427,6 +423,11 @@ def generate_sensor_service_measurements_9500():
 
     # Wait for simulation completion.
     platform.wait_for_simulation()
+
+    # TODO: Remove this time.sleep when
+    #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/24#issue-487936782
+    #  has been addressed.
+    time.sleep(60)
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):
@@ -521,5 +522,7 @@ if __name__ == '__main__':
     generate_vpq_for_parsed_sensor_service_measurements_9500()
     generate_weather_for_sensor_data_9500()
     generate_weather_two_week()
+    generate_weather_simple()
+
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")
