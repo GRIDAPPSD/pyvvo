@@ -17,8 +17,8 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.reg_meas = _df.read_pickle(_df.REG_MEAS_8500)
-        with open(_df.REG_MEAS_MSG_8500, 'r') as f:
+        cls.reg_meas = _df.read_pickle(_df.REG_MEAS_9500)
+        with open(_df.REG_MEAS_MSG_9500, 'r') as f:
             cls.reg_meas_msg = json.load(f)
 
     # noinspection PyPep8Naming
@@ -27,7 +27,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # instances each time. It won't be that slow, I promise.
         self.reg_dict = \
             equipment.initialize_regulators(
-                _df.read_pickle(_df.REGULATORS_8500))
+                _df.read_pickle(_df.REGULATORS_9500))
         self.reg_mgr = \
             equipment.EquipmentManager(
                 eq_dict=self.reg_dict, eq_meas=self.reg_meas,
@@ -38,12 +38,26 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
     def test_reg_dict_attribute(self):
         self.assertIs(self.reg_dict, self.reg_mgr.eq_dict)
 
-    def test_inconsistent_inputs(self):
+    def test_missing_meas(self):
+        """Ensure we get an exception if missing an input."""
+        meas = self.reg_meas.copy(deep=True)
+        meas = meas.drop(index=meas.index[-1])
+
+        s = 'The eq_meas input is missing equipment'
+        with self.assertRaisesRegex(ValueError, s):
+            _ = \
+                equipment.EquipmentManager(
+                    eq_dict=self.reg_dict, eq_meas=meas,
+                    meas_mrid_col=REG_MEAS_MEAS_MRID_COL,
+                    eq_mrid_col=REG_MEAS_REG_MRID_COL
+                )
+
+    def test_duplicate_meas(self):
         """Ensure we get an exception if inputs are not consistent.
         """
         meas = self.reg_meas.copy(deep=True)
         # Create a duplicate entry.
-        meas.iloc[0] = meas.iloc[1]
+        meas = meas.append(meas.iloc[0])
 
         s = 'Received 2 measurements for equipment with mrid'
         with self.assertRaisesRegex(ValueError, s):
@@ -190,7 +204,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # For some reason the new eq_dict won't pickle?
         # reg_dict_forward = \
         #     equipment.initialize_regulators(
-        #         _df.read_pickle(_df.REGULATORS_8500))
+        #         _df.read_pickle(_df.REGULATORS_9500))
 
         # Randomly update steps.
         forward_vals = []
@@ -221,11 +235,11 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         self.assertListEqual(reverse_vals, out['reverse_values'])
 
         # Ensure the lengths are equal to all our single phases.
-        # I'm just going to hard-code the fact that the 8500 node model
-        # has 4 3-phase regs.
+        # I'm just going to hard-code the fact that the 9500 node model
+        # has 6 3-phase regs.
         for v in out.values():
             self.assertIsInstance(v, list)
-            self.assertEqual(len(v), 12)
+            self.assertEqual(len(v), 18)
 
     def test_build_equipment_commands_mismatch(self):
         """Send mismatched reg dicts in."""
@@ -243,8 +257,8 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
     # noinspection PyPep8Naming
     @classmethod
     def setUpClass(cls):
-        cls.cap_meas = _df.read_pickle(_df.CAP_MEAS_8500)
-        with open(_df.CAP_MEAS_MSG_8500, 'r') as f:
+        cls.cap_meas = _df.read_pickle(_df.CAP_MEAS_9500)
+        with open(_df.CAP_MEAS_MSG_9500, 'r') as f:
             cls.cap_meas_msg = json.load(f)
 
     # noinspection PyPep8Naming
@@ -253,7 +267,7 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # instances each time. It won't be that slow, I promise.
         self.cap_dict = \
             equipment.initialize_capacitors(
-                _df.read_pickle(_df.CAPACITORS_8500))
+                _df.read_pickle(_df.CAPACITORS_9500))
         self.cap_mgr = \
             equipment.EquipmentManager(
                 eq_dict=self.cap_dict, eq_meas=self.cap_meas,
