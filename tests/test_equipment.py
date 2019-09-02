@@ -3,6 +3,7 @@ from random import randint, choice
 from copy import deepcopy
 import pandas as pd
 import simplejson as json
+from datetime import datetime
 
 from pyvvo import equipment
 
@@ -21,6 +22,9 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         cls.reg_meas = _df.read_pickle(_df.REG_MEAS_9500)
         with open(_df.REG_MEAS_MSG_9500, 'r') as f:
             cls.reg_meas_msg = json.load(f)
+
+        # Just create a bogus datetime.
+        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
 
     # noinspection PyPep8Naming
     def setUp(self):
@@ -137,13 +141,13 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # At the time of writing, the debug line is the last one in the
         # function, so ensuring it gets hit is adequate.
         with self.assertLogs(level='DEBUG'):
-            self.reg_mgr.update_state(self.reg_meas_msg)
+            self.reg_mgr.update_state(self.reg_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_changes_taps(self):
         """Ensure our taps changed appropriately. We'll hard-code
         this for simplicity.
         """
-        self.reg_mgr.update_state(self.reg_meas_msg)
+        self.reg_mgr.update_state(self.reg_meas_msg, sim_dt=self.sim_dt)
 
         # Loop over the message.
         for msg_dict in self.reg_meas_msg:
@@ -170,29 +174,29 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         reg_meas_msg.append({'measurement_mrid': '1234', 'value': 12})
 
         with self.assertLogs(level='WARNING'):
-            self.reg_mgr.update_state(reg_meas_msg)
+            self.reg_mgr.update_state(reg_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_entry_1(self):
         reg_meas_msg = deepcopy(self.reg_meas_msg)
         reg_meas_msg.append({'measurement_mrId': '1234', 'value': 12})
 
         with self.assertRaisesRegex(KeyError, 'measurement_mrid'):
-            self.reg_mgr.update_state(reg_meas_msg)
+            self.reg_mgr.update_state(reg_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_entry_2(self):
         reg_meas_msg = deepcopy(self.reg_meas_msg)
         reg_meas_msg.append({'measurement_mrid': '1234', 'valu3': 12})
 
         with self.assertRaisesRegex(KeyError, 'value'):
-            self.reg_mgr.update_state(reg_meas_msg)
+            self.reg_mgr.update_state(reg_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'msg must be a list'):
-            self.reg_mgr.update_state(msg='hello there')
+            self.reg_mgr.update_state(msg='hello there', sim_dt=self.sim_dt)
 
     def test_update_state_bad_type_2(self):
-        with self.assertRaisesRegex(TypeError, 'must be a dict'):
-            self.reg_mgr.update_state(msg=['hello there'])
+        with self.assertRaisesRegex(TypeError, 'string indices must be'):
+            self.reg_mgr.update_state(msg=['hello there'], sim_dt=self.sim_dt)
 
     def test_build_equipment_commands(self):
         """One stop big function which probably should be spun off into
@@ -261,6 +265,9 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         cls.cap_meas = _df.read_pickle(_df.CAP_MEAS_9500)
         with open(_df.CAP_MEAS_MSG_9500, 'r') as f:
             cls.cap_meas_msg = json.load(f)
+
+        # Just create a bogus datetime.
+        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
 
     # noinspection PyPep8Naming
     def setUp(self):
@@ -343,13 +350,13 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # At the time of writing, the debug line is the last one in the
         # function, so ensuring it gets hit is adequate.
         with self.assertLogs(level='DEBUG'):
-            self.cap_mgr.update_state(self.cap_meas_msg)
+            self.cap_mgr.update_state(self.cap_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_changes_state(self):
         """Ensure our states changed appropriately. We'll hard-code
         this for simplicity.
         """
-        self.cap_mgr.update_state(self.cap_meas_msg)
+        self.cap_mgr.update_state(self.cap_meas_msg, sim_dt=self.sim_dt)
 
         # Loop over the message.
         for msg_dict in self.cap_meas_msg:
@@ -380,29 +387,29 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         cap_meas_msg.append({'measurement_mrid': '1234', 'value': 12})
 
         with self.assertLogs(level='WARNING'):
-            self.cap_mgr.update_state(cap_meas_msg)
+            self.cap_mgr.update_state(cap_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_entry_1(self):
         cap_meas_msg = deepcopy(self.cap_meas_msg)
         cap_meas_msg.append({'measurement_mrId': '1234', 'value': 12})
 
         with self.assertRaisesRegex(KeyError, 'measurement_mrid'):
-            self.cap_mgr.update_state(cap_meas_msg)
+            self.cap_mgr.update_state(cap_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_entry_2(self):
         cap_meas_msg = deepcopy(self.cap_meas_msg)
         cap_meas_msg.append({'measurement_mrid': '1234', 'valu3': 12})
 
         with self.assertRaisesRegex(KeyError, 'value'):
-            self.cap_mgr.update_state(cap_meas_msg)
+            self.cap_mgr.update_state(cap_meas_msg, sim_dt=self.sim_dt)
 
     def test_update_state_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'msg must be a list'):
-            self.cap_mgr.update_state(msg='hello there')
+            self.cap_mgr.update_state(msg='hello there', sim_dt=self.sim_dt)
 
     def test_update_state_bad_type_2(self):
-        with self.assertRaisesRegex(TypeError, 'must be a dict'):
-            self.cap_mgr.update_state(msg=['hello there'])
+        with self.assertRaisesRegex(TypeError, 'string indices must'):
+            self.cap_mgr.update_state(msg=['hello there'], sim_dt=self.sim_dt)
 
     def test_build_equipment_commands(self):
         """One stop big function which probably should be spun off into
@@ -489,6 +496,9 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         with open(_df.SWITCH_MEAS_MSG_9500, 'r') as f:
             cls.switch_meas_msg = json.load(f)
 
+        # Just create a bogus datetime.
+        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
+
     # noinspection PyPep8Naming
     def setUp(self):
         # Gotta be careful with these mutable types... Get fresh
@@ -519,13 +529,13 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
 
         # Now that we've ensure all switches start with None status,
         # update them all.
-        self.switch_mgr.update_state(self.switch_meas_msg)
+        self.switch_mgr.update_state(self.switch_meas_msg, sim_dt=self.sim_dt)
 
         # Loop again and ensure the states are now not None and are
         # valid.
         equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
                               func=self.state_valid)
-        
+
 
 class InitializeRegulatorsTestCase(unittest.TestCase):
     """Test initialize_regulators"""

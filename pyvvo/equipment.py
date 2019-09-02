@@ -620,6 +620,10 @@ class EquipmentManager:
         self.eq_dict = eq_dict
         self.eq_meas = eq_meas
 
+        # Track the simulation timestamp of the last message that came
+        # in.
+        self.last_time = None
+
         # Create a map from measurement MRID to EquipmentSinglePhase.
         self.meas_eq_map = {}
 
@@ -694,12 +698,14 @@ class EquipmentManager:
             # Grab and return the phase entry.
             return eq[phase]
 
-    def update_state(self, msg):
+    def update_state(self, msg, sim_dt):
         """Given a message from a gridappsd_platform SimOutRouter,
         update equipment state.
 
         :param msg: list passed to this method via a SimOutRouter's
             "_on_message" method.
+        :param sim_dt: datetime.datetime object passed to this method
+            via a SimOutRouter's "_on_message" method.
         """
 
         # Type checking:
@@ -708,10 +714,6 @@ class EquipmentManager:
 
         # Iterate over the message and update regulators.
         for m in msg:
-            # Type checking:
-            if not isinstance(m, dict):
-                raise TypeError('Each entry in msg must be a dict!')
-
             # Grab mrid and value.
             meas_mrid = m['measurement_mrid']
             value = m['value']
