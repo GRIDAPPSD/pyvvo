@@ -14,6 +14,9 @@ import re
 from datetime import datetime
 import copy
 import time
+from queue import Queue
+from functools import wraps
+
 from pyvvo import utils
 from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
 from pyvvo.utils import simulation_output_timestamp_to_dt as simulation_dt
@@ -29,6 +32,9 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 # TODO: remove when the platform is fixed.
 REGEX_1 = re.compile(r'^\s*\{\s*"data"\s*:\s*')
 REGEX_2 = re.compile(r'\s*,\s*"responseComplete".+$')
+
+# Timeout for SimOutRouter's queue (seconds)
+QUEUE_TIMEOUT = 60
 
 
 def get_platform_env_var():
@@ -105,6 +111,29 @@ def get_gad_address():
     return address
 
 
+def wait_for_queue(method):
+    """Wrapper used by the SimOutRouter to avoid collisions due to
+    multi-threading.
+
+    https://stackoverflow.com/a/36944992/11052174
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # Block. For now, hard-code 60 seconds.
+        self._q.get(timeout=QUEUE_TIMEOUT)
+
+        # Execute the method
+        try:
+            result = method(self, *args, **kwargs)
+        finally:
+            # Always indicate we're done.
+            self._q.put_nowait(True)
+
+        return result
+
+    return wrapper
+
+
 class SimOutRouter:
     """Class for listening and routing simulation output."""
 
@@ -134,9 +163,32 @@ class SimOutRouter:
         self.output_topic = \
             topics.simulation_output_topic(simulation_id=sim_id)
 
+        # Initialize lists for holding our mrids, functions, and kwargs.
         self.mrids = []
         self.functions = []
         self.kwargs = []
+
+        # Initialize a Queue to ensure we don't have conflicts between
+        # add_funcs_and_mrids and _on_message.
+        self._q = Queue(maxsize=1)
+
+        # Simply put a boolean into the queue to indicate we're ready
+        # to process messages.
+        self._q.put_nowait(True)
+
+        # Add the functions and mrids to our lists.
+        self.add_funcs_and_mrids(fn_mrid_list=fn_mrid_list)
+
+        # Subscribe to the simulation output.
+        self.platform.gad.subscribe(topic=self.output_topic,
+                                    callback=self._on_message)
+
+    @wait_for_queue
+    def add_funcs_and_mrids(self, fn_mrid_list):
+        """Helper to add functions and MRIDs to the router.
+
+        :param fn_mrid_list: See description in __init__.
+        """
         # Combine the mrids into a list of lists, create a list of
         # functions.
         for d in fn_mrid_list:
@@ -149,10 +201,7 @@ class SimOutRouter:
                 # Not given kwargs, so no worries.
                 self.kwargs.append({})
 
-        # Subscribe to the simulation output.
-        self.platform.gad.subscribe(topic=self.output_topic,
-                                    callback=self._on_message)
-
+    @wait_for_queue
     def _on_message(self, header, message):
         """Callback which is hit each time a new simulation output
         message comes in.
@@ -644,53 +693,3 @@ class QueryReturnEmptyError(Error):
         self.message = 'Query on topic {} returned no data! Query: {}'.format(
             self.topic, self.query
         )
-
-
-    # def _parse_simulation_request(self, *args, **kwargs):
-    #     """Parse request to start a simulation."""
-    #     print('_parse_simulation_request has been called!', flush=True)
-    #     pass
-    #
-    # def _get_model_id(self, model_name):
-    #     """Given a model's name, get it's ID."""
-    #     # Loop over the models until we find our model_name, and get its ID.
-    #     model_id = None
-    #     for model in self.platform_model_info['data']['models']:
-    #         if model['modelName'] == model_name:
-    #             model_id = model['modelId']
-    #
-    #     # Raise exception if the model_id could not be found.
-    #     # TODO: Exception management.
-    #     if model_id is None:
-    #         m = 'Could not find the model ID for {}.'.format(model_name)
-    #         raise UserWarning(m)
-    #
-    #     return model_id
-#
-#
-# if __name__ == '__main__':
-#     # Get host IP address. NOTE: This environment variable must be set
-#     # when pyvvo is not being run from within the GridAPPS-D platform
-#     # via docker-compose.
-#     HOST_IP = os.environ['host_ip']
-#     PLATFORM = os.environ['platform']
-#
-#     # Get information related to the platform.
-#     PORT = os.environ['GRIDAPPSD_PORT']
-#
-#     # Create a PlatformManager object, which connects to the platform.
-#     mgr = PlatformManager(platform=PLATFORM, model_name='ieee8500')
-#
-#     # Get model information.
-#     info = mgr.gad.query_model_info()
-#
-#
-#     print('stuff cause debugger is being shitty.')
-#     # Get the platform status.
-#     # msg = mgr.gad.get_platform_status()
-#
-#     # Request a simulation.
-#     # sim_topic = gad_utils.REQUEST_SIMULATION
-#     # print('yay')
-#
-#     pass

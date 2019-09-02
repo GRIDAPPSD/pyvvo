@@ -3,6 +3,7 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
+from queue import Queue, Empty
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform, utils
@@ -232,6 +233,42 @@ class SimOutRouterTestCase(unittest.TestCase):
                 # List of functions case.
                 for f in self.router.functions[idx]:
                     f.assert_called_once_with(m2.return_value[idx])
+
+    def test_queue(self):
+        """Ensure the queue (_q property) is working as expected"""
+        # Start with basic checks.
+        self.assertIsInstance(self.router._q, Queue)
+        self.assertEqual(1, self.router._q.qsize())
+
+        # On to the slightly more sophisticated testing.
+        # Remove the item from the queue so that decorated functions
+        # will block.
+        self.router._q.get()
+
+        with patch('pyvvo.gridappsd_platform.QUEUE_TIMEOUT', 0.01):
+            self.assertRaises(Empty, self.router.add_funcs_and_mrids, 'stuff')
+            self.assertRaises(Empty, self.router._on_message, 'stuff', 'thing')
+
+        # Put something back in the queue and call the functions again.
+        self.router._q.put(True)
+        with patch('pyvvo.gridappsd_platform.QUEUE_TIMEOUT', 0.01):
+            # Run the function. Expect a type error since we'll just
+            # pass a string.
+            with self.assertRaises(TypeError):
+                self.router.add_funcs_and_mrids('stuff')
+
+            # After the call, we should still have an item in the queue
+            # due to the finally block in wait_for_queue
+            self.assertEqual(1, self.router._q.qsize())
+
+            # Run the function. Expect a type error since we'll just
+            # pass a string.
+            with self.assertRaises(TypeError):
+                self.router._on_message('stuff', 'thing')
+
+            # After the call, we should still have an item in the queue
+            # due to the finally block in wait_for_queue
+            self.assertEqual(1, self.router._q.qsize())
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
