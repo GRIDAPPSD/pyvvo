@@ -7,7 +7,8 @@ import simplejson as json
 from pyvvo import equipment
 
 from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
-    CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL
+    CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL, SWITCH_MEAS_MEAS_MRID_COL,\
+    SWITCH_MEAS_SWITCH_MRID_COL
 import tests.data_files as _df
 
 
@@ -362,11 +363,11 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
 
             self.assertGreater(row.shape[0], 0)
 
-            # Grab regulator mrid and phase.
+            # Grab capacitor mrid and phase.
             cap_mrid = row[CAP_MEAS_CAP_MRID_COL].values[0]
             cap_phase = row['phase'].values[0]
 
-            # Ensure this regulator got updated.
+            # Ensure this capacitor got updated.
             with self.subTest(meas_mrid=meas_mrid):
                 # Lookup the object.
                 eq = self.cap_mgr.lookup_eq_by_mrid_and_phase(mrid=cap_mrid,
@@ -467,13 +468,70 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
             self.assertEqual(len(v), 9)
 
     def test_build_equipment_commands_mismatch(self):
-        """Send mismatched reg dicts in."""
-        reg_dict_forward = deepcopy(self.cap_dict)
-        reg_dict_forward['blah'] = \
-            reg_dict_forward.pop(list(reg_dict_forward.keys())[0])
+        """Send mismatched cap dicts in."""
+        cap = deepcopy(self.cap_dict)
+        cap['blah'] = \
+            cap.pop(list(cap.keys())[0])
 
         with self.assertRaisesRegex(ValueError, 'not matching up with'):
-            self.cap_mgr.build_equipment_commands(reg_dict_forward)
+            self.cap_mgr.build_equipment_commands(cap)
+
+
+class EquipmentManagerSwitchTestCase(unittest.TestCase):
+    """Test EquipmentManager with switch data. Since the "Regulator"
+    and "Capacitor" versions of this test go pretty in-depth, we'll
+    keep this one light and simple.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.switch_meas = _df.read_pickle(_df.SWITCH_MEAS_9500)
+        with open(_df.SWITCH_MEAS_MSG_9500, 'r') as f:
+            cls.switch_meas_msg = json.load(f)
+
+    # noinspection PyPep8Naming
+    def setUp(self):
+        # Gotta be careful with these mutable types... Get fresh
+        # instances each time. It won't be that slow, I promise.
+        self.switch_dict = \
+            equipment.initialize_switches(
+                _df.read_pickle(_df.SWITCHES_9500))
+        self.switch_mgr = \
+            equipment.EquipmentManager(
+                eq_dict=self.switch_dict, eq_meas=self.switch_meas,
+                meas_mrid_col=SWITCH_MEAS_MEAS_MRID_COL,
+                eq_mrid_col=SWITCH_MEAS_SWITCH_MRID_COL
+            )
+
+    def test_update(self):
+        """Send in an update message and ensure state changed."""
+        # Start by ensuring all switches start with a status of None.
+        for switch_or_dict in self.switch_mgr.eq_dict.values():
+            if isinstance(switch_or_dict, dict):
+                # Loop over the phases.
+                for switch in switch_or_dict.values():
+                    self.assertIsNone(switch.state)
+            elif isinstance(switch_or_dict, equipment.SwitchSinglePhase):
+                self.assertIsNone(switch_or_dict.state)
+            else:
+                raise TypeError('Something went wrong.')
+
+        # Now that we've ensure all switches start with None status,
+        # update them all.
+        self.switch_mgr.update_state(self.switch_meas_msg)
+
+        # Loop again and ensure the states are now not None and are
+        # valid.
+        valid_states = equipment.SwitchSinglePhase.STATES
+        for switch_or_dict in self.switch_mgr.eq_dict.values():
+            if isinstance(switch_or_dict, dict):
+                # Loop over the phases.
+                for switch in switch_or_dict.values():
+                    self.assertIn(switch.state, valid_states)
+            elif isinstance(switch_or_dict, equipment.SwitchSinglePhase):
+                self.assertIn(switch_or_dict.state, valid_states)
+            else:
+                raise TypeError('Something went wrong.')
 
 
 class InitializeRegulatorsTestCase(unittest.TestCase):
