@@ -7,7 +7,7 @@
 # Work around docker bug:
 # https://stackoverflow.com/questions/51981904/cant-build-docker-multi-stage-image-using-arg-in-copy-instruction
 ARG TAG
-FROM pyvvo-base:${TAG:-latest} as base
+FROM gridappsd/pyvvo:base-${TAG:-latest} as base
 
 FROM gridappsd/app-container-base:develop
 

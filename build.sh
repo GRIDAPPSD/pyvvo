@@ -70,11 +70,13 @@ cp install_libmysqlclient-dev.sh ${build_dir_base}/install_libmysqlclient-dev.sh
 cd ${build_dir_base}
 
 # Build the base container (which contains GridLAB-D, etc.)
-printf "Building pyvvo-base container...\n"
-docker build -t pyvvo-base:${tag} \
+printf "Building gridappsd/pyvvo:base-${tag} container...\n"
+docker build -t gridappsd/pyvvo:base-${tag} \
     --build-arg mysql_apt=${mysql_apt} \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" \
     --build-arg GLD=${gld_tar_gz} .
+
+docker push gridappsd/pyvvo:base-${tag}
 
 # Move back up.
 cd ${pwd}
@@ -102,3 +104,5 @@ docker build -t gridappsd/pyvvo:${tag} \
     --build-arg PYVVO_ARCHIVE=${PYVVO_ARCHIVE} \
     --build-arg mysql_apt=${mysql_apt} \
     --build-arg mysql_apt_deps="${mysql_apt_deps}" .
+
+docker push gridappsd/pyvvo:${tag}
