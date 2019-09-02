@@ -83,8 +83,8 @@ SWITCHES_9500 = os.path.join(DATA_DIR, 'query_switches_9500.csv')
 SWITCH_MEAS_9500 = os.path.join(DATA_DIR, 'query_switch_meas_9500.csv')
 
 # Misc json files.
-REG_MEAS_MSG_8500 = os.path.join(DATA_DIR, 'reg_meas_message_8500.json')
-CAP_MEAS_MSG_8500 = os.path.join(DATA_DIR, 'cap_meas_message_8500.json')
+REG_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'reg_meas_message_9500.json')
+CAP_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'cap_meas_message_9500.json')
 
 MEASUREMENTS_13 = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
 HEADER_13 = os.path.join(DATA_DIR, 'simulation_measurements_header_13.json')
@@ -340,26 +340,26 @@ def _dict_to_json(data, fname):
         json.dump(data, f, indent=2)
 
 
-def generate_cap_and_reg_meas_message_8500():
-    """Generate cap_meas_message_8500.json and reg_meas_message_8500.json
+def generate_cap_and_reg_meas_message_9500():
+    """Generate cap_meas_message_9500.json and reg_meas_message_9500.json
     """
 
     # Load up the capacitor data.
-    caps = pd.read_csv(CAP_MEAS_8500)
+    caps = pd.read_csv(CAP_MEAS_9500)
     cap_mrids = caps['state_meas_mrid'].tolist()
     # Load up regulator data.
-    regs = pd.read_csv(REG_MEAS_8500)
+    regs = pd.read_csv(REG_MEAS_9500)
     reg_mrids = regs['pos_meas_mrid'].tolist()
 
     # Initialize fn_mrid_list for a SimOutRouter.
     fn_mrid_list = [{'functions': _dict_to_json, 'mrids': cap_mrids,
-                     'kwargs': {'fname': 'cap_meas_message_8500.json'}},
+                     'kwargs': {'fname': CAP_MEAS_MSG_9500}},
                     {'functions': _dict_to_json, 'mrids': reg_mrids,
-                     'kwargs': {'fname': 'reg_meas_message_8500.json'}}]
+                     'kwargs': {'fname': REG_MEAS_MSG_9500}}]
 
     platform = gridappsd_platform.PlatformManager()
     starttime = datetime(2013, 1, 14, 0, 0)
-    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_8500,
+    sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
                                      start_time=starttime,
                                      duration=5, realtime=False)
 
@@ -515,7 +515,7 @@ if __name__ == '__main__':
     gen_expected_sparql_results()
     generate_all_measurements_13()
     generate_energy_consumer_measurements_9500()
-    generate_cap_and_reg_meas_message_8500()
+    generate_cap_and_reg_meas_message_9500()
     generate_model_info()
     generate_sensor_service_measurements_9500()
     generate_parsed_sensor_service_measurements_9500()
