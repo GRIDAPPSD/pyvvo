@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from random import randint, choice
 from copy import deepcopy
 import pandas as pd
@@ -254,6 +255,42 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'not matching up with'):
             self.reg_mgr.build_equipment_commands(reg_dict_forward)
+
+    def test_lookup_locked(self):
+        """Ensure lookup_eq_by_mrid_and_phase uses the lock."""
+        with patch.object(self.reg_mgr, '_lock') as p_lock:
+            # Unfortunately we cannot patch the method here, because
+            # that also patches the wrapping. So, call the method.
+            with self.assertRaises(KeyError):
+                self.reg_mgr.lookup_eq_by_mrid_and_phase('abc')
+
+        # Ensure that acquire and release were called.
+        self.assertEqual('acquire', p_lock.method_calls[0][0])
+        self.assertEqual('release', p_lock.method_calls[1][0])
+
+    def test_update_state_locked(self):
+        """Ensure update_state uses the lock."""
+        with patch.object(self.reg_mgr, '_lock') as p_lock:
+            # Unfortunately we cannot patch the method here, because
+            # that also patches the wrapping. So, call the method.
+            with self.assertRaisesRegex(TypeError, 'msg must be a list'):
+                self.reg_mgr.update_state('abc', 'def')
+
+        # Ensure that acquire and release were called.
+        self.assertEqual('acquire', p_lock.method_calls[0][0])
+        self.assertEqual('release', p_lock.method_calls[1][0])
+
+    def test_build_equipment_commands_locked(self):
+        """Ensure build_equipment_commands uses the lock."""
+        with patch.object(self.reg_mgr, '_lock') as p_lock:
+            # Unfortunately we cannot patch the method here, because
+            # that also patches the wrapping. So, call the method.
+            with self.assertRaises(AttributeError):
+                self.reg_mgr.build_equipment_commands('abc')
+
+        # Ensure that acquire and release were called.
+        self.assertEqual('acquire', p_lock.method_calls[0][0])
+        self.assertEqual('release', p_lock.method_calls[1][0])
 
 
 class EquipmentManagerCapacitorTestCase(unittest.TestCase):

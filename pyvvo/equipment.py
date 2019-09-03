@@ -5,6 +5,7 @@ capacitors, or switches.
 from abc import ABC, abstractmethod
 import logging
 from collections import deque
+from threading import Lock
 
 # Third party:
 import pandas as pd
@@ -620,6 +621,9 @@ class EquipmentManager:
         self.eq_dict = eq_dict
         self.eq_meas = eq_meas
 
+        # Use a lock to avoid collisions due to threading.
+        self._lock = Lock()
+
         # Track the simulation timestamp of the last message that came
         # in.
         self.last_time = None
@@ -670,6 +674,7 @@ class EquipmentManager:
                 # Map it.
                 self.meas_eq_map[meas[meas_mrid_col].values[0]] = eq_or_dict
 
+    @utils.wait_for_lock
     def lookup_eq_by_mrid_and_phase(self, mrid, phase=None):
         """Helper function to look up equipment in the eq_dict.
 
@@ -698,6 +703,7 @@ class EquipmentManager:
             # Grab and return the phase entry.
             return eq[phase]
 
+    @utils.wait_for_lock
     def update_state(self, msg, sim_dt):
         """Given a message from a gridappsd_platform SimOutRouter,
         update equipment state.
@@ -712,7 +718,7 @@ class EquipmentManager:
         if not isinstance(msg, list):
             raise TypeError('msg must be a list!')
 
-        # Iterate over the message and update regulators.
+        # Iterate over the message and update equipment.
         for m in msg:
             # Grab mrid and value.
             meas_mrid = m['measurement_mrid']
@@ -730,6 +736,7 @@ class EquipmentManager:
                     str(self.meas_eq_map[meas_mrid]), value
                 ))
 
+    @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
         """Function to build command for changing equipment state. The
         command itself should be sent with a
