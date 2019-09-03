@@ -15,7 +15,6 @@ from datetime import datetime
 import copy
 import time
 from threading import Lock
-from functools import wraps
 
 from pyvvo import utils
 from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
@@ -32,9 +31,6 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 # TODO: remove when the platform is fixed.
 REGEX_1 = re.compile(r'^\s*\{\s*"data"\s*:\s*')
 REGEX_2 = re.compile(r'\s*,\s*"responseComplete".+$')
-
-# Timeout for SimOutRouter's queue (seconds)
-LOCK_TIMEOUT = 60
 
 
 def get_platform_env_var():
@@ -111,33 +107,6 @@ def get_gad_address():
     return address
 
 
-def wait_for_lock(method):
-    """Wrapper used by the SimOutRouter to avoid collisions due to
-    multi-threading.
-
-    https://stackoverflow.com/a/36944992/11052174
-    """
-    @wraps(method)
-    def wrapper(self, *args, **kwargs):
-        # Block.
-        acquired = self._lock.acquire(blocking=True, timeout=LOCK_TIMEOUT)
-
-        if not acquired:
-            raise LockTimeoutError('Failed to acquire lock within {} seconds'
-                                   .format(LOCK_TIMEOUT))
-
-        # Execute the method
-        try:
-            result = method(self, *args, **kwargs)
-        finally:
-            # Always indicate we're done.
-            self._lock.release()
-
-        return result
-
-    return wrapper
-
-
 class SimOutRouter:
     """Class for listening and routing simulation output."""
 
@@ -183,7 +152,7 @@ class SimOutRouter:
         self.platform.gad.subscribe(topic=self.output_topic,
                                     callback=self._on_message)
 
-    @wait_for_lock
+    @utils.wait_for_lock
     def add_funcs_and_mrids(self, fn_mrid_list):
         """Helper to add functions and MRIDs to the router.
 
@@ -201,7 +170,7 @@ class SimOutRouter:
                 # Not given kwargs, so no worries.
                 self.kwargs.append({})
 
-    @wait_for_lock
+    @utils.wait_for_lock
     def _on_message(self, header, message):
         """Callback which is hit each time a new simulation output
         message comes in.
@@ -695,8 +664,3 @@ class QueryReturnEmptyError(Error):
         )
 
 
-class LockTimeoutError(Error):
-    """Raised if a call to a threading.Lock object's acquire method
-    time out.
-    """
-    pass

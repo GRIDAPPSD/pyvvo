@@ -6,6 +6,7 @@ import subprocess
 import logging
 from datetime import datetime, timezone, date
 import os
+from functools import wraps
 import numpy as np
 import pandas as pd
 try:
@@ -26,6 +27,10 @@ SECOND_EXP = re.compile(r'[+-]*([0-9])+(\.)*([0-9])*(e[+-]*([0-9])+)*[dr]')
 
 # Define directory
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Timeout for the wait_for_lock function. May want to upgrade that to
+# take inputs in the future.
+LOCK_TIMEOUT = 60
 
 
 def parse_complex_str(s):
@@ -329,7 +334,12 @@ def add_timedelta_to_time(t, td):
     return new_datetime.timetz()
 
 
-class TimeoutException(Exception):
+class Error(Exception):
+    """Top level exception for utils."""
+    pass
+
+
+class FunctionTimeoutError(Error):
     """Exception raised by the time_limit context manager."""
     pass
 
@@ -348,15 +358,15 @@ def time_limit(seconds: int):
         - If alarms are being used elsewhere, this may be a problem.
 
     :param seconds: Integer number of seconds allowed before a
-        TimeoutException is raised.
+        FunctionTimeoutError is raised.
 
-    :raises TimeoutException: Raised if code doesn't complete within
+    :raises FunctionTimeoutError: Raised if code doesn't complete within
         seconds.
     """
 
     # noinspection PyUnusedLocal
     def signal_handler(signum, frame):
-        raise TimeoutException("Timed out!")
+        raise FunctionTimeoutError("Timed out!")
 
     signal.signal(signal.SIGALRM, signal_handler)
     signal.alarm(seconds)
@@ -366,3 +376,40 @@ def time_limit(seconds: int):
     finally:
         # Disable the alarm.
         signal.alarm(0)
+
+
+class LockTimeoutError(Error):
+    """Raised if a call to a threading.Lock object's acquire method
+    time out. Specifically, this is raised in wait_for_lock.
+    """
+    pass
+
+
+def wait_for_lock(method):
+    """Decorator for class methods which use a Lock object from the
+    threading module. The attribute must be named _lock.
+
+    The SimOutRouter (gridappsd_platform) uses this to avoid collisions
+    due to multi-threading.
+
+    https://stackoverflow.com/a/36944992/11052174
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # Block.
+        acquired = self._lock.acquire(blocking=True, timeout=LOCK_TIMEOUT)
+
+        if not acquired:
+            raise LockTimeoutError('Failed to acquire lock within {} seconds'
+                                   .format(LOCK_TIMEOUT))
+
+        # Execute the method
+        try:
+            result = method(self, *args, **kwargs)
+        finally:
+            # Always indicate we're done.
+            self._lock.release()
+
+        return result
+
+    return wrapper

@@ -1,6 +1,8 @@
 import unittest
 import math
 import cmath
+from threading import Lock
+from unittest.mock import patch
 from pyvvo import utils
 from datetime import datetime, timezone, timedelta, time
 from time import sleep
@@ -335,7 +337,7 @@ class TimeLimitTestCase(unittest.TestCase):
     """Test the time_limit context manager."""
 
     def test_times_out(self):
-        with self.assertRaises(utils.TimeoutException):
+        with self.assertRaises(utils.FunctionTimeoutError):
             with utils.time_limit(1):
                 sleep(1.1)
 
@@ -344,6 +346,38 @@ class TimeLimitTestCase(unittest.TestCase):
             sleep(0.1)
 
         self.assertTrue(True, "We made it here without an exception.")
+
+
+class WaitForLockTestCase(unittest.TestCase):
+    """Test using wait_for_lock as a class method decorator."""
+
+    @classmethod
+    def setUpClass(cls):
+
+        # Define a little class to use a Lock.
+        class UsesLock:
+            def __init__(self):
+                self._lock = Lock()
+
+            @utils.wait_for_lock
+            def method(self):
+                return 'hello'
+
+        cls.uses_lock = UsesLock()
+
+    def test_locking(self):
+        # By first acquiring the lock, we should get an exception upon
+        # calling the method.
+        acquired = self.uses_lock._lock.acquire(timeout=0.01)
+        self.assertTrue(acquired)
+
+        with patch('pyvvo.utils.LOCK_TIMEOUT', 0.01):
+            self.assertRaises(utils.LockTimeoutError, self.uses_lock.method)
+
+        # Now release the lock and call it again.
+        self.uses_lock._lock.release()
+        s = self.uses_lock.method()
+        self.assertEqual('hello', s)
 
 
 if __name__ == '__main__':

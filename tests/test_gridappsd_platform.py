@@ -243,15 +243,15 @@ class SimOutRouterTestCase(unittest.TestCase):
         acquired = self.router._lock.acquire(timeout=0.01)
         self.assertTrue(acquired)
 
-        with patch('pyvvo.gridappsd_platform.LOCK_TIMEOUT', 0.01):
-            self.assertRaises(gridappsd_platform.LockTimeoutError,
+        with patch('pyvvo.utils.LOCK_TIMEOUT', 0.01):
+            self.assertRaises(utils.LockTimeoutError,
                               self.router.add_funcs_and_mrids, 'stuff')
-            self.assertRaises(gridappsd_platform.LockTimeoutError,
+            self.assertRaises(utils.LockTimeoutError,
                               self.router._on_message, 'stuff', 'thing')
 
         # Release the lock and call the functions again.
         self.router._lock.release()
-        with patch('pyvvo.gridappsd_platform.LOCK_TIMEOUT', 0.01):
+        with patch('pyvvo.utils.LOCK_TIMEOUT', 0.01):
             # Run the function. Expect a type error since we'll just
             # pass a string.
             with self.assertRaises(TypeError):
