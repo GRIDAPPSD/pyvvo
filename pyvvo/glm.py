@@ -146,13 +146,71 @@ def _parse_token_list(token_list):
     # reverse the token list as pop() is way more efficient than pop(0)
     token_list = list(reversed(token_list))
 
-    while token_list:
+    def get_full_token():
+        nonlocal token_list
         # Pop, then keep going until we have a full token (i.e. 'object house',
         # not just 'object')
-        full_token = []
-        while full_token == [] or full_token[-1] not in ['{', ';', '}', '\n',
-                                                         'shape']:
-            full_token.append(token_list.pop())
+        ft = []
+        while ft == [] or ft[-1] not in ['{', ';', '}', '\n', 'shape']:
+            ft.append(token_list.pop())
+
+        return ft
+
+    # Initialize our "full_token" variable to make the nested function
+    # below work without arguments.
+    full_token = []
+
+    def close_out_item():
+        """Nested helper function to be used if the last element in the
+        full_token == '}'
+        """
+        nonlocal tree
+        nonlocal guid_stack
+        nonlocal guid
+
+        if len(full_token) > 1:
+            current_leaf_add(full_token[0], list_to_string(full_token),
+                             tree, guid_stack)
+        guid_stack.pop()
+
+    def add_item_definition():
+        """Nested helper function to be used if the last element in the
+        full_token == '{'
+        """
+        nonlocal guid
+        nonlocal guid_stack
+        nonlocal tree
+
+        current_leaf_add(guid, {}, tree, guid_stack)
+        guid_stack.append(guid)
+        guid += 1
+
+        # Wrapping this current_leaf_add is defensive coding so we don't
+        # crash on malformed glm files.
+        if len(full_token) > 1:
+            # Do we have a clock/object or else an embedded configuration
+            # object?
+            if len(full_token) < 4:
+                # Add the item definition.
+                current_leaf_add(full_token[0], full_token[-2], tree,
+                                 guid_stack)
+            else:
+                # Something is wrong.
+                raise UserWarning('Malformed GridLAB-D model. Token: {}'
+                                  .format(' '.join(full_token)))
+
+                # current_leaf_add('omfEmbeddedConfigObject',
+                #                  full_token[0] + ' ' +
+                #                  list_to_string(full_token), tree,
+                #                  guid_stack)
+
+        # All done.
+
+    # Loop over the tokens.
+    while token_list:
+        # Get full token.
+        full_token = get_full_token()
+
         # Work with what we've collected.
         if full_token[0] == '#set':
             if full_token[-1] == ';':
@@ -175,6 +233,22 @@ def _parse_token_list(token_list):
             current_leaf_add(full_token[0], list_to_string(full_token[0:-1]),
                              tree, guid_stack)
             guid += 1
+        # TODO:
+        # elif full_token[0] == 'class':
+        #     # Need special handling of classes since they declare types,
+        #     # which will result in duplicate variable keys.
+        #     # http://gridlab-d.shoutwiki.com/wiki/Runtime_Class_User_Guide
+        #     #
+        #     # We'll put the properties in lists. The keys will be
+        #     # variable_types and variable_names. Note that this matches
+        #     # how _dict_to_string manages classes.
+        #
+        #     # Start by adding to the current leaf.
+        #     assert full_token[-1] == '{'
+        #     add_item_definition()
+        #
+        #     #
+        #     pass
         elif full_token[-1] == '\n' or full_token[-1] == ';':
             # Special case when we have zero-attribute items (like #include,
             # #set, module).
@@ -189,10 +263,7 @@ def _parse_token_list(token_list):
                 current_leaf_add(full_token[0], list_to_string(full_token),
                                  tree, guid_stack)
         elif full_token[-1] == '}':
-            if len(full_token) > 1:
-                current_leaf_add(full_token[0], list_to_string(full_token),
-                                 tree, guid_stack)
-            guid_stack.pop()
+            close_out_item()
         elif full_token[0] == 'schedule':
             # Special code for those ugly schedule objects:
             if full_token[0] == 'schedule':
@@ -202,22 +273,7 @@ def _parse_token_list(token_list):
                               'cron': ' '.join(full_token[3:-2])}
                 guid += 1
         elif full_token[-1] == '{':
-            current_leaf_add(guid, {}, tree, guid_stack)
-            guid_stack.append(guid)
-            guid += 1
-            # Wrapping this current_leaf_add is defensive coding so we don't
-            # crash on malformed glm files.
-            if len(full_token) > 1:
-                # Do we have a clock/object or else an embedded configuration
-                # object?
-                if len(full_token) < 4:
-                    current_leaf_add(full_token[0], full_token[-2], tree,
-                                     guid_stack)
-                else:
-                    current_leaf_add('omfEmbeddedConfigObject',
-                                     full_token[0] + ' ' +
-                                     list_to_string(full_token), tree,
-                                     guid_stack)
+            add_item_definition()
 
     # this section will catch old glm format and translate it. Not in the most
     # robust way but should work for now.
@@ -340,23 +396,21 @@ def _dict_to_string(in_dict):
     elif '#set' in in_dict:
         return '#set ' + in_dict['#set']
     elif 'class' in in_dict:
-        prop = ''
+        prop = 'class ' + in_dict['class'] + ' {\n'
         # this section will ensure we can get around the fact that you can't
-        # have to key's with the same name!
+        # have two key's with the same name!
         if 'variable_types' in list(
                 in_dict.keys()) and 'variable_names' in list(
                 in_dict.keys()) and len(in_dict['variable_types']) == len(
                 in_dict['variable_names']):
 
-            prop += 'class ' + in_dict['class'] + ' {\n'
             for x in range(len(in_dict['variable_types'])):
                 prop += '\t' + in_dict['variable_types'][x] + ' ' + \
                         in_dict['variable_names'][x] + ';\n'
 
             prop += '}\n'
         else:
-            prop += 'class ' + in_dict['class'] + ' {\n' + _gather_key_values(
-                in_dict, 'class') + '}\n'
+            prop += _gather_key_values(in_dict, 'class') + '}\n'
 
         return prop
 
@@ -469,7 +523,8 @@ class GLMManager:
     # Define items we won't include in the model_map.
     NO_MAP = ('set', 'include', 'define')
     # Define non-object items.
-    NON_OBJECTS = ('clock', 'module', 'include', 'set', 'define', 'omftype')
+    NON_OBJECTS = ('clock', 'module', 'include', 'set', 'define', 'omftype',
+                   'class')
 
     def __init__(self, model, model_is_path=True):
         """Initialize by parsing given model.
@@ -495,7 +550,7 @@ class GLMManager:
         self.prepend_key = min(keys) - 1
 
         # Initialize model_map.
-        self.model_map = {'clock': [], 'module': {}, 'object': {},
+        self.model_map = {'clock': [], 'module': {}, 'object': {}, 'class': {},
                           'object_unnamed': []}
 
         # Map objects in the model.
@@ -564,6 +619,10 @@ class GLMManager:
                 # Map (only if it's a module)
                 if item_dict['omftype'] == 'module':
                     self._add_module_to_map(model_key, item_dict)
+
+            elif item_type == 'class':
+                # Map the class.
+                self._add_class_to_map(model_key, item_dict)
 
             elif item_type in self.NO_MAP:
                 # No mapping for now.
@@ -684,6 +743,27 @@ class GLMManager:
             object_map[obj_type][object_dict['name']] = key_obj
 
         # No need to return; we're directly updating self.model_map
+
+    def _add_class_to_map(self, model_key, class_dict):
+        """Add a class to the model_map.
+
+        :param model_key: key to model_dict.
+        :param class_dict: dictionary of class attributes.
+        """
+        # Extract the class name.
+        class_name = class_dict['class']
+
+        try:
+            # Attempt to access this class by name in the map.
+            self.model_map['class'][class_name]
+        except KeyError:
+            # Class object does not exist. Map it.
+            self.model_map['class'][class_name] = [model_key, class_dict]
+        else:
+            # This class name already exists, which will lead to
+            # duplicates and failure.
+            raise ItemExistsError('Class {} already exists in the map.'
+                                  .format(class_name))
 
     def write_model(self, out_path):
         """Helper to write out the model_dict.
@@ -852,6 +932,10 @@ class GLMManager:
         elif item_type == 'module':
             # Map module.
             self._add_module_to_map(self.prepend_key, item_dict)
+
+        elif item_type == 'class':
+            # Map class.
+            self._add_class_to_map(self.prepend_key, item_dict)
 
         elif item_type in self.NO_MAP:
             # No mapping.
@@ -1085,6 +1169,8 @@ class GLMManager:
             item_type = 'define'
         elif 'omftype' in item_dict:
             item_type = 'omftype'
+        elif 'class' in item_dict:
+            item_type = 'class'
         else:
             raise TypeError('Unknown type! Item: {}'.format(item_dict))
 

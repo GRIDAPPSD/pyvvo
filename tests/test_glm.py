@@ -35,9 +35,9 @@ class TestParseFile(unittest.TestCase):
     def test_parse_returns_dict(self):
         self.assertIsInstance(self._parsed_tokens, dict)
 
-    def test_parse_dict_length_is_21(self):
-        # Recorders are no longer removed.
-        self.assertTrue(len(self._parsed_tokens) == 21)
+    def test_parse_dict_length_is_22(self):
+        # Check out the model file - we expect 22 items.
+        self.assertTrue(len(self._parsed_tokens) == 22)
 
     def test_parse_item_1_has_omftype(self):
         self.assertIn('omftype', self._parsed_tokens[1])
@@ -117,9 +117,24 @@ class TestGLMManager(unittest.TestCase):
         self.assertTrue(len(self._GLMManager.model_map['clock']) > 0)
 
     def test_clock_maps_correctly(self):
-        # Assert is ensures we're accessing the same place in memory (I think)
+        # Assert is ensures we're accessing the same place in memory.
         self.assertIs(self._GLMManager.model_dict[4],
                       self._GLMManager.model_map['clock'][1])
+
+    def test_class_in_map(self):
+        self.assertTrue(len(self._GLMManager.model_map['class']) > 0)
+
+    def test_class_maps_correctly(self):
+        self.assertIs(self._GLMManager.model_dict[21],
+                      self._GLMManager.model_map['class']['my_class'][1])
+        # Classes are tricky since they may have multiple fields like
+        # "double myproperty[w]", which means dictionary keys can get
+        # overridden. This is worked around by creating 'variable_types'
+        # and 'variable_names' lists.
+        self.assertIn('variable_types', self._GLMManager.model_dict[21])
+        self.assertIn('variable_names', self._GLMManager.model_dict[21])
+        # Should we also be adding something like 'variable_options'?
+        # This gets really tricky...
 
     def test_clock_map_key_correct(self):
         self.assertEqual(4, self._GLMManager.model_map['clock'][0])
@@ -140,6 +155,17 @@ class TestGLMManager(unittest.TestCase):
         self.assertIs(self._GLMManager.model_dict[11],
                       self._GLMManager.model_map['object']['meter'][
                           'meter_1'][1])
+
+    def test_modify_class(self):
+        self.assertTrue(False, 'Have not yet added ability to modify a class.')
+
+    def test_remove_class(self):
+        self.assertTrue(False, 'Have not yet added ability to remove a class.')
+
+    def test_class_read_write(self):
+        self.assertTrue(False, 'Need to write a test that ensures a complex '
+                               'class maintains its integrity when it gets '
+                               'read in and then written out.')
 
     def test_add_named_recorder(self):
         # Build dictionary for recorder.
@@ -202,7 +228,7 @@ class TestGLMManager(unittest.TestCase):
         # Add it.
         self._GLMManager.add_item(obj)
 
-        # Ensure its in the model_dict
+        # Ensure it's in the model_dict
         self.assertIs(obj, self._GLMManager.model_dict[k])
 
         # Ensure the prepend key was updated.
@@ -214,6 +240,32 @@ class TestGLMManager(unittest.TestCase):
         # bunch of additions.
         self.assertRaises(glm.ItemExistsError, self._GLMManager.add_item,
                           {'clock': 'clock'})
+
+    def test_add_new_class_to_map(self):
+        # Define the dictionary for the class to be added.
+        cls = {'class': 'my_class_two', 'double': 'someProperty[in]'}
+
+        # We're prepending classes - grab the key.
+        k = self._GLMManager.prepend_key
+
+        # Add it.
+        self._GLMManager.add_item(cls)
+
+        # Ensure it's in the model_dict.
+        self.assertIs(cls, self._GLMManager.model_dict[k])
+
+        # Ensure the prepend key was updated.
+        self.assertEqual(k-1, self._GLMManager.prepend_key)
+
+        # Ensure it's in the map.
+        self.assertIs(cls,
+                      self._GLMManager.model_map['class']['my_class_two'][1])
+
+    def test_add_my_class_to_map_fails(self):
+        # This model already has an instance of 'my_class' and thus
+        # this should fail.
+        self.assertRaises(glm.ItemExistsError, self._GLMManager.add_item,
+                          {'class': 'my_class'})
 
     def test_add_nonexistent_item_type_fails(self):
         self.assertRaises(TypeError, self._GLMManager.add_item,
@@ -297,6 +349,9 @@ class TestGLMManager(unittest.TestCase):
         # Check map.
         self.assertIs(self._GLMManager.model_dict[4],
                       self._GLMManager.model_map['clock'][1])
+
+    def test_modify_class(self):
+        item = {'class': 'my_class', }
 
     def test_modify_load(self):
         item = {'object': 'load', 'name': 'load_3', 'base_power_A': '120000',
