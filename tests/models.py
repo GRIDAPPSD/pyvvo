@@ -24,6 +24,9 @@ MODELS = {
 IEEE_8500 = os.path.join(MODEL_DIR, 'ieee_8500.glm')
 IEEE_13 = os.path.join(MODEL_DIR, 'ieee_13.glm')
 IEEE_123 = os.path.join(MODEL_DIR, 'ieee_123.glm')
+# Modified 123 provided by Yuan so I (Brandon) can update glm.py for
+# him.
+IEEE_123_mod = os.path.join(MODEL_DIR, 'ieee_123_mod.glm')
 IEEE_9500 = os.path.join(MODEL_DIR, 'ieee_9500.glm')
 
 if __name__ == '__main__':

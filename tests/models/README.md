@@ -8,6 +8,14 @@ supplemental model files (e.g. voltage.player), and model outputs.
 Created in test_gridappsd_platform.py. GridLAB-D model for the IEEE 13
 bus model as provided by the platform.
 
+### ieee_123.glm
+123 node model from the platform.
+
+### ieee_123_mod.glm
+123 node model given to Brandon by Yuan Liu on 2019-09-12 so that
+Brandon can update glm.py to support classes and "object configuration"
+syntax.
+
 ### ieee_8500.glm
 Created by pulling the 8500 node model from the GridAPPS-D platform and
 writing to file. There's a commented out test in

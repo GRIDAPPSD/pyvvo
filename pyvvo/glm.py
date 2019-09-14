@@ -38,6 +38,14 @@ import warnings
 from functools import reduce
 from datetime import datetime
 import logging
+import random
+from string import ascii_letters, digits
+
+# Create constants for drawing random digits and letters (used if we
+# need to name a nested object).
+LETTER_LIST = list(ascii_letters)
+DIGIT_LIST = list(digits)
+CHAR_LIST = LETTER_LIST + DIGIT_LIST
 
 # 2019-09-01 - not renaming any more. It's not particularly
 # maintainable, leads to hard to track down bugs, and doesn't do any
@@ -117,6 +125,13 @@ def _tokenize_glm(input_str, file_path=True):
     return basic_list
 
 
+def _gen_rand_name(n=10):
+    """Helper to generate a random name of n characters."""
+    # Ensure the name starts with a letter.
+    return ''.join([random.choice(LETTER_LIST)]
+                   + random.choices(CHAR_LIST, k=n-1))
+
+
 def _parse_token_list(token_list):
     """
     Given a list of tokens from a GLM, parse those into a tree data structure.
@@ -128,7 +143,22 @@ def _parse_token_list(token_list):
         current = tree_f
         for x in guid_stack_f:
             current = current[x]
-        current[key_f] = value
+
+        # Try/except/else added by Brandon to avoid duplicate keys in
+        # an object.
+        try:
+            # Simply try to access the field.
+            current[key_f]
+        except KeyError:
+            # Field doesn't exist, simply add the value.
+            current[key_f] = value
+        else:
+            # Trying to add to an existing key is no bueno.
+            # TODO: Raise a different exception here.
+            raise UserWarning('Multiple properties with the same name '
+                              'encountered while parsing! Property: {},'
+                              'Value: {}, Already parsed: {}'
+                              .format(key_f, value, tree_f))
 
     def list_to_string(list_in):
         # Helper function to turn a list of strings into one string with some
@@ -194,15 +224,16 @@ def _parse_token_list(token_list):
                 # Add the item definition.
                 current_leaf_add(full_token[0], full_token[-2], tree,
                                  guid_stack)
+            elif len(full_token) == 4:
+                # We likely have an embedded/nested object.
+                current_leaf_add('omfEmbeddedConfigObject',
+                                 full_token[0] + ' ' +
+                                 list_to_string(full_token), tree,
+                                 guid_stack)
             else:
                 # Something is wrong.
                 raise UserWarning('Malformed GridLAB-D model. Token: {}'
                                   .format(' '.join(full_token)))
-
-                # current_leaf_add('omfEmbeddedConfigObject',
-                #                  full_token[0] + ' ' +
-                #                  list_to_string(full_token), tree,
-                #                  guid_stack)
 
         # All done.
 
@@ -212,7 +243,12 @@ def _parse_token_list(token_list):
         full_token = get_full_token()
 
         # Work with what we've collected.
-        if full_token[0] == '#set':
+        if (full_token == ['\n']) or (full_token == [';']):
+            # Nothing to do.
+            continue
+        elif full_token == ['}']:
+            close_out_item()
+        elif full_token[0] == '#set':
             if full_token[-1] == ';':
                 tree[guid] = {'omftype': full_token[0],
                               'argument': list_to_string(full_token)}
@@ -233,37 +269,58 @@ def _parse_token_list(token_list):
             current_leaf_add(full_token[0], list_to_string(full_token[0:-1]),
                              tree, guid_stack)
             guid += 1
-        # TODO:
-        # elif full_token[0] == 'class':
-        #     # Need special handling of classes since they declare types,
-        #     # which will result in duplicate variable keys.
-        #     # http://gridlab-d.shoutwiki.com/wiki/Runtime_Class_User_Guide
-        #     #
-        #     # We'll put the properties in lists. The keys will be
-        #     # variable_types and variable_names. Note that this matches
-        #     # how _dict_to_string manages classes.
-        #
-        #     # Start by adding to the current leaf.
-        #     assert full_token[-1] == '{'
-        #     add_item_definition()
-        #
-        #     #
-        #     pass
+        elif (len(guid_stack) == 1) and ('class' in tree[guid_stack[0]]) \
+                and (len(full_token) > 1):
+            # Intentionally narrow case for handling GridLAB-D classes.
+            # Note this ONLY works for simple classes with property
+            # definitions (e.g. "double consensus_iterations;").
+            # Note this WILL NOT WORK for complex class definitions
+            # which have anything other than simple properties. This is
+            # because the complex classes have nested functions for
+            # syncing, post-sync, etc. Not handling that here.
+            # ALSO NOTE: This WILL NOT WORK for classes with
+            # enumerations and sets, as those have curly braces...
+            # http://gridlab-d.shoutwiki.com/wiki/Runtime_Class_User_Guide
+
+            # Since we're just handling the simplest of class properties
+            # here, do some assertions for safety.
+            assert len(full_token) == 3, ('Malformed class token! Only simple'
+                                          'classes are supported!')
+            assert full_token[-1] == ';', ('Malformed class token! Only simple'
+                                           'classes are supported!')
+
+            # Add the type to the 'variable_types' field and add the
+            # rest to the 'variable_names' field. Note this matches up
+            # with how "sorted_write" will handle classes.
+            v_type = full_token[0]
+            v_name = full_token[1]
+            tree_entry = tree[guid_stack[0]]
+            try:
+                tree_entry['variable_types'].append(v_type)
+            except KeyError:
+                tree_entry['variable_types'] = [v_type]
+
+            try:
+                tree_entry['variable_names'].append(v_name)
+            except KeyError:
+                tree_entry['variable_names'] = [v_name]
+
+        elif full_token[-1] == '{':
+            add_item_definition()
         elif full_token[-1] == '\n' or full_token[-1] == ';':
-            # Special case when we have zero-attribute items (like #include,
-            # #set, module).
+
             if guid_stack == [] and full_token != ['\n'] and \
                     full_token != [';']:
 
+                # Special case when we have zero-attribute items (like
+                # #include, #set, module).
                 tree[guid] = {'omftype': full_token[0],
                               'argument': list_to_string(full_token)}
                 guid += 1
-            # We process if it isn't the empty token (';')
             elif len(full_token) > 1:
+                # We process if it isn't the empty token (';')
                 current_leaf_add(full_token[0], list_to_string(full_token),
                                  tree, guid_stack)
-        elif full_token[-1] == '}':
-            close_out_item()
         elif full_token[0] == 'schedule':
             # Special code for those ugly schedule objects:
             if full_token[0] == 'schedule':
@@ -272,8 +329,6 @@ def _parse_token_list(token_list):
                 tree[guid] = {'object': 'schedule', 'name': full_token[1],
                               'cron': ' '.join(full_token[3:-2])}
                 guid += 1
-        elif full_token[-1] == '{':
-            add_item_definition()
 
     # this section will catch old glm format and translate it. Not in the most
     # robust way but should work for now.
@@ -339,7 +394,7 @@ def sorted_write(in_tree):
     """
     Write out a GLM from a tree, and order all tree objects by their key.
 
-    Sometimes Gridlab breaks if you rearrange a GLM.
+    Sometimes GridLAB-D breaks if you rearrange a GLM.
     """
 
     sorted_keys = sorted(list(in_tree.keys()), key=int)
@@ -515,6 +570,27 @@ class GLMManager:
          'stoptime': '\'2017-06-10 08:35:12\'', 'timezone': 'Pacific'}
         {'#define': 'VSOURCE=66395.28'}
 
+    A note on nested items:
+        Nested items (e.g. a recorder nested in an object or a
+        transformer_configuration object nested within a transformer
+        object) will be "un-nested." They'll be given name/parent
+        attributes as necessary.
+
+    Some notes on "class"es:
+        The GLMManager (and this module, for that matter) currently
+        ONLY supports simple classes with property definitions. If they
+        have functions, that won't work.
+
+        ALSO: Classes cannot have enumerations or sets, as this will
+        break things.
+
+        The reason for these short-comings is how the manager deals with
+        nesting. Seeing curly braces within an object is how nesting is
+        detected, and currently nested objects are "un-nested."
+
+        Finally, not all the methods for accessing and modifying classes
+        have been created yet.
+
 
     """
     # Date format for GridLAB-D models. See:
@@ -636,9 +712,63 @@ class GLMManager:
             # a dictionary, we have a nested item which should be
             # mapped. This will be done recursively.
             to_pop = []
+            to_add = []
             for k, v in item_dict.items():
                 if isinstance(k, int):
                     if isinstance(v, dict):
+                        # If we have 'omfEmbeddedConfigObject' we have
+                        # a nested configuration which needs special
+                        # handling.
+                        try:
+                            s = v['omfEmbeddedConfigObject'].split()
+                        except KeyError:
+                            # No extra work to do here. Mark that we'll
+                            # use the 'parent' key.
+                            parent = True
+                        else:
+                            # We do have an omfEmbeddedConfigObject.
+                            assert len(s) == 3, ("Don't know how to handle "
+                                                 "embedded config objects "
+                                                 "like this: {}"
+                                                 .format(v))
+
+                            # Not using 'parent' in this case.
+                            parent = False
+
+                            # Attempt to get the name of the object up
+                            # in the hierarchy.
+                            try:
+                                name = v['name']
+                            except KeyError:
+                                # This object doesn't have a name, but
+                                # needs one since we're going to un-nest
+                                # it.
+                                try:
+                                    prefix = item_dict['name']
+                                except KeyError:
+                                    # No name to use, make it random.
+                                    prefix = _gen_rand_name(n=10)
+
+                                # Create a name based on the type of object
+                                # we're nesting. Example:
+                                # s = ['conductor_1', 'object',
+                                #      'triplex_line_conductor']
+                                # So we're grabbing "conductor_1".
+                                name = prefix + '_' + s[0]
+
+                                # Add the name.
+                                v['name'] = name
+
+                            # Mark this as "to add" later (don't modify
+                            # objects we're looping over)
+                            to_add.append((s[0], name))
+
+                            # Remove the 'omfEmbeddedConfigObject'
+                            # notation.
+                            del v['omfEmbeddedConfigObject']
+                            # Add the object definition.
+                            v[s[1]] = s[2]
+
                         # Recurse.
                         parallel_dict = \
                             self._map_model_dict(model_dict={k: v},
@@ -646,25 +776,35 @@ class GLMManager:
 
                         # Mark that we need to pop this (can't pop
                         # while looping over the dict)
-                        to_pop.append(k)
+                        to_pop.append((k, parent))
                     else:
                         m = ('The model_dict has a numeric key that does not '
                              + 'map to a dictionary!')
                         raise TypeError(m)
 
             # Remove nested objects, move to top-level.
-            for k in to_pop:
-                # Pop the object, and add the 'parent' property.
+            for t in to_pop:
+                k = t[0]
+                parent = t[1]
+
+                # Pop the object, and add the 'parent' property if
+                # applicable.
                 nested_item = item_dict.pop(k)
-                try:
-                    nested_item['parent'] = item_dict['name']
-                except KeyError:
-                    m = ('Nested item was nested within another item '
-                         + 'that does not have a name!')
-                    raise KeyError(m)
+                if parent:
+                    try:
+                        nested_item['parent'] = item_dict['name']
+                    except KeyError:
+                        m = ('Nested item was nested within another item '
+                             + 'that does not have a name!')
+                        raise KeyError(m)
 
                 # Put item in the parallel dictionary.
                 parallel_dict[k] = nested_item
+
+            # Add properties that were necessary due to our "un-nesting"
+            for t in to_add:
+                # t is a tuple like (key, value)
+                item_dict[t[0]] = t[1]
 
         # Return the parallel dictionary.
         return parallel_dict
@@ -768,16 +908,23 @@ class GLMManager:
     def write_model(self, out_path):
         """Helper to write out the model_dict.
 
-        :param out_path: Full path to write model out to.
-        :type out_path: str
+        :param out_path: Full path to write model out to. If None, a
+            string will be returned.
         """
 
         # Get dictionary as a string.
         model_string = sorted_write(self.model_dict)
 
-        # Write it.
-        with open(out_path, 'w') as f:
-            f.write(model_string)
+        if out_path is not None:
+            # Write it.
+            with open(out_path, 'w') as f:
+                f.write(model_string)
+
+            # We're done. explicitly return None.
+            return None
+        else:
+            # Return the string.
+            return model_string
 
     def add_item(self, item_dict):
         """Add and map a new item.

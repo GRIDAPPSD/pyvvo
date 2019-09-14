@@ -4,11 +4,12 @@ from unittest.mock import patch
 from datetime import datetime
 import os
 import logging
+import re
 
 # Import module to test
 from pyvvo import glm, db
 from pyvvo.utils import gld_installed, run_gld
-from tests.models import MODEL_DIR, IEEE_13, IEEE_8500, IEEE_9500
+from tests.models import MODEL_DIR, IEEE_13, IEEE_123_mod, IEEE_9500
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -156,16 +157,42 @@ class TestGLMManager(unittest.TestCase):
                       self._GLMManager.model_map['object']['meter'][
                           'meter_1'][1])
 
+    # TODO: These tests below mark that the "class" handling
+    #   capabilities of the GLMManager are incomplete.
+    """
     def test_modify_class(self):
         self.assertTrue(False, 'Have not yet added ability to modify a class.')
 
     def test_remove_class(self):
         self.assertTrue(False, 'Have not yet added ability to remove a class.')
+    """
 
     def test_class_read_write(self):
-        self.assertTrue(False, 'Need to write a test that ensures a complex '
-                               'class maintains its integrity when it gets '
-                               'read in and then written out.')
+        """Show a simple class can successfully be read and written."""
+        c = """
+        class my_class {
+          double my_property[Hz];
+          double other_stuff[miles];
+        }
+        """
+        mgr = glm.GLMManager(model=c, model_is_path=False)
+        c_out = mgr.write_model(out_path=None)
+
+        # Ensure our strings are the same not counting white space.
+        # Note this isn't a great test, but it'll do for now.
+        self.assertEqual(re.sub(r"\s*", "", c), re.sub(r"\s*", "", c_out))
+
+    def test_class_fails_with_enumeration(self):
+        """Test to lock in the fact that we aren't supporting
+        enumerations
+        """
+
+        c = """
+        class some_silly_class {
+          enumeration {OFF=0, ON=1} status;
+        }
+        """
+        self.assertRaises(AssertionError, glm.parse, c, False)
 
     def test_add_named_recorder(self):
         # Build dictionary for recorder.
@@ -349,9 +376,6 @@ class TestGLMManager(unittest.TestCase):
         # Check map.
         self.assertIs(self._GLMManager.model_dict[4],
                       self._GLMManager.model_map['clock'][1])
-
-    def test_modify_class(self):
-        item = {'class': 'my_class', }
 
     def test_modify_load(self):
         item = {'object': 'load', 'name': 'load_3', 'base_power_A': '120000',
@@ -1250,6 +1274,125 @@ class UpdateAllTriplexLoads(unittest.TestCase):
             self.mgr.update_all_triplex_loads(
                 {'blah': {'stuff': 'and things'}}
             )
+
+
+class IEEE123ModForYuanTestCase(unittest.TestCase):
+    """Ensure we can load the IEEE 123 mod model without error."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.in_file = IEEE_123_mod
+        # Ensure the given model runs as is.
+        # Nope, can't do this since it has #include lines.
+        # result = run_gld(cls.in_file)
+
+        # Read the model.
+        cls.mgr = glm.GLMManager(model=cls.in_file, model_is_path=True)
+
+        # Get the resulting model as a string.
+        cls.out_str = cls.mgr.write_model(out_path=None)
+
+    def test_model_class_correct(self):
+        """Write model to file, check the class gets written right."""
+        # Ensure the class didn't get messed up.
+        expected_class_regex = \
+            (r"class dummy_class \{\s+"
+             r"double consensus_iterations;\s+"
+             r"double theoretical_feeder_load;\s+"
+             r"double wholesale_LMP;\s+"
+             r"double aggregator_1_cleared_quantity;\s+"
+             r"double aggregator_2_cleared_quantity;\s+"
+             r"double aggregator_3_cleared_quantity;\s+"
+             r"double aggregator_1_limit;\s+"
+             r"double aggregator_2_limit;\s+"
+             r"double aggregator_3_limit;\s+"
+             r"\}"
+             )
+
+        # Start by ensuring it's present in the original model.
+        with open(self.in_file, 'r') as f:
+            s = f.read()
+
+        result = re.search(expected_class_regex, s)
+        self.assertIsNotNone(result)
+
+        result = re.search(expected_class_regex, self.out_str)
+        self.assertIsNotNone(result)
+
+    def test_configuration_object_transformer(self):
+        """Hard-coded test to ensure 'configuration object' syntax
+        worked out correctly for a transformer.
+        """
+        # Extract a tranformer which has a nested configuration in the
+        # original model.
+        xfmr = self.mgr.find_object(obj_type='transformer',
+                                    obj_name='CTTF_0_A_Meter_1')
+        self.assertIsNotNone(xfmr)
+
+        # Ensure it now references the name of a
+        # transformer_configuration object.
+        self.assertEqual(xfmr['configuration'],
+                         'CTTF_0_A_Meter_1_configuration')
+
+        # Extract the corresponding configuration.
+        config = self.mgr.find_object(
+            obj_type='transformer_configuration',
+            obj_name='CTTF_0_A_Meter_1_configuration')
+
+        self.assertIsNotNone(config)
+        # There should be no 'parent' line (which gets added for other
+        # types of nested objects).
+        self.assertNotIn('parent', config)
+
+    def test_triplex_line_nested_config(self):
+        """Hard-coded test to ensure the "trip_line_config" got
+        correctly "un-nested."
+        """
+        # Extract the object.
+        tlc = self.mgr.find_object(obj_type='triplex_line_configuration',
+                                   obj_name='trip_line_config')
+        self.assertIsNotNone(tlc)
+
+        # Check properties.
+        self.assertEqual(tlc['conductor_1'],
+                         'trip_line_config_conductor_1')
+
+        self.assertEqual(tlc['conductor_2'],
+                         'trip_line_config_conductor_2')
+
+        self.assertEqual(tlc['conductor_N'],
+                         'trip_line_config_conductor_N')
+
+        # Check objects corresponding to those properties.
+        for name in ['trip_line_config_conductor_1',
+                     'trip_line_config_conductor_2',
+                     'trip_line_config_conductor_N']:
+
+            c = self.mgr.find_object(obj_type='triplex_line_conductor',
+                                     obj_name=name)
+            self.assertIsNotNone(c)
+            # There should not be a parent property.
+            self.assertNotIn('parent', c)
+
+    def test_collector_group(self):
+        """Ensure the unquoted syntax
+        "group class=house AND groupid=noController;" is working."""
+        found = False
+
+        for entry in self.mgr.model_map['object_unnamed']:
+            obj = entry[1]
+            try:
+                # We're looking for a collector with a group.
+                if obj['object'] == 'collector':
+                    if 'group' in obj:
+                        if ' AND ' in obj['group']:
+                            found = True
+                            break
+            except KeyError:
+                # Nothing to see here.
+                continue
+
+        self.assertTrue(found)
 
 
 if __name__ == '__main__':
