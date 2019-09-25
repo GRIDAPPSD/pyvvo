@@ -1,6 +1,6 @@
 tmp
 # Environment file for PyCharm run configuration.
-pyvvo/env.json
+# pyvvo/env.json
 
 # Ignore log files.
 *.log
