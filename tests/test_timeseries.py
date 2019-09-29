@@ -164,13 +164,13 @@ class ParseWeatherTestCase(unittest.TestCase):
             cls.weather_simple = json.load(f)
 
         # Create the expected DataFrame.
-        # Weather data starts at 2013-01-01 00:00:00 Mountain Time.
+        # Weather data starts at 2013-01-01 00:00:00 UTC.
         dt = _df.WEATHER_SIMPLE_START
         dt_index = pd.to_datetime([dt], utc=True)
 
         # Expected data.
-        temp = 13.316
-        ghi = -0.0376761524
+        temp = 13.244
+        ghi = -0.0506534463
 
         # Create expected DataFrame.
         cls.weather_simple_expected = \
