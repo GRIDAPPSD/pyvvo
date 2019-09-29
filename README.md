@@ -322,9 +322,9 @@ tests, and I need to split them out in the future).
 5. After the tests have run, click the `Collapse All` icon in the bottom
 left area where PyCharm displays the testing results.
 6. Click the arrow to then expand the tests.
-7. At the time of writing, with platform version `v2019.08.1`, and with
-this repository at commit `675461ddc26e3fa1007ade683c828fa8a9c1db62`, I
-expect to see 635 tests with 4 failures and 2 errors.
+7. At the time of writing, with platform version `v2019.09.1`, and with
+this repository at commit `8fbe88e135b76c12078c551faf6e21d9680d5acd`, I
+expect to see 636 tests with 3 failures and 1 error.
 
 Note that sometimes PyCharm hangs at the end of tests. Give it a minute,
 then click the red square to stop the tests. It'll then stop the spinning
