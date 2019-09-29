@@ -139,14 +139,18 @@ class SimOutRouterTestCase(unittest.TestCase):
         # For convenience, get a reference to the measurements.
         meas = cls.meas['message']['measurements']
 
+        # Create list of list of mrids.
+        cls.all_mrids = list(meas.keys())
+
         # Hard code some indices for grabbing measurements.
         # Note that within each sub-list the indices ARE sorted to
         # make the testing comparison easier.
         cls.indices = [[10, 112, 114], [16, 102], [0, 1, 42]]
 
         # Grab mrids.
-        cls.mrids = [[meas[i]['measurement_mrid'] for i in sub_i] for sub_i in
-                     cls.indices]
+        cls.mrids = [[meas[cls.all_mrids[i]]['measurement_mrid'] for i in
+                      sub_i]
+                     for sub_i in cls.indices]
 
         # Create dummy class.
         cls.dummy_class = DummyClass()
@@ -171,9 +175,11 @@ class SimOutRouterTestCase(unittest.TestCase):
                           message='message', mrids=[])
 
     def test_filter_output_by_mrid_expected_return(self):
-        # Gather expected return.
+        # Gather expected return. This has gotten a little gnarly and
+        # unreadable, but so it goes sometimes. Gotta keep moving.
         meas = self.meas['message']['measurements']
-        expected = [[meas[i] for i in sub_i] for sub_i in self.indices]
+        expected = [[meas[self.mrids[i][j]] for j in range(len(sub_j))]
+                    for i, sub_j in enumerate(self.indices)]
 
         actual = self.router._filter_output_by_mrid(message=self.meas)
 
@@ -189,7 +195,8 @@ class SimOutRouterTestCase(unittest.TestCase):
         with patch.object(self.router, attribute='mrids', new=mrids):
             # Ensure we get a value error, use regex to ensure our
             # arithmetic is correct.
-            with self.assertRaisesRegex(ValueError, '^3.*3.*'):
+            with self.assertRaisesRegex(ValueError,
+                                        'Expected measurement MRID abcdefg'):
                 self.router._filter_output_by_mrid(message=self.meas)
 
     def test_subscribed(self):

@@ -231,54 +231,20 @@ class SimOutRouter:
         # corresponds to self.mrids.
         out = [[] for _ in self.mrids]
 
-        # Create a copy of the inputs mrids. Creating a copy so that we can
-        # remove objects and thus shrink our list as we iterate to reduce
-        # searching. Since self.mrids is a list of lists, we need a
-        # deep copy.
-        mrids_c = copy.deepcopy(self.mrids)
-
-        # Iterate over the message measurements.
-        for meas in measurements:
-            # Count empty lists.
-            empty_count = 0
-
-            # Iterate over each sub-list of mrids.
-            for idx, sub_mrid_list in enumerate(mrids_c):
-                # If there are no mrids in our sub list, exit this loop.
-                if len(sub_mrid_list) == 0:
-                    # Increment the count of empty lists.
-                    empty_count += 1
-                    # Move to the next iteration of this inner loop.
-                    continue
-
-                # Attempt to delete the mrid for this measurement from our list
-                # of mrids.
+        # Loop over self.mrids, which is a list of lists.
+        for idx, sub_list in enumerate(self.mrids):
+            # Loop over the sub_list and pull out the MRIDs from the
+            # message.
+            for mrid in sub_list:
                 try:
-                    sub_mrid_list.remove(meas['measurement_mrid'])
-                except ValueError:
-                    # We don't care about this MRID. Move to next object.
-                    continue
-
-                # If we're here, we want to keep this measurement.
-                out[idx].append(meas)
-
-            # If all our lists are empty, stop iterating and break the
-            # outer loop.
-            if empty_count == len(mrids_c):
-                break
-
-        # If we don't get what we wanted, raise an exception.
-        # In the future, we may not want this to be an exception.
-        # noinspection PyUnboundLocalVariable
-        if empty_count != len(mrids_c):
-            # Get a total number of missing MRIDs.
-            total = 0
-            for sub_list in mrids_c:
-                total += len(sub_list)
-
-            m = ('{} MRIDs from {} sub-lists were not present in the '
-                 'message').format(total, len(mrids_c) - empty_count)
-            raise ValueError(m)
+                    # Simply put the relevant measurement dictionary in
+                    # the appropriate list.
+                    out[idx].append(measurements[mrid])
+                except KeyError as e:
+                    # Something's wrong.
+                    raise ValueError('Expected measurement MRID {} not present'
+                                     'in the measurements from the platform.'
+                                     .format(mrid)) from e
 
         # All done, return.
         return out
