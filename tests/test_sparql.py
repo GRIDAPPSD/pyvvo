@@ -263,10 +263,14 @@ class SPARQLManagerTestCase(unittest.TestCase):
 
     def test_sparql_manager_query_load_nominal_voltage_expected_return(self):
         """Check one of the elements from query_load_nominal_voltage."""
-        # NOTE: before switching from the 8500 node to 9500 node model,
-        # the 'phases' field below was working with 's2,s1'
-        expected = pd.Series({'name': '2127146b0a', 'bus': 'sx3160864b',
-                              'basev': 208, 'conn': 'Y', 'phases': 's1'})
+        # NOTE: The platform has been doing some annoying back and forth
+        # on this. The phases could be either 's2,s1' or 's1,s2' or just
+        # 's1' or 's2'. The 'name' changes depending on if both phases
+        # are listed or just one. If just one phase is listed
+        # (e.g. 's1') then the 'name' will have a suffix, either 'a' or
+        # 'b'.
+        expected = pd.Series({'name': '2127146b0', 'bus': 'sx3160864b',
+                              'basev': 208, 'conn': 'Y', 'phases': 's1,s2'})
 
         full_actual = self.sparql.query_load_nominal_voltage()
 
