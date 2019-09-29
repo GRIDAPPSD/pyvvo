@@ -14,6 +14,7 @@ from tests.models import IEEE_13
 # Third-party
 from stomp.exception import ConnectFailedException
 import simplejson as json
+import pandas as pd
 
 # Attempt to connect to the GridAPPS-D platform.
 try:
@@ -346,11 +347,22 @@ class PlatformManagerTestCase(unittest.TestCase):
                           start_time=datetime(2013, 1, 1, 0))
 
     def test_platform_manager_get_weather_no_data(self):
-        # NOTE: data starts 2013-01-01 00:00:00 Mountain Time.
+        """Try to get weather data one minute before it actually begins
+        """
+        # NOTE: data starts 2013-01-01 00:00:00 UTC.
         self.assertRaises(gridappsd_platform.QueryReturnEmptyError,
                           self.platform.get_weather,
-                          start_time=datetime(2013, 1, 1, 5, 59),
-                          end_time=datetime(2013, 1, 1, 5, 59))
+                          start_time=datetime(2012, 12, 31, 23, 59),
+                          end_time=datetime(2012, 12, 31, 23, 59))
+
+    def test_platform_manager_get_weather_earliest_possible(self):
+        """Get first piece of weather data available."""
+        # NOTE: data starts 2013-01-01 00:00:00 UTC.
+        data = self.platform.get_weather(
+            start_time=datetime(2013, 1, 1, 0, 0),
+            end_time=datetime(2013, 1, 1, 0, 0)
+        )
+        self.assertIsInstance(data, pd.DataFrame)
 
     def test_platform_manager_query_weather_simple(self):
         # Retrieve weather data, ensure it matches expected.
