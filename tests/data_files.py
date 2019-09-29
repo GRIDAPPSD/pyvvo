@@ -17,6 +17,7 @@ from pyvvo import sparql, gridappsd_platform, timeseries, load_model
 # Third-party.
 import pandas as pd
 import simplejson as json
+from gridappsd import topics
 
 # Hard-code 8500 node feeder MRID.
 FEEDER_MRID_8500 = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
@@ -286,12 +287,28 @@ def get_non_id_cols(df):
 
 
 def generate_all_measurements_13():
-    """Generate the file all_measurements_13.json."""
+    """Generate the files ALL_MEAS_13, MEASUREMENTS_13, and HEADER_13.
+    Note that data for ALL_MEAS_13 comes from the time series database,
+    while MEASUREMENTS_13 and HEADER_13 come straight from the platform.
+    """
+    # Define a helper for writing our measurements and headers to file.
+    def meas_header_to_file(header, message):
+        _dict_to_json(data=header, fname=HEADER_13)
+        _dict_to_json(data=message, fname=MEASUREMENTS_13)
+
+    # Get a platform manager, start the simulation.
     platform = gridappsd_platform.PlatformManager()
     starttime = datetime(2013, 1, 14, 0, 0)
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_13,
                                      start_time=starttime,
                                      duration=20, realtime=False)
+
+    # Subscribe to simulation output so we can write the header +
+    # message to file. Note this is not particularly efficient as the
+    # files will be overwritten a few times before the simulation ends.
+    # Who cares? Not me :) Just gotta make rapid progress.
+    platform.gad.subscribe(topic=topics.simulation_output_topic(sim_id),
+                           callback=meas_header_to_file)
 
     # Wait for simulation completion.
     platform.wait_for_simulation()
@@ -374,6 +391,7 @@ def generate_cap_reg_switch_meas_message_9500():
                                      duration=5, realtime=False)
 
     # Create a SimOutRouter to save the measurements.
+    # noinspection PyUnusedLocal
     router = gridappsd_platform.SimOutRouter(platform_manager=platform,
                                              sim_id=sim_id,
                                              fn_mrid_list=fn_mrid_list)
