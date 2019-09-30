@@ -455,7 +455,7 @@ def generate_sensor_service_measurements_9500():
     # TODO: Remove this time.sleep when
     #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/24#issue-487936782
     #  has been addressed.
-    time.sleep(60)
+    time.sleep(180)
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):
@@ -545,10 +545,12 @@ if __name__ == '__main__':
     generate_energy_consumer_measurements_9500()
     generate_cap_reg_switch_meas_message_9500()
     generate_model_info()
+    # TODO: Run these after talking to Poorva.
     generate_sensor_service_measurements_9500()
     generate_parsed_sensor_service_measurements_9500()
     generate_vpq_for_parsed_sensor_service_measurements_9500()
     generate_weather_for_sensor_data_9500()
+    # RUN TO HERE
     generate_weather_two_week()
     generate_weather_simple()
 

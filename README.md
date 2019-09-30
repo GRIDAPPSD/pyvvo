@@ -323,8 +323,10 @@ tests, and I need to split them out in the future).
 left area where PyCharm displays the testing results.
 6. Click the arrow to then expand the tests.
 7. At the time of writing, with platform version `v2019.09.1`, and with
-this repository at commit `8fbe88e135b76c12078c551faf6e21d9680d5acd`, I
-expect to see 636 tests with 3 failures and 1 error.
+this repository at commit `38e43dc39a3fb7292c180ae09aadf5e3f92b7473`, I
+expect to see 636 tests with 5 failures and 1 error. Note this is the
+output from Python, not from PyCharm. PyCharm reports 826 tests with 
+7 failures.
 
 Note that sometimes PyCharm hangs at the end of tests. Give it a minute,
 then click the red square to stop the tests. It'll then stop the spinning

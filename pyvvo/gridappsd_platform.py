@@ -242,6 +242,8 @@ class SimOutRouter:
                     out[idx].append(measurements[mrid])
                 except KeyError as e:
                     # Something's wrong.
+                    # TODO: This is where we might notice a measurement
+                    #   communication outage. How to handle?
                     raise ValueError('Expected measurement MRID {} not present'
                                      'in the measurements from the platform.'
                                      .format(mrid)) from e

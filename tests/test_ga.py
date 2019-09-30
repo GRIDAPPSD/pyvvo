@@ -342,6 +342,11 @@ class PrepGLMMGR9500TestCase(unittest.TestCase):
         # Run the prep function.
         ga.prep_glm_mgr(cls.glm_mgr, cls.starttime, cls.stoptime)
 
+        # # Testing a hack.
+        # cls.glm_mgr.modify_item({"object": "switch",
+        #                          "name": '"swt_tsw803273_sw"',
+        #                          "status": "CLOSED"})
+
         # Write file.
         cls.glm_mgr.write_model(cls.out_file)
 
