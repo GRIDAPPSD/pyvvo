@@ -1,0 +1,13 @@
+{
+    "id": "PyVVO",
+    "description": "PNNL volt/var optimization application",
+    "creator": "PNNL/Brandon-Thayer",
+    "inputs": [],
+    "outputs": [],
+    "options": ["(simulationId)","'(request)'"],
+    "type": "REMOTE",
+    "execution_path": "python /pyvvo/pyvvo/pyvvo/run_pyvvo.py",
+    "launch_on_startup": false,
+    "prereqs": [],
+    "multiple_instances": true
+}

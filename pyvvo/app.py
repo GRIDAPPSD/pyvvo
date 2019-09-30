@@ -8,57 +8,23 @@ from gridappsd import topics
 from datetime import datetime
 import simplejson as json
 import time
+import logging
+
+# Setup log.
+LOG = logging.getLogger(__name__)
 
 
-def callback(header, message):
-    message = json.loads(message)
-    with open('measurement.json', 'w') as f:
-        json.dump(message, f)
+def main(sim_id, sim_request):
+    # Extract the feeder_mrid from the simulation request.
+    feeder_mrid = sim_request["power_system_config"]["Line_name"]
 
-    with open('measurment_header.json', 'w') as f:
-        json.dump(header, f)
-
-    t = datetime.utcfromtimestamp(int(header['timestamp'])/1000).strftime('%Y-%m-%d %H:%M:%S')
-    sim_t = datetime.utcfromtimestamp(message['message']['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
-    print(r'Callback hit! Time: {}. Sim time: {}'.format(t, sim_t), flush=True)
-    print('Message: {}'.format(json.dumps(message, indent=4)))
-    pass
-
-
-def callback2(header, message):
-    print(r'Sensor topic hit. Header:{}\nMessage:{}\n'.format(header, message))
-
-
-def callback3(header, message):
-    print('Header: {}'.format(header))
-    print('Message: {}'.format(message))
-
-
-def dump(message):
-    print('Dumping!', flush=True)
-    with open('cap_meas_message.json', 'w') as f:
-        json.dump(message, f)
-
-
-class Listener:
-    def __init__(self):
-        pass
-
-    def on_message(self, header, message):
-        with open('tmp.txt', 'a') as f:
-            print('Header: {}'.format(header), flush=True, file=f)
-            print('Message: {}'.format(message), flush=True, file=f)
-        # print(header['subscription'])
-
-
-if __name__ == '__main__':
     # # Determine whether we're running inside or outside the platform.
     # PLATFORM = os.environ['platform']
     #
     # Hard-code 8500 node MRID for now.
     # feeder_mrid = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
     # 9500
-    feeder_mrid = '_AAE94E4A-2465-6F5E-37B1-3E72183A4E44'
+    # feeder_mrid = '_AAE94E4A-2465-6F5E-37B1-3E72183A4E44'
     # IEEE 13 bus
     # feeder_mrid = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
     # IEEE 123 bus
@@ -87,43 +53,43 @@ if __name__ == '__main__':
     # ####################################################################
     # # GET PREREQUISITE DATA
     # ####################################################################
-    # #
-    # # TODO: Dispatch these jobs to threads.
-    # # Get regulator information.
-    # reg_df = sparql_mgr.query_regulators()
-    # reg_objects = equipment.initialize_regulators(reg_df)
-    # reg_meas = sparql_mgr.query_rtc_measurements()
-    # reg_meas_mrid = list(reg_meas[sparql.REG_MEAS_MEAS_MRID_COL])
-    # reg_mgr = equipment.EquipmentManager(
-    #     eq_dict=reg_objects, eq_meas=reg_meas,
-    #     meas_mrid_col=sparql.REG_MEAS_MEAS_MRID_COL,
-    #     eq_mrid_col=sparql.REG_MEAS_REG_MRID_COL)
     #
-    # # Get capacitor information.
-    # cap_df = sparql_mgr.query_capacitors()
-    # cap_objects = equipment.initialize_capacitors(cap_df)
-    # cap_meas = sparql_mgr.query_capacitor_measurements()
-    # cap_meas_mrid = list(cap_meas[sparql.CAP_MEAS_MEAS_MRID_COL])
-    # cap_mgr = equipment.EquipmentManager(
-    #     eq_dict=cap_objects, eq_meas=cap_meas,
-    #     meas_mrid_col=sparql.CAP_MEAS_MEAS_MRID_COL,
-    #     eq_mrid_col=sparql.CAP_MEAS_CAP_MRID_COL)
-    #
-    # # Get switch information.
-    # switch_df = sparql_mgr.query_switches()
-    # switch_objects = equipment.initialize_switches(switch_df)
-    # # TODO: Uncomment below when the following is resolved:
-    # # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/969
-    #
-    # switch_meas = sparql_mgr.query_switch_measurements()
-    # switch_meas_mrid = list(switch_meas[sparql.SWITCH_MEAS_MEAS_MRID_COL])
-    # switch_mgr = equipment.EquipmentManager(
-    #     eq_dict=switch_objects, eq_meas=switch_meas,
-    #     meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL,
-    #     eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
-    # )
-    #
-    # # Get EnergyConsumer (load) data.
+    # TODO: Dispatch these jobs to threads.
+    # Get regulator information.
+    reg_df = sparql_mgr.query_regulators()
+    reg_objects = equipment.initialize_regulators(reg_df)
+    reg_meas = sparql_mgr.query_rtc_measurements()
+    reg_meas_mrid = list(reg_meas[sparql.REG_MEAS_MEAS_MRID_COL])
+    reg_mgr = equipment.EquipmentManager(
+        eq_dict=reg_objects, eq_meas=reg_meas,
+        meas_mrid_col=sparql.REG_MEAS_MEAS_MRID_COL,
+        eq_mrid_col=sparql.REG_MEAS_REG_MRID_COL)
+
+    # Get capacitor information.
+    cap_df = sparql_mgr.query_capacitors()
+    cap_objects = equipment.initialize_capacitors(cap_df)
+    cap_meas = sparql_mgr.query_capacitor_measurements()
+    cap_meas_mrid = list(cap_meas[sparql.CAP_MEAS_MEAS_MRID_COL])
+    cap_mgr = equipment.EquipmentManager(
+        eq_dict=cap_objects, eq_meas=cap_meas,
+        meas_mrid_col=sparql.CAP_MEAS_MEAS_MRID_COL,
+        eq_mrid_col=sparql.CAP_MEAS_CAP_MRID_COL)
+
+    # Get switch information.
+    switch_df = sparql_mgr.query_switches()
+    switch_objects = equipment.initialize_switches(switch_df)
+    # TODO: Uncomment below when the following is resolved:
+    # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/969
+
+    switch_meas = sparql_mgr.query_switch_measurements()
+    switch_meas_mrid = list(switch_meas[sparql.SWITCH_MEAS_MEAS_MRID_COL])
+    switch_mgr = equipment.EquipmentManager(
+        eq_dict=switch_objects, eq_meas=switch_meas,
+        meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL,
+        eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
+    )
+
+    # Get EnergyConsumer (load) data.
     load_nom_v = sparql_mgr.query_load_nominal_voltage()
     load_meas = sparql_mgr.query_load_measurements()
 
@@ -139,6 +105,7 @@ if __name__ == '__main__':
     glm = GLMManager(model=model, model_is_path=False)
     model_start = datetime(2013, 4, 1, 12, 0)
     model_end = datetime(2013, 4, 1, 12, 5)
+
     # glm.add_run_components(starttime=model_start, stoptime=model_end)
     # glm.write_model(out_path='8500.glm')
     # result = utils.run_gld('8500.glm')
