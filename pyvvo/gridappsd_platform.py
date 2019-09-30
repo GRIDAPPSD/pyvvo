@@ -258,7 +258,7 @@ class PlatformManager:
     sparql.py
     """
 
-    def __init__(self, timeout=30):
+    def __init__(self, timeout=45):
         """Connect to the GridAPPS-D platform by initializing a
         gridappsd.GridAPPSD object.
 
