@@ -812,27 +812,39 @@ class Individual:
         :param db_conn: Active database connection which follows
             PEP 249.
         """
-        # First, update regulators and capacitors in the glm_mgr's model
-        # based on this Individual's chromosome. As the glm_mgr is
-        # mutable, it's updated without a return for it here.
-        reg_penalty, cap_penalty = \
-            self._update_model_compute_costs(glm_mgr=glm_mgr)
+        try:
+            # First, update regulators and capacitors in the glm_mgr's
+            # model based on this Individual's chromosome. As the
+            # glm_mgr is mutable, it's updated without a return for it
+            # here.
+            reg_penalty, cap_penalty = \
+                self._update_model_compute_costs(glm_mgr=glm_mgr)
 
-        # Create an _Evaluator to do the work of running the model and
-        # computing associated costs.
-        evaluator = _Evaluator(uid=self.uid, glm_mgr=glm_mgr, db_conn=db_conn)
-        penalties = evaluator.evaluate()
+            # Create an _Evaluator to do the work of running the model
+            # and computing associated costs.
+            evaluator = _Evaluator(uid=self.uid, glm_mgr=glm_mgr,
+                                   db_conn=db_conn)
+            penalties = evaluator.evaluate()
 
-        # Add the regulator tap changing and capacitor switching costs.
-        penalties['regulator_tap'] = reg_penalty
-        penalties['capacitor_switch'] = cap_penalty
+            # Add the regulator tap changing and capacitor switching
+            # costs.
+            penalties['regulator_tap'] = reg_penalty
+            penalties['capacitor_switch'] = cap_penalty
 
-        # An individual's fitness is the sum of their penalties.
-        self._fitness = 0
-        for p in penalties.values():
-            self._fitness += p
+            # An individual's fitness is the sum of their penalties.
+            self._fitness = 0
+            for p in penalties.values():
+                self._fitness += p
 
-        self._penalties = penalties
+            self._penalties = penalties
+        except Exception as e:
+            # Something failed. Set fitness to infinity, and penalties
+            # to None.
+            self._fitness = np.inf
+            self._penalties = None
+
+            # Re-raise the exception.
+            raise e from None
 
     def _update_model_compute_costs(self, glm_mgr):
         """Helper to update a glm.GLMManager's model via this

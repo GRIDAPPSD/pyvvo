@@ -974,6 +974,11 @@ class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
                                  glm_mgr=self.fresh_mgr)
 
 
+# Dictionary used by the tests below.
+PARTIAL_DICT = {'voltage_high': 1, 'voltage_low': 2, 'power_factor_lead': 3,
+                'power_factor_lag': 4, 'energy': 5}
+
+
 class IndividualEvaluateTestCase(unittest.TestCase):
     """Test the evaluate method of an Individual.
     """
@@ -988,14 +993,20 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         cls.caps = equipment.initialize_capacitors(cap_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
-        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map,
-                                num_eq=cls.num_eq)
+
+    def setUp(self):
+        # Initialize an individual.
+        self.ind = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                                 num_eq=self.num_eq)
+
+        # Patch inputs to the Individual's evaluate method.
+        self.mock_glm = unittest.mock.create_autospec(GLMManager,
+                                                      spec_set=True)
+        self.mock_db = unittest.mock.create_autospec(MySQLdb.connection,
+                                                     set_spec=True)
 
     @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
-           return_value={'voltage_high': 1, 'voltage_low': 2,
-                         'power_factor_lead': 3,
-                         'power_factor_lag': 4,
-                         'energy': 5})
+           return_value=PARTIAL_DICT)
     @patch('pyvvo.ga._Evaluator.__init__', autospec=True, return_value=None)
     def test_evaluate(self, eval_init_patch, eval_evaluate_patch):
         """Patch everything, ensure the correct methods are called.
@@ -1008,33 +1019,21 @@ class IndividualEvaluateTestCase(unittest.TestCase):
 
         https://stackoverflow.com/q/57044593/11052174
         """
-        # Patch inputs to the Individual's evaluate method.
-        mock_glm = unittest.mock.create_autospec(GLMManager, spec_set=True)
-        mock_db = unittest.mock.create_autospec(MySQLdb.connection,
-                                                set_spec=True)
-
-        # partial_dict is going to be the patched return from
-        # _Evaluator.evaluate. This is hard-coded to match the
-        # return_value in the patch above.
-        partial_dict = {'voltage_high': 1, 'voltage_low': 2,
-                        'power_factor_lead': 3, 'power_factor_lag': 4,
-                        'energy': 5}
-
         with patch.object(self.ind, '_update_model_compute_costs',
                           autospec=True, return_value=(6, 7)) as p_update:
-            self.ind.evaluate(glm_mgr=mock_glm, db_conn=mock_db)
+            self.ind.evaluate(glm_mgr=self.mock_glm, db_conn=self.mock_db)
 
         # Assertion time.
         # Ensure _update_model_compute_costs is called and called
         # correctly.
         p_update.assert_called_once()
-        p_update.assert_called_with(glm_mgr=mock_glm)
+        p_update.assert_called_with(glm_mgr=self.mock_glm)
 
         # Ensure our _Evaluator is constructor appropriately.
         eval_init_patch.assert_called_once()
         self.assertDictEqual(eval_init_patch.call_args[1],
-                             {'uid': self.ind.uid, 'glm_mgr': mock_glm,
-                              'db_conn': mock_db})
+                             {'uid': self.ind.uid, 'glm_mgr': self.mock_glm,
+                              'db_conn': self.mock_db})
 
         # Ensure _Evaluator._evaluate is called.
         eval_evaluate_patch.assert_called_once()
@@ -1043,8 +1042,25 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         self.assertEqual(28, self.ind.fitness)
 
         # Ensure our penalties dict comes back as expected.
-        expected = {**partial_dict, 'regulator_tap': 6, 'capacitor_switch': 7}
+        expected = {**PARTIAL_DICT, 'regulator_tap': 6, 'capacitor_switch': 7}
         self.assertDictEqual(expected, self.ind.penalties)
+
+    @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
+           side_effect=UserWarning('Dummy exception for testing.'))
+    @patch('pyvvo.ga._Evaluator.__init__', autospec=True, return_value=None)
+    def test_error(self, eval_init_patch, eval_evaluate_patch):
+        """Ensure the behavior is correct when an exception is raised
+        during evaluation.
+        """
+        with patch.object(self.ind, '_update_model_compute_costs',
+                          autospec=True, return_value=(6, 7)):
+            with self.assertRaisesRegex(UserWarning, 'Dummy exception for t'):
+                self.ind.evaluate(glm_mgr=self.mock_glm, db_conn=self.mock_db)
+
+        # A failed evaluation should result in an infinite fitness, and
+        # penalties should be None.
+        self.assertEqual(self.ind.fitness, np.inf)
+        self.assertIsNone(self.ind.penalties)
 
 
 class PatchSubprocessResult:
