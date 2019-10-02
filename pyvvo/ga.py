@@ -1279,22 +1279,37 @@ def _evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
         if ind is None:
             return
 
-        t0 = time.time()
-        # So, we now have an individual. Evaluate.
-        ind.evaluate(glm_mgr=glm_mgr,
-                     db_conn=db.connect_loop(timeout=10, retry_interval=0.1))
-        t1 = time.time()
+        try:
+            t0 = time.time()
+            # So, we now have an individual. Evaluate.
+            ind.evaluate(glm_mgr=glm_mgr,
+                         db_conn=db.connect_loop(timeout=10,
+                                                 retry_interval=0.1))
+            t1 = time.time()
 
-        # Dump information into the logging queue.
-        logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
-                           'penalties': ind.penalties,
-                           'time': t1 - t0})
-
-        # Put the now fully evaluated individual in the output queue.
-        output_queue.put(ind)
-
-        # Mark this task as complete.
-        input_queue.task_done()
+            # Dump information into the logging queue.
+            logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
+                               'penalties': ind.penalties,
+                               'time': t1 - t0})
+        except Exception as e:
+            # This is intentionally broad, and is here to ensure that
+            # the process attached to this method (or when this method
+            # is attached to a process?) doesn't crash and burn.
+            logging_queue.put({'error': e,
+                               'uid': ind.uid})
+        finally:
+            try:
+                # Put the (possibly) fully evaluated individual in the
+                # output queue. Error handling in ind.evaluate will
+                # ensure a failed evaluation results in a fitness of
+                # infinity.
+                output_queue.put(ind)
+            finally:
+                # Mark this task as complete. Putting this in a finally
+                # block should avoid us getting in a stuck state where
+                # a failure in evaluation causes us to not mark a task
+                # as complete.
+                input_queue.task_done()
 
 
 def _logging_thread(logging_queue):
@@ -1305,6 +1320,9 @@ def _logging_thread(logging_queue):
         dictionaries of the following format placed in it:
         {'uid': <uid, integer>, 'fitness': <fitness, float>,
         'penalties': <penalties, dictionary>}.
+
+        In the case of an upstream exception, the dictionary will look
+        like {'error': <exception object>}
 
         If None is received in the queue, the thread will terminate.
     """
@@ -1317,15 +1335,30 @@ def _logging_thread(logging_queue):
         if log_dict is None:
             return
 
-        # Log the individual completion.
-        # TODO: We may want this to be a debug message instead.
-        LOG.info('Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
-                 .format(log_dict['uid'], log_dict['time'],
-                         log_dict['fitness']))
+        try:
+            # See if we have an error.
+            log_dict['error']
 
-        LOG.debug("Individual {}'s penalties:\n{}"
-                  .format(log_dict['uid'],
-                          json.dumps(log_dict['penalties'], indent=4)))
+        except KeyError:
+            # Log the individual completion.
+            # TODO: We may want this to be a debug message instead.
+            LOG.info(
+                'Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
+                .format(log_dict['uid'], log_dict['time'], log_dict['fitness'])
+            )
+
+            LOG.debug("Individual {}'s penalties:\n{}"
+                      .format(log_dict['uid'],
+                              json.dumps(log_dict['penalties'], indent=4)))
+
+        else:
+            # We have an error.
+            # noinspection PyBroadException
+            try:
+                raise log_dict['error'] from None
+            except Exception:
+                LOG.exception('Individual {} encountered an error during '
+                              'evaluation.'.format(log_dict['uid']))
 
 
 class Population:

@@ -1339,13 +1339,45 @@ class MockIndividual:
         self.penalties = {'p1': 10, 'p2': 30, 'p3': 0.1}
 
 
-class EvaluateWorkerTestCase(unittest.TestCase):
-    """Test _evaluate_worker function."""
+class MockIndividual2(MockIndividual):
+    """Same as MockIndividual, except evaluate throws and exception."""
+    def evaluate(self, *args, **kwargs):
+        self.fitness = np.inf
+        self.penalties = None
+        raise RuntimeError('Dummy error for testing.')
+
+
+class EvaluateWorkerBadInputTestCase(unittest.TestCase):
 
     def test_bad_input_queue(self):
         with self.assertRaisesRegex(TypeError, 'input_queue must be '):
             ga._evaluate_worker(input_queue=['hi'], logging_queue=[],
                                 output_queue=[], glm_mgr=None)
+
+
+class EvaluateWorkerTestCase(unittest.TestCase):
+    """Test _evaluate_worker function."""
+
+    def setUp(self) -> None:
+        # Create queues.
+        self.input_queue = mp.JoinableQueue()
+        self.output_queue = mp.Queue()
+        self.logging_queue = mp.Queue()
+        self.glm_mgr = create_autospec(GLMManager)
+
+        self.p = mp.Process(target=ga._evaluate_worker,
+                            kwargs={'input_queue': self.input_queue,
+                                    'output_queue': self.output_queue,
+                                    'logging_queue': self.logging_queue,
+                                    'glm_mgr': self.glm_mgr})
+
+        self.p.start()
+
+    def tearDown(self) -> None:
+        self.input_queue.put(None)
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.01)
+        self.assertFalse(self.p.is_alive())
 
     def test_expected_behavior(self):
         """Mock up an individual and glm_mgr. IMPORTANT NOTE: Since
@@ -1356,27 +1388,15 @@ class EvaluateWorkerTestCase(unittest.TestCase):
             something gets broken. The .join() call should probably
             be wrapped with some sort of timeout.
         """
-        input_queue = mp.JoinableQueue()
-        output_queue = mp.Queue()
-        logging_queue = mp.Queue()
-        glm_mgr = create_autospec(GLMManager)
         ind_in = MockIndividual()
 
-        p = mp.Process(target=ga._evaluate_worker,
-                       kwargs={'input_queue': input_queue,
-                               'output_queue': output_queue,
-                               'logging_queue': logging_queue,
-                               'glm_mgr': glm_mgr})
+        self.input_queue.put(ind_in)
 
-        p.start()
+        self.input_queue.join()
 
-        input_queue.put(ind_in)
+        log_out = self.logging_queue.get()
 
-        input_queue.join()
-
-        log_out = logging_queue.get()
-
-        ind_out = output_queue.get_nowait()
+        ind_out = self.output_queue.get_nowait()
 
         self.assertEqual(ind_out.fitness, 1)
         self.assertIn('time', log_out)
@@ -1385,44 +1405,96 @@ class EvaluateWorkerTestCase(unittest.TestCase):
                               'penalties': {'p1': 10, 'p2': 30, 'p3': 0.1}},
                              log_out)
 
-        input_queue.put(None)
-        # Sleep to ensure we don't encounter a race condition.
-        sleep(0.1)
-        self.assertFalse(p.is_alive())
+    def test_exception_handling(self):
+        """When an exception is thrown during evaluation, the worker
+        should catch it and put the exception into the queue.
+        """
+        # Create a mock individual which will raise an exception upon
+        # evaluation.
+        ind_in = MockIndividual2()
+
+        self.input_queue.put(ind_in)
+
+        self.input_queue.join()
+
+        # Extract the logging output and the individual.
+        log_out = self.logging_queue.get()
+        ind_out = self.output_queue.get_nowait()
+
+        # Errors should result in infinite fitness.
+        self.assertEqual(ind_out.fitness, np.inf)
+        # There should be an error and uid field.
+        self.assertIn('error', log_out)
+        self.assertIn('uid', log_out)
+
+        with self.assertRaisesRegex(RuntimeError,
+                                    'Dummy error for testing.'):
+            raise log_out['error']
+
+        # Despite the error, the process should still be alive.
+        self.assertTrue(self.p.is_alive())
 
 
 class LoggingThreadTestCase(unittest.TestCase):
     """Test _logging_thread function."""
 
-    def test_expected_behavior(self):
+    def setUp(self) -> None:
+        self.q = mp.Queue()
+
+        self.t = threading.Thread(target=ga._logging_thread,
+                                  kwargs={'logging_queue': self.q})
+
+        self.t.start()
+
+    def tearDown(self) -> None:
+        self.assertTrue(self.t.is_alive())
+
+        # Kill the thread.
+        self.q.put(None)
+
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.01)
+
+        # Ensure the thread is dead.
+        self.assertFalse(self.t.is_alive())
+
+    def test_expected_normal_behavior(self):
         """NOTE: Couldn't get assertLogs to work here, so this test is
         close to useless. I guess it makes sure things don't error out,
         which is something.
         """
-        q = mp.Queue()
+        self.assertTrue(self.t.is_alive())
 
-        t = threading.Thread(target=ga._logging_thread,
-                             kwargs={'logging_queue': q})
+        # Ensure we get an info message.
+        with self.assertLogs(level='INFO', logger=ga.LOG):
+            self.q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16},
+                        'time': 5})
+            # Sleep to ensure we get logs out.
+            sleep(0.01)
 
-        t.start()
+        # Ensure we get a debug message.
+        with self.assertLogs(level='DEBUG', logger=ga.LOG):
+            self.q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16},
+                        'time': 5})
+            # Sleep to ensure we get logs out.
+            sleep(0.01)
 
-        self.assertTrue(t.is_alive())
+    def test_exception_behavior(self):
+        """If given an 'error' key, the behavior is different."""
+        self.assertTrue(self.t.is_alive())
 
-        # Why won't this work?! Oh well...
-        # with self.assertLogs(level='INFO', logger=ga.LOG):
-        #     with self.assertLogs(level='DEBUG', logger=ga.LOG):
-        q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16}})
+        # Generate an exception.
+        my_e = None
+        try:
+            raise UserWarning('Dummy exception')
+        except UserWarning as e:
+            my_e = e
 
-        self.assertTrue(t.is_alive())
-
-        # Kill the thread.
-        q.put(None)
-
-        # Sleep to ensure we don't encounter a race condition.
-        sleep(0.1)
-
-        # Ensure the thread is dead.
-        self.assertFalse(t.is_alive())
+        with self.assertLogs(level='ERROR', logger=ga.LOG):
+            # Put exception in queue.
+            self.q.put({'uid': 42, 'error': my_e})
+            # Sleep to allow logging to occur.
+            sleep(0.01)
 
 
 class TournamentTestCase(unittest.TestCase):
