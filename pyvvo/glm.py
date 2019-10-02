@@ -1496,6 +1496,23 @@ class GLMManager:
                 self.add_item({'module': 'generators'})
                 break
 
+        # In order to address
+        # https://github.com/GRIDAPPSD/gridappsd-forum/issues/31#issue-499989979
+        # we need to add the reliability module, a fault_check object,
+        # and an eventgen object. I've been told this won't impact
+        # radial models, but is needed to handle meshed systems like
+        # the 9500 node model.
+        self.add_item({'module': 'reliability'})
+        self.add_item({'object': 'fault_check',
+                       'name': 'fault_check_object',
+                       'check_mode': 'ONCHANGE',
+                       'eventgen_object': 'external_event_handler',
+                       'strictly_radial': 'FALSE',
+                       'grid_association': 'TRUE'})
+        self.add_item({'object': 'eventgen',
+                       'name': 'external_event_handler',
+                       'use_external_faults': 'TRUE'})
+
         # Suppress repeating messages.
         self.add_item({'#set': 'suppress_repeat_messages=1'})
 

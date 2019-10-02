@@ -875,17 +875,17 @@ class AddRunComponentsTestCase(unittest.TestCase):
         self.assertIn('clock', clock)
 
     def test_add_run_components_minimum_timestep(self):
-        minimum_timestep = self.glm.model_dict[-6]
+        minimum_timestep = self.glm.model_dict[-7]
 
         self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
 
     def test_add_run_components_profiler(self):
-        profiler = self.glm.model_dict[-5]
+        profiler = self.glm.model_dict[-6]
 
         self.assertDictEqual(profiler, {'#set': 'profiler=0'})
 
     def test_add_run_components_relax_naming_rules(self):
-        rnr = self.glm.model_dict[-4]
+        rnr = self.glm.model_dict[-5]
 
         self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
 
@@ -904,6 +904,40 @@ class AddRunComponentsTestCase(unittest.TestCase):
         """This model should not have the generators added."""
         self.assertFalse(self.glm.module_present('generators'))
 
+    def test_add_run_components_reliability(self):
+        """The reliability module should be present."""
+        self.assertTrue(self.glm.module_present('reliability'))
+
+    def test_add_run_components_fault_check(self):
+        """Ensure the fault_check object gets added."""
+        # Lookup the object by type.
+        obj = self.glm.get_objects_by_type('fault_check')
+        # None gets returned if it isn't present.
+        self.assertIsNotNone(obj)
+        # We should only have one fault_check object.
+        self.assertEqual(1, len(obj))
+        # Ensure all the required parameters are present.
+        props = ['name', 'check_mode', 'eventgen_object', 'strictly_radial',
+                 'grid_association']
+        for p in props:
+            self.assertIn(p, obj[0])
+
+        # Grab the event_gen_object.
+        name = obj[0]['eventgen_object']
+
+        # Now, we should be able to find the 'eventgen' object by name.
+        eventgen = self.glm.find_object('eventgen', name)
+        self.assertIsNotNone(eventgen)
+
+    def test_add_run_components_eventgen(self):
+        """Ensure the eventgen object gets added."""
+        # Lookup by type.
+        obj = self.glm.get_objects_by_type('eventgen')
+        self.assertIsNotNone(obj)
+        self.assertEqual(len(obj), 1)
+        self.assertIn('use_external_faults', obj[0])
+        self.assertIn('name', obj[0])
+
 
 class AddRunComponentsIEEE13NodeTestCase(AddRunComponentsTestCase):
     """Run tests in AddRunComponentsTestCase, but use IEEE 13 bus model.
@@ -917,17 +951,17 @@ class AddRunComponentsIEEE13NodeTestCase(AddRunComponentsTestCase):
         self.assertTrue(self.glm.module_present('generators'))
 
     def test_add_run_components_minimum_timestep(self):
-        minimum_timestep = self.glm.model_dict[-7]
+        minimum_timestep = self.glm.model_dict[-8]
 
         self.assertDictEqual(minimum_timestep, {'#set': 'minimum_timestep=60'})
 
     def test_add_run_components_profiler(self):
-        profiler = self.glm.model_dict[-6]
+        profiler = self.glm.model_dict[-7]
 
         self.assertDictEqual(profiler, {'#set': 'profiler=0'})
 
     def test_add_run_components_relax_naming_rules(self):
-        rnr = self.glm.model_dict[-5]
+        rnr = self.glm.model_dict[-6]
 
         self.assertDictEqual(rnr, {'#set': 'relax_naming_rules=1'})
 
