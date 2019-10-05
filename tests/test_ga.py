@@ -9,7 +9,7 @@ from time import sleep
 import itertools
 
 import tests.data_files as _df
-from tests.models import IEEE_8500, IEEE_9500, IEEE_13
+from tests.models import IEEE_9500, IEEE_13
 from pyvvo import ga
 from pyvvo import equipment
 from pyvvo.glm import GLMManager
@@ -948,16 +948,15 @@ class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 to 9500
-        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cls.caps_df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_9500)
+        cls.caps_df = _df.read_pickle(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.caps_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
 
         cls.ind = ga.Individual(uid=0, chrom_len=cls.len,
                                 chrom_map=cls.map, num_eq=cls.num_eq)
@@ -1588,16 +1587,14 @@ class DumpQueueTestCase(unittest.TestCase):
 class PopulationTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
 
         # Get regulators and capacitors.
-        # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        reg_df = pd.read_csv(_df.REGULATORS_9500)
+        cap_df = pd.read_csv(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -2341,16 +2338,15 @@ class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
 
         # Get regulators and capacitors.
         # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        reg_df = pd.read_csv(_df.REGULATORS_9500)
+        cap_df = pd.read_csv(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -2453,16 +2449,14 @@ class MainTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
 
         # Get regulators and capacitors.
-        # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        reg_df = pd.read_csv(_df.REGULATORS_9500)
+        cap_df = pd.read_csv(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
