@@ -1409,7 +1409,7 @@ class Population:
         self._uid_counter = itertools.count()
 
         ################################################################
-        # Setup queues.
+        # Setup queues and lock.
         # Queue for individual evaluation.
         self._input_queue = mp.JoinableQueue()
 
@@ -1419,6 +1419,8 @@ class Population:
         # Queue for logging evaluation as it proceeds.
         self._logging_queue = mp.Queue()
 
+        # Lock used to avoid collisions when stopping the algorithm.
+        self._lock = threading.Lock()
         ################################################################
         # Threads and processes.
 
@@ -1977,17 +1979,23 @@ class Population:
         # Wait for processing to finish.
         self.input_queue.join()
 
-        # Get list to dump individuals in.
-        evaluated_individuals = []
+        # Transfer the evaluated individuals into the population.
+        self._dump_queue_into_population()
 
-        # Dump the output queue into new list.
-        _dump_queue(q=self.output_queue, i=evaluated_individuals)
-
-        # Put the individuals back in the population (recall we popped
-        # them from the list earlier).
-        self._population.extend(evaluated_individuals)
+        # Check to see if we were interrupted.
+        if len(self.population) != self.population_size:
+            self.log.warning('The length of the population does not match the '
+                             'expected population size. Perhaps evaluation was'
+                             ' interrupted?')
 
         # All done.
+
+    @utils.wait_for_lock
+    def _dump_queue_into_population(self):
+        """Simple helper used by evaluate_population to put the contents
+        of the output_queue into the population list. This is put into a
+        helper function so it can be wrapped by wait_for_lock."""
+        self._population = _dump_queue(q=self.output_queue, i=self._population)
 
     def natural_selection(self):
         """Trim the population via both elitism and tournaments."""

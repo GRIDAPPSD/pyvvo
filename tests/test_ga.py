@@ -2375,6 +2375,59 @@ class PopulationTestCase(unittest.TestCase):
         self.assertIs(children[0], p_mutate.call_args_list[0][0][0])
         self.assertIs(children[1], p_mutate.call_args_list[1][0][0])
 
+    def test_lock(self):
+        # These will error out if the lock doesn't have the
+        # attributes.
+        ac = self.pop_obj._lock.acquire
+        re = self.pop_obj._lock.release
+
+        try:
+            # Acquire the lock.
+            ac()
+
+            # Try to get the lock.
+            self.assertFalse(ac(blocking=False))
+        finally:
+            # Release it.
+            re()
+
+    # Couldn't get this method to work in a reasonable time and just
+    # need to move on.
+    # def test_dump_queue_into_population_locks(self):
+    #     sleep_1 = 0.5
+    #     sleep_2 = 0.2
+    #
+    #     # Create function to sleep
+    #     def sleep_a_bit():
+    #         sleep(sleep_1)
+    #
+    #     try:
+    #         # Patch the _dump_queue method so it sleeps.
+    #         with patch('pyvvo.ga._dump_queue', new_callable=sleep_a_bit):
+    #             with patch.object(self.pop_obj, '_population'):
+    #                 # Start a thread to run the method.
+    #                 t = threading.Thread(
+    #                     target=self.pop_obj._dump_queue_into_population)
+    #
+    #                 t.start()
+    #
+    #                 # Sleep less than sleep_a_bit sleeps.
+    #                 sleep(sleep_2)
+    #
+    #                 # Try to acquire the lock.
+    #                 self.assertFalse(self.pop_obj._lock.acquire(
+    #                     blocking=False))
+    #
+    #                 # Sleep a bit.
+    #                 sleep(sleep_1 - sleep_2 + 0.005)
+    #
+    #                 # Now we should be able to acquire the lock.
+    #                 self.assertTrue(self.pop_obj._lock.acquire(blocking=False))
+    #
+    #     finally:
+    #         # Release the lock.
+    #         self.pop_obj._lock.release()
+
 
 class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
     """Test _update_equipment_with_individual"""
