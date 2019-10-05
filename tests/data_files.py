@@ -435,10 +435,38 @@ def generate_sensor_service_measurements_9500():
     This method is also going to produce different results depending
     on how the sensor service is configured.
     """
+    time_diff = SENSOR_MEASUREMENT_TIME_END - SENSOR_MEASUREMENT_TIME_START
+
     meas_data = _get_9500_meas_data_for_one_node()
 
+    # Create a configuration for running the sensor service so that
+    # we track the MRIDs of the given measurements.
+    sensor_config = {}
+
+    for mrid in meas_data['id']:
+        sensor_config[mrid] = {
+            # Well, this isn't true for all the measurements, but oh
+            # well. We care less about the values and more about
+            # actually getting the values.
+            'nominal-voltage': 120,
+            'perunit-confidence-rate': 0.95,
+            # TODO: Is this in seconds or time steps?
+            'aggregation-interval': 30,
+            # No drop out for now.
+            'perunit-drop-rate': 0
+        }
+
+    full_config = [{'id': "gridappsd-sensor-simulator",
+                    'user_options': {
+                        "sensors-config": sensor_config,
+                        "random-seed": 42,
+                        "default-aggregation-interval": 30,
+                        "passthrough-if-not-specified": False,
+                        "default-perunit-confidence-rate": 0.95,
+                        "default-perunit-drop-rate": 0
+                    }}]
+
     platform = gridappsd_platform.PlatformManager()
-    time_diff = SENSOR_MEASUREMENT_TIME_END - SENSOR_MEASUREMENT_TIME_START
     # TODO: Use houses when
     #   https://github.com/GRIDAPPSD/gridappsd-forum/issues/26#issue-487939149
     #   is resolved.
@@ -447,7 +475,8 @@ def generate_sensor_service_measurements_9500():
                                      duration=time_diff.seconds,
                                      realtime=False,
                                      applications=[{'name': 'sample_app'}],
-                                     random_zip=False, houses=False)
+                                     random_zip=False, houses=False,
+                                     services=full_config)
 
     # Wait for simulation completion.
     platform.wait_for_simulation()
@@ -540,19 +569,19 @@ def generate_weather_simple():
 
 
 if __name__ == '__main__':
-    gen_expected_sparql_results()
-    generate_all_measurements_13()
-    generate_energy_consumer_measurements_9500()
-    generate_cap_reg_switch_meas_message_9500()
-    generate_model_info()
+    # gen_expected_sparql_results()
+    # generate_all_measurements_13()
+    # generate_energy_consumer_measurements_9500()
+    # generate_cap_reg_switch_meas_message_9500()
+    # generate_model_info()
     # TODO: Run these after talking to Poorva.
     generate_sensor_service_measurements_9500()
     generate_parsed_sensor_service_measurements_9500()
     generate_vpq_for_parsed_sensor_service_measurements_9500()
     generate_weather_for_sensor_data_9500()
     # RUN TO HERE
-    generate_weather_two_week()
-    generate_weather_simple()
+    # generate_weather_two_week()
+    # generate_weather_simple()
 
     print("All done. Don't forget to update file permissions:")
     print("chown -R thay838:thay838 ~/git/pyvvo")

@@ -513,7 +513,7 @@ class PlatformManager:
 
     def run_simulation(self, feeder_id, start_time, duration, realtime,
                        applications=None, random_zip=False,
-                       houses=False):
+                       houses=False, services=None):
         """Start a simulation and return the simulation ID.
 
         For now, this is hard-coded to the point where it'll likely only
@@ -529,39 +529,52 @@ class PlatformManager:
         :param random_zip: Boolean, whether to randomize zip loads.
         :param houses: Boolean, whether or not to use houses in the
             simulation.
+        :param services: List of dictionaries of services to configure.
+            Check out
+            https://gridappsd-sensor-simulator.readthedocs.io/en/sensor-service-configuration/.
         """
         if applications is None:
             applications = []
+
+        if services is None:
+            services = []
 
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
         geo_name = "_73C512BD-7249-4F50-50DA-D93849B89C43"
         subgeo_name = "_A1170111-942A-6ABD-D325-C64886DC4D7D"
 
-        run_config = \
-            {"power_system_config": {
+        run_config = {
+            "power_system_config": {
                 "GeographicalRegion_name": geo_name,
                 "SubGeographicalRegion_name": subgeo_name,
-                "Line_name": feeder_id},
-                "application_config": {"applications": applications},
-                "simulation_config": {
-                    "start_time": utils.dt_to_s_from_epoch(start_time),
-                    "duration": str(duration),
-                    "simulator": "GridLAB-D",
-                    "timestep_frequency": "1000",
-                    "timestep_increment": "1000",
-                    "run_realtime": realtime,
-                    "simulation_name": "ieee8500",
-                    "power_flow_solver_method": "NR",
-                    "model_creation_config": {
-                        "load_scaling_factor": "1",
-                        "schedule_name": "ieeezipload",
-                        "z_fraction": "0", "i_fraction": "1",
-                        "p_fraction": "0",
-                        "randomize_zipload_fractions": random_zip,
-                        "use_houses": houses}},
-                "test_config": {"events": [],
-                                "appId": feeder_id}}
+                "Line_name": feeder_id
+            },
+            "application_config": {
+                "applications": applications
+            },
+            "simulation_config": {
+                "start_time": utils.dt_to_s_from_epoch(start_time),
+                "duration": str(duration),
+                "simulator": "GridLAB-D",
+                "timestep_frequency": "1000",
+                "timestep_increment": "1000",
+                "run_realtime": realtime,
+                "simulation_name": "ieee8500",
+                "power_flow_solver_method": "NR",
+                "model_creation_config": {
+                    "load_scaling_factor": "1",
+                    "schedule_name": "ieeezipload",
+                    "z_fraction": "0", "i_fraction": "1",
+                    "p_fraction": "0",
+                    "randomize_zipload_fractions": random_zip,
+                    "use_houses": houses}
+            },
+            "test_config": {"events": [],
+                            "appId": feeder_id
+                            },
+            "service_configs": services
+        }
 
         # Simulation is not complete yet.
         self.sim_complete = False
