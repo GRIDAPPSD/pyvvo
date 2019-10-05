@@ -2109,6 +2109,22 @@ def _dump_queue(q, i):
             return i
 
 
+def _drain_queue(q):
+    """Helper to simply clear out a queue. The items in the queue will
+    be discarded.
+
+    :param q: A queue.Queue lik object (e.g.
+        multiprocessing.JoinableQueue)
+
+    :returns: None
+    """
+    while True:
+        try:
+            q.get_nowait()
+        except queue.Empty:
+            break
+
+
 def _update_equipment_with_individual(ind, regs, caps):
     """Given an individual, update the states of equipment.
 

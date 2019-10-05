@@ -1577,11 +1577,40 @@ class DumpQueueTestCase(unittest.TestCase):
     def test_correct(self):
         # Need to sleep due to the small delay for the background thread
         # which stuff things into the queue.
-        sleep(0.05)
+        sleep(0.01)
+        self.assertFalse(self.q.empty())
+
         i2 = ga._dump_queue(q=self.q, i=self.i)
 
         self.assertIs(i2, self.i)
         self.assertListEqual([1, 2, 3, 4, 5, 6], self.i)
+
+        sleep(0.01)
+
+        self.assertTrue(self.q.empty())
+
+
+class DrainQueueTestCase(unittest.TestCase):
+    """Test _drain_queue."""
+
+    def setUp(self):
+        self.q = mp.Queue()
+
+        for n in range(4, 7):
+            self.q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+
+    def test_drain_makes_empty(self):
+        self.assertFalse(self.q.empty())
+
+        ga._drain_queue(self.q)
+
+        sleep(0.01)
+
+        self.assertTrue(self.q.empty())
 
 
 class PopulationTestCase(unittest.TestCase):
