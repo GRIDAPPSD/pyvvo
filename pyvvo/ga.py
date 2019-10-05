@@ -1679,6 +1679,19 @@ class Population:
     def processes(self):
         """List of processes for performing individual evaluation."""
         return self._processes
+
+    @property
+    def all_processes_alive(self):
+        """True if all processes return True on is_alive(), else False.
+        """
+        return np.array([p.is_alive() for p in self.processes]).all()
+
+    @property
+    def all_processes_dead(self):
+        """True if all processes return False on is_alive(), else True.
+        """
+        return np.array([not p.is_alive() for p in self.processes]).all()
+
     ####################################################################
 
     @property

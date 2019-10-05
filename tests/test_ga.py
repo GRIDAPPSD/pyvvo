@@ -1809,7 +1809,8 @@ class PopulationTestCase(unittest.TestCase):
 
         for p in self.pop_obj.processes:
             self.assertIsInstance(p, mp.Process)
-            self.assertTrue(p.is_alive())
+
+        self.assertTrue(self.pop_obj.all_processes_alive)
 
     def test_ind_init(self):
         self.assertDictEqual(self.pop_obj.ind_init,
