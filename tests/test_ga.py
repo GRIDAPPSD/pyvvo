@@ -13,7 +13,7 @@ from tests.models import IEEE_9500, IEEE_13
 from pyvvo import ga
 from pyvvo import equipment
 from pyvvo.glm import GLMManager
-from pyvvo.utils import run_gld
+from pyvvo.utils import run_gld, time_limit
 from pyvvo import db
 
 import numpy as np
@@ -1448,6 +1448,20 @@ class EvaluateWorkerTestCase(unittest.TestCase):
 
         # Despite the error, the process should still be alive.
         self.assertTrue(self.p.is_alive())
+
+    def test_none_terminates_processes(self):
+        # Process should start out alive.
+        self.assertTrue(self.p.is_alive())
+        # Putting None in should terminate the process.
+        self.input_queue.put_nowait(None)
+        # The task should be marked as done, so join should work. Use a
+        # time limit so our test doesn't hang on failure.
+        with time_limit(1):
+            self.input_queue.join()
+
+        # Give it a moment to die, then ensure it's dead.
+        sleep(0.01)
+        self.assertFalse(self.p.is_alive())
 
 
 class LoggingThreadTestCase(unittest.TestCase):

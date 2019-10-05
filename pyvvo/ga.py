@@ -1289,6 +1289,9 @@ def _evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
 
         # Terminate if None is received.
         if ind is None:
+            # Mark the task as done so joins won't hang later.
+            input_queue.task_done()
+            # We're done here. Deuces.
             return
 
         try:
