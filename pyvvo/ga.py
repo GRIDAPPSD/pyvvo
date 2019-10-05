@@ -2083,6 +2083,66 @@ class Population:
                  'all individuals have been evaluated, and try again.')
             raise TypeError(s) from None
 
+    @utils.wait_for_lock
+    def graceful_shutdown(self):
+        """Helper to "gracefully" stop an in-progress run of
+        evaluate_population. By "gracefully", I mean that no processes
+        will be terminated mid-run. Instead, the queue will be emptied
+        out, and then the processes terminated.
+
+        For now, "graceful" does not mean that we can simply resume
+        where we left off. If that is desired later, it'll be pretty
+        similar to this method, and not too complicated.
+
+        Note this method is intended to be run quickly and exit. It will
+        not wait for the processes to finish. If the processes should
+        be waited on, this should happen outside of this method.
+
+        Check the all_processes_dead attribute to ensure everything's
+        been killed.
+        """
+        self.log.warning('Gracefully stopping genetic algorithm evaluation.')
+
+        # Drain the input queue. This will prevent any further
+        # individuals from being evaluated.
+        _drain_queue(self.input_queue)
+
+        # Drain the output queue. This will prevent extra work from
+        # being done later.
+        _drain_queue(self.output_queue)
+
+        # Send in the shutdown signal to all the processes.
+        for _ in range(len(self.processes)):
+            self.input_queue.put_nowait(None)
+
+        # Log.
+        self.log.info('The input and output queues have been drained, and the '
+                      'termination signal has been sent to the processes.')
+
+        # We're done here. Actually waiting for the processes to finish
+        # should be done elsewhere - we don't want this method to wait.
+        return None
+
+    def forceful_shutdown(self):
+        """This is a bit tricky due to (probably) bad design. We have
+        each process attached to a target, in this case that target is
+        _evaluate_worker. During the course of running, the process
+        opens up a subprocess to run GridLAB-D. Currently, that's done
+        with subprocess.run, which doesn't allow us to kill the
+        running subprocess. I'm concerned that if we just send the
+        terminate or kill signal to the process, the GridLAB-D process
+        will either keep running or die in a way that causes issues
+        (like bad stuff with MySQL). In the former case (GLD keeps
+        running), the forceful shutdown is practically pointless. Sure,
+        it'll save some queries to the database during evaluation, but
+        that's not where the heavy lifting is. In the latter case (the
+        GLD process is forcefully stopped), we could totally hose
+        things. So, until there's a compelling reason to implement a
+        forceful shutdown, let's call it good with the graceful
+        shutdown.
+        """
+        raise NotImplementedError
+
 
 class ChromosomeAlreadyExistedError(Exception):
     """Raised if a chromosome has already been existed.
@@ -2135,7 +2195,8 @@ def _dump_queue(q, i):
 
 def _drain_queue(q):
     """Helper to simply clear out a queue. The items in the queue will
-    be discarded.
+    be discarded. If the queue is joinable (has a task_done() method),
+    it will be called for each get_nowait() call.
 
     :param q: A queue.Queue lik object (e.g.
         multiprocessing.JoinableQueue)
@@ -2145,6 +2206,11 @@ def _drain_queue(q):
     while True:
         try:
             q.get_nowait()
+            try:
+                q.task_done()
+            except AttributeError:
+                pass
+
         except queue.Empty:
             break
 

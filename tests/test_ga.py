@@ -1362,6 +1362,17 @@ class MockIndividual2(MockIndividual):
         raise RuntimeError('Dummy error for testing.')
 
 
+class SleepyMockIndividual(MockIndividual):
+    """Same as MockIndividual, except evaluate sleeps."""
+
+    sleep_time = 0.02
+
+    def evaluate(self, *args, **kwargs):
+        sleep(self.sleep_time)
+        self.fitness = 1
+        self.penalties = {'p1': 10, 'p2': 30, 'p3': 0.1}
+
+
 class EvaluateWorkerBadInputTestCase(unittest.TestCase):
 
     def test_bad_input_queue(self):
@@ -1607,24 +1618,44 @@ class DumpQueueTestCase(unittest.TestCase):
 class DrainQueueTestCase(unittest.TestCase):
     """Test _drain_queue."""
 
-    def setUp(self):
-        self.q = mp.Queue()
+    def test_drain_makes_empty_joinable(self):
+
+        q = mp.JoinableQueue()
 
         for n in range(4, 7):
-            self.q.put(n)
+            q.put(n)
 
         # Need to sleep so that empty won't return False while the
         # background thread dumps stuff into the queue.
         sleep(0.01)
+        self.assertFalse(q.empty())
 
-    def test_drain_makes_empty(self):
-        self.assertFalse(self.q.empty())
-
-        ga._drain_queue(self.q)
+        ga._drain_queue(q)
 
         sleep(0.01)
 
-        self.assertTrue(self.q.empty())
+        self.assertTrue(q.empty())
+
+        # Ensure all tasks were marked as done.
+        with time_limit(1):
+            q.join()
+
+    def test_drain_makes_empty_not_joinable(self):
+        q = mp.Queue()
+
+        for n in range(4, 7):
+            q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+        self.assertFalse(q.empty())
+
+        ga._drain_queue(q)
+
+        sleep(0.01)
+
+        self.assertTrue(q.empty())
 
 
 class PopulationTestCase(unittest.TestCase):
@@ -2428,6 +2459,51 @@ class PopulationTestCase(unittest.TestCase):
     #     finally:
     #         # Release the lock.
     #         self.pop_obj._lock.release()
+
+    def test_graceful_shutdown(self):
+        """Ensure the graceful shutdown method empties out the queues
+        and stops the processes.
+        """
+        # Initialize fresh population object.
+        pop = self.helper_create_pop_obj()
+
+        # Sleep for a bit since multiprocessing stuff takes finite
+        # time.
+        sleep(0.01)
+
+        # Ensure all our processes are running and good to go.
+        self.assertTrue(pop.all_processes_alive)
+
+        # Load up the input queue with mock individuals that sleep when
+        # evaluate is called. Note we put 2 times as many individuals
+        # in the queue as there are processes.
+        for _ in range(2 * len(pop.processes)):
+            pop.input_queue.put_nowait(SleepyMockIndividual())
+
+        # Shut things down. Sleep to allow the processes to extract the
+        # individuals.
+        sleep(0.01)
+        with self.assertLogs(logger=pop.log, level='WARNING'):
+            pop.graceful_shutdown()
+
+        # The input queue should be empty.
+        self.assertTrue(pop.input_queue.empty())
+
+        # After waiting for all tasks in the input queue to be marked
+        # as complete, the output queue should have the same size as
+        # the number of processes.
+        with time_limit(1):
+            pop.input_queue.join()
+
+        self.assertEqual(len(pop.processes), pop.output_queue.qsize())
+
+        # At this point, all the processes should be dead. Sleep to
+        # ensure processes have time to die.
+        sleep(0.01)
+        self.assertTrue(pop.all_processes_dead)
+
+    def test_forceful_shutdown(self):
+        self.assertRaises(NotImplementedError, self.pop_obj.forceful_shutdown)
 
 
 class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
