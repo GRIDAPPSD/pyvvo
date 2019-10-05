@@ -1373,6 +1373,35 @@ def _logging_thread(logging_queue):
                               'evaluation.'.format(log_dict['uid']))
 
 
+def _progress_thread(input_queue, output_queue, log, num_processes,
+                     interval=5):
+    """Log size of input and output queues every interval seconds.
+
+    :param input_queue: threading.Queue like object with a qsize()
+        method. This queue should hold individuals waiting to be
+        evaluated.
+    :param output_queue: Same as input_queue, but holds individuals
+        which have already been evaluated.
+    :param log: logging.Logger object to log to.
+    :param num_processes: Number of processes used for evaluation. This
+        represents approximately how many individuals are in progress
+        at any given time.
+    :param interval: Time (seconds) to wait between logging calls.
+    """
+    while True:
+        size_in = input_queue.qsize()
+        size_out = output_queue.qsize()
+        log.info('Approximately {} individuals have been evaluated, {} '
+                 'are in the queue, and {} are currently being evaluated.'
+                 .format(size_out, size_in, num_processes))
+
+        # If the input queue is empty, quit.
+        if size_in == 0:
+            return
+
+        time.sleep(interval)
+
+
 class Population:
     """Class for managing a population of individuals for the GA."""
 
@@ -1496,6 +1525,9 @@ class Population:
         self._tournament_size = math.ceil(self._tournament_fraction
                                           * self._population_size)
 
+        # Logging interval for using during calls to "evaluate".
+        self._log_interval = CONFIG['ga']['log_interval']
+
         ################################################################
 
     ####################################################################
@@ -1577,6 +1609,11 @@ class Population:
         ceil(population_size * tournament_fraction)
         """
         return self._tournament_size
+
+    @property
+    def log_interval(self):
+        """How often (seconds) to log during evaluation."""
+        return self._log_interval
 
     ####################################################################
     # Initializer inputs.
@@ -1974,6 +2011,18 @@ class Population:
                 # population since we'll be retrieving the evaluated
                 # version later.
                 idx.append(i)
+
+        # Start a thread to log progress.
+        # TODO: are we okay with the consequences if this thread doesn't
+        #   ever get properly shut down? I think so. Eventually the
+        #   queues will get emptied or deleted, and the thread will die.
+        t = threading.Thread(target=_progress_thread,
+                             kwargs={'input_queue': self.input_queue,
+                                     'output_queue': self.output_queue,
+                                     'log': self.log,
+                                     'num_processes': len(self.processes),
+                                     'interval': self.log_interval})
+        t.start()
 
         # Make a new version of the population sans the individuals
         # who are currently being evaluated.

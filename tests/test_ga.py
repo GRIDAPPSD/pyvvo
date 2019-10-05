@@ -2015,7 +2015,8 @@ class PopulationTestCase(unittest.TestCase):
         for _ in range(pop_obj.population_size):
             pop_obj.population.append(MockIndividual())
 
-        pop_obj.evaluate_population()
+        with self.assertLogs(logger=pop_obj.log, level='INFO'):
+            pop_obj.evaluate_population()
 
         # evaluate_population overrides the part of the population which
         # has not yet been evaluated, so make sure we get the same
