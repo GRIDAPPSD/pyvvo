@@ -1356,15 +1356,12 @@ def _logging_thread(logging_queue):
 
         except KeyError:
             # Log the individual completion.
-            # TODO: We may want this to be a debug message instead.
-            LOG.info(
-                'Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
-                .format(log_dict['uid'], log_dict['time'], log_dict['fitness'])
+            LOG.debug(
+                'Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.\n'
+                'Penalties:\n{}'
+                .format(log_dict['uid'], log_dict['time'], log_dict['fitness'],
+                        json.dumps(log_dict['penalties'], indent=4))
             )
-
-            LOG.debug("Individual {}'s penalties:\n{}"
-                      .format(log_dict['uid'],
-                              json.dumps(log_dict['penalties'], indent=4)))
 
         else:
             # We have an error.

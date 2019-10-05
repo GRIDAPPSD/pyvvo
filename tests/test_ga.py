@@ -1505,13 +1505,6 @@ class LoggingThreadTestCase(unittest.TestCase):
         """
         self.assertTrue(self.t.is_alive())
 
-        # Ensure we get an info message.
-        with self.assertLogs(level='INFO', logger=ga.LOG):
-            self.q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16},
-                        'time': 5})
-            # Sleep to ensure we get logs out.
-            sleep(0.01)
-
         # Ensure we get a debug message.
         with self.assertLogs(level='DEBUG', logger=ga.LOG):
             self.q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16},
@@ -2499,7 +2492,7 @@ class PopulationTestCase(unittest.TestCase):
 
         # At this point, all the processes should be dead. Sleep to
         # ensure processes have time to die.
-        sleep(0.01)
+        sleep(0.02)
         self.assertTrue(pop.all_processes_dead)
 
     def test_forceful_shutdown(self):
