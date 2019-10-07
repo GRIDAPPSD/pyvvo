@@ -2077,6 +2077,27 @@ class PopulationTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'evaluate_population should '):
             self.pop_obj.evaluate_population()
 
+    def test_evaluate_population_dead_process(self):
+        """We should get an error if there's a dead process."""
+        # Initialize population object.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Override it's population so we can bypass the first exception.
+        pop_obj._population = [None for _ in range(pop_obj.population_size)]
+
+        # Grab a reference to a process, and kill it.
+        p = pop_obj.processes[0]
+        p.terminate()
+
+        # Don't move on until the processes registers as dead.
+        while p.is_alive():
+            sleep(0.01)
+
+        # Try to evaluate the population.
+        with self.assertRaisesRegex(ga.DeadProcessError,
+                                    'evaluate_population called, but not all'):
+            pop_obj.evaluate_population()
+
     def test_natural_selection(self):
         # Get a new population object to avoid state contamination.
         n = 10

@@ -1999,6 +1999,14 @@ class Population:
             raise ValueError('evaluate_population should only be '
                              'called when the population is full.')
 
+        # Throw an error if all of our processes aren't alive.
+        # Technically this can run if just one is alive, but that would
+        # cause the algorithm to run very slowly.
+        if not self.all_processes_alive:
+            m = 'evaluate_population called, but not all processes are alive!'
+            self.log.error(m)
+            raise DeadProcessError(m)
+
         # Initialize list of indices for individuals we're evaluating.
         idx = []
 
@@ -2190,9 +2198,21 @@ class Population:
         raise NotImplementedError
 
 
-class ChromosomeAlreadyExistedError(Exception):
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class ChromosomeAlreadyExistedError(Error):
     """Raised if a chromosome has already been existed.
     """
+    pass
+
+
+class DeadProcessError(Error):
+    """Raised when a Population object has a dead process but shouldn't.
+    """
+    pass
 
 
 def _tournament(population, tournament_size, n):
