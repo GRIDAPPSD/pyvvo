@@ -513,7 +513,8 @@ class PlatformManager:
 
     def run_simulation(self, feeder_id, start_time, duration, realtime,
                        applications=None, random_zip=False,
-                       houses=False):
+                       houses=False, z_fraction=0, i_fraction=1,
+                       p_fraction=0):
         """Start a simulation and return the simulation ID.
 
         For now, this is hard-coded to the point where it'll likely only
@@ -529,6 +530,9 @@ class PlatformManager:
         :param random_zip: Boolean, whether to randomize zip loads.
         :param houses: Boolean, whether or not to use houses in the
             simulation.
+        :param z_fraction: Impedance fraction for loads.
+        :param i_fraction: Current fraction for loads.
+        :param p_fraction: Power fraction for loads.
         """
         if applications is None:
             applications = []
@@ -556,8 +560,9 @@ class PlatformManager:
                     "model_creation_config": {
                         "load_scaling_factor": "1",
                         "schedule_name": "ieeezipload",
-                        "z_fraction": "0", "i_fraction": "1",
-                        "p_fraction": "0",
+                        "z_fraction": str(z_fraction),
+                        "i_fraction": str(i_fraction),
+                        "p_fraction": str(p_fraction),
                         "randomize_zipload_fractions": random_zip,
                         "use_houses": houses}},
                 "test_config": {"events": [],
