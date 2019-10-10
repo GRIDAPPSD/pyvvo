@@ -5,7 +5,7 @@ from datetime import datetime
 from copy import deepcopy
 import multiprocessing as mp
 import threading
-from time import sleep
+from time import sleep, time
 import itertools
 
 import tests.data_files as _df
@@ -2632,94 +2632,286 @@ class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
                     self.assertEqual(0, sc.state)
 
 
-class MainTestCase(unittest.TestCase):
-    """Test the 'main' method in ga.py."""
+class GAInitTestCase(unittest.TestCase):
+    """Test initialization of the GA class. DO NOT RUN ANY METHODS."""
 
     @classmethod
-    def setUpClass(cls):
-        cls.glm_mgr = GLMManager(IEEE_9500)
-        # 20 second model runtime.
-        cls.starttime = datetime(2013, 4, 1, 12, 0)
-        cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
+    def setUpClass(cls) -> None:
+        cls.regs = {'some': 'dict'}
+        cls.caps = {'other': 'dict'}
+        cls.starttime = datetime(2019, 10, 7, 11, 47)
+        cls.stoptime = datetime(2019, 10, 7, 12, 47)
+        cls.stop_timeout = 10
 
-        # Get regulators and capacitors.
-        reg_df = pd.read_csv(_df.REGULATORS_9500)
-        cap_df = pd.read_csv(_df.CAPACITORS_9500)
+        cls.ga_obj = ga.GA(regulators=cls.regs, capacitors=cls.caps,
+                           starttime=cls.starttime, stoptime=cls.stoptime,
+                           stop_timeout=cls.stop_timeout)
 
-        cls.regs = equipment.initialize_regulators(reg_df)
-        cls.caps = equipment.initialize_capacitors(cap_df)
+    def test_regs(self):
+        """Ensure a copy is made."""
+        self.assertIsNot(self.ga_obj.regulators, self.regs)
+        self.assertDictEqual(self.ga_obj.regulators, self.regs)
 
-        # It seems we don't have a way of getting capacitor state from
-        # the CIM (which is where those DataFrames originate from). So,
-        # let's randomly command each capacitor.
-        for c in cls.caps.values():
-            if isinstance(c, equipment.CapacitorSinglePhase):
-                c.state = np.random.randint(low=0, high=2, size=None,
-                                            dtype=int)
-            elif isinstance(c, dict):
-                for cc in c.values():
-                    cc.state = np.random.randint(low=0, high=2, size=None,
-                                                 dtype=int)
+    def test_caps(self):
+        """Ensure a copy is made."""
+        self.assertIsNot(self.ga_obj.capacitors, self.caps)
+        self.assertDictEqual(self.ga_obj.capacitors, self.caps)
 
-    def test_methods_called_correctly(self):
-        """Do plenty of patching, and just ensure everything is called
-        correctly.
+    def test_starttime(self):
+        self.assertEqual(self.starttime, self.ga_obj.starttime)
+
+    def test_stoptime(self):
+        self.assertEqual(self.stoptime, self.ga_obj.stoptime)
+
+    def test_stop_timeout(self):
+        self.assertEqual(self.stop_timeout, self.ga_obj.stop_timeout)
+
+    def test_population(self):
+        self.assertIsNone(self.ga_obj.population)
+
+    def test_run_thread(self):
+        self.assertIsNone(self.ga_obj.run_thread)
+
+    def test_run_event(self):
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+    def test_not_running_event(self):
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+
+    def test_running(self):
+        self.assertFalse(self.ga_obj.running)
+
+
+class ClearAndSetEventTestCase(unittest.TestCase):
+    """Test that _clear_and_set_event works as expected.
+    """
+
+    def test_simple(self):
+
+        # Define a simple class for testing this.
+        class MyClass:
+            def __init__(self):
+                self._not_running_event = threading.Event()
+                self._not_running_event.set()
+
+            @ga._clear_and_set_event
+            def sleep_a_bit(self):
+                sleep(0.05)
+
+        # Initialize class object.
+        obj = MyClass()
+
+        # At this point in time, the _not_running_event should be set.
+        self.assertTrue(obj._not_running_event.is_set())
+
+        # Start a thread to run sleep_a_bit.
+        t = threading.Thread(target=obj.sleep_a_bit)
+        t.start()
+
+        # Wait a small amount (less than sleep_a_bit) for the thread to
+        # get going.
+        sleep(0.01)
+
+        # Now, the event should be cleared by the decorator.
+        self.assertFalse(obj._not_running_event.is_set())
+
+        # Sleep the duration of sleep_a_bit in order to let the event
+        # get reset.
+        sleep(0.05)
+
+        self.assertTrue(obj._not_running_event.is_set())
+
+
+class GATestCase(unittest.TestCase):
+    """Test the GA class in ga.py. Initialization tests are handled in
+    the GAInitTestCase, so here we'll focus on running the methods.
+    However, we'll patch long running processes.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.regs = {'some': 'dict'}
+        cls.caps = {'other': 'dict'}
+        cls.starttime = datetime(2019, 10, 7, 11, 47)
+        cls.stoptime = datetime(2019, 10, 7, 12, 47)
+        cls.stop_timeout = 0.5
+
+    def setUp(self) -> None:
+        self.ga_obj = ga.GA(regulators=self.regs, capacitors=self.caps,
+                            starttime=self.starttime, stoptime=self.stoptime,
+                            stop_timeout=self.stop_timeout)
+
+    def test_run_copies_glm_mgr(self):
+        """Ensure that when "run" is called, a copy of the GLMManager is
+        made.
         """
+        mgr = NonCallableMagicMock()
+        with patch.object(self.ga_obj, '_run') as p:
+            self.ga_obj.run(mgr)
 
-        # Create a mock individual and assign it a fitness value.
-        mock_ind = MockIndividual()
-        mock_ind.fitness = 10
+        # Sleep a little to ensure the function gets called by the
+        # thread.
+        sleep(0.005)
 
-        # Create a mock to be returned by Population()
-        mock_pop = NonCallableMagicMock()
-        mock_pop.population = [mock_ind]
+        # Our run method should be called a single time.
+        p.assert_called_once()
 
-        # Number of generations:
-        g = 3
+        # Ensure a copy was made.
+        self.assertIsNot(p.call_args[1]['glm_mgr'], mgr)
 
-        with patch('pyvvo.ga.Population', return_value=mock_pop,
-                   autospec=True) as p_pop:
-            with patch('pyvvo.ga._update_equipment_with_individual',
-                       autospec=True) as p_update:
-                with patch.dict(ga.CONFIG['ga'], {'generations': g}):
-                    regs, caps = \
-                        ga.main(regulators=self.regs, capacitors=self.caps,
-                                glm_mgr=self.glm_mgr, starttime=self.starttime,
-                                stoptime=self.stoptime)
+    @patch('pyvvo.ga._update_equipment_with_individual')
+    def test_running_attribute(self, update_mock):
+        """Ensure the "running" attribute properly reflects whether or
+        not the GA is running.
 
-        p_pop.assert_called_once()
-        p_pop.assert_called_with(regulators=self.regs, capacitors=self.caps,
-                                 glm_mgr=self.glm_mgr,
-                                 starttime=self.starttime,
-                                 stoptime=self.stoptime)
+        This method seems to be really fragile on the patching front,
+        and I simply cannot figure out why. I had to put the patch
+        for _update_equipment_with_individual as a decorator, as it
+        simply would not work (the patch wouldn't get applied) if I
+        nested it with the patch of Population.
+        """
+        sleep_time = 0.05
 
-        # We only initialize the population once.
-        mock_pop.initialize_population.assert_called_once()
+        def sleep_a_bit(*args, **kwargs):
+            sleep(sleep_time)
 
-        # All the GA methods should be called once per generation,
-        # except for evaluate which gets called once extra.
-        self.assertEqual(g+1, mock_pop.evaluate_population.call_count)
-        self.assertEqual(g, mock_pop.natural_selection.call_count)
-        self.assertEqual(g, mock_pop.crossover_and_mutate.call_count)
+        # Mock a GLMManager.
+        mgr = NonCallableMagicMock()
 
-        # If we weren't mocking the Population object, sort_population
-        # would be called more since it's called within
-        # natural_selection. However, for the purposes of this test we
-        # need to ensure it's just called once.
-        mock_pop.sort_population.assert_called_once()
+        # Need this for a logging call.
+        pop_mock = NonCallableMagicMock()
+        pop_mock.population = [MockIndividual()]
+        pop_mock.population[0].fitness = 3
+        # Ensure we "sleep a bit" once in the "_run" function.
+        pop_mock.initialize_population.side_effect = sleep_a_bit
 
-        # Ensure we correctly call _update_equipment_with_individual.
-        p_update.assert_called_once()
-        p_update.assert_called_with(ind=mock_ind, regs=self.regs,
-                                    caps=self.caps)
+        # Patch the Population initializer as well as
+        # _update_equipment_with_individual so the "_run" method of
+        # GA will run without error.
+        with patch('pyvvo.ga.Population', return_value=pop_mock) as p1:
+            # I'm not sure why patching here didn't work, but moving the
+            # patch to a decorator does. Getting some odd behavior...
+            # with patch('pyvvo.ga._update_equipment_with_individual') as p2:
 
-        # Finally, ensure our returns are indeed the given regulators
-        # and capacitors.
-        # IMPORTANT NOTE: IN THE NON-PATCHED IMPLEMENTATION, THIS WILL
-        # NOT BE TRUE, AS THE OBJECTS WILL GET PICKLED FOR
-        # MULTIPROCESSING.
-        self.assertIs(regs, self.regs)
-        self.assertIs(caps, self.caps)
+            # To begin, we shouldn't be running.
+            self.assertFalse(self.ga_obj.running)
+            # Run.
+            self.ga_obj.run(glm_mgr=mgr)
+
+        # Wait a short amount of time for the thread's activity to
+        # start.
+        sleep(sleep_time / 5)
+
+        # We've slept less than the sleeping happening (via patch)
+        # inside the "_run" method, so the method should be running.
+        self.assertTrue(self.ga_obj.running)
+
+        # Sleep more to ensure the "_run" thread stops.
+        sleep_a_bit()
+
+        # Ensure our mocks were used. This is just here because I was
+        # having a ridiculously hard time getting my mocks to work...
+        p1.assert_called_once()
+        update_mock.assert_called_once()
+        pop_mock.initialize_population.assert_called_once()
+
+        # At this point, the "_run" thread should have stopped, thus
+        # flipping the "running" flag.
+        self.assertFalse(self.ga_obj.running)
+
+    def test_run_if_set(self):
+        """Ensure our _run_if_set method behaves correctly."""
+        # The run_event should start set.
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # I should be able to call a little helper function.
+        def dumb_func(a, b):
+            return "Hello, {}, hello, {}".format(a, b)
+
+        out = self.ga_obj._run_if_set(dumb_func, 'Brandon', b='someone else')
+
+        self.assertEqual(out, "Hello, Brandon, hello, someone else")
+
+        # Now, if I toggle the run event (clear it), I should get an
+        # exception.
+        self.ga_obj._run_event.clear()
+
+        with self.assertRaisesRegex(ga.GAInterruptedError,
+                                    "The genetic algorithm was interrupted."):
+            with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+                self.ga_obj._run_if_set(print, 'stuff')
+
+    def test_stop_when_not_running(self):
+        """We should get a warning if we try to stop the algorithm
+        when it isn't running.
+        """
+        self.assertFalse(self.ga_obj.running)
+
+        with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+            self.ga_obj.stop()
+
+    def test_stop(self):
+        """stop() should trigger a graceful shutdown in the genetic
+        algorithm.
+        """
+        # We should start "not running"
+        self.assertFalse(self.ga_obj.running)
+
+        # However, we should be able to run, as indicated by the
+        # run_event.
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # Fake running by toggling the _not_running_event.
+        self.ga_obj._not_running_event.clear()
+        self.assertTrue(self.ga_obj.running)
+
+        # Patch the population object and call stop.
+        with patch.object(self.ga_obj, '_population') as p:
+            self.ga_obj.stop()
+
+        # Calling stop signals that the algorithm is not allowed to
+        # run.
+        self.assertFalse(self.ga_obj.run_event.is_set())
+
+        # Set the _not_running_event, indicating the algorithm is no
+        # longer running.
+        self.ga_obj._not_running_event.set()
+
+        # After the _not_running_event flag gets set (and after a
+        # small delay due to threading), the the algorithm should be
+        # allowed to run again.
+        sleep(0.05)
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # The graceful_shutdown() method should have been called once.
+        p.graceful_shutdown.assert_called_once()
+
+    def test_set_run_event_after_run_times_out(self):
+        """Ensure _set_run_event_after_run times out as it should."""
+        # Clear the _not_running_event to cause _set_run_event_after_run
+        # to wait.
+        self.ga_obj._not_running_event.clear()
+
+        # We should get a warning.
+        with patch.object(self.ga_obj, 'stop_timeout', new=0.01):
+            with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+                self.ga_obj._set_run_event_after_run()
+
+    def test_set_run_event_sets_run_event(self):
+        """Ensure _set_run_event_after_run actually does that :)"""
+        # Ensure the _not_running_event is set so we don't get any
+        # timeouts.
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+
+        # Clear the _run_event.
+        self.ga_obj._run_event.clear()
+        self.assertFalse(self.ga_obj.run_event.is_set())
+
+        # Call the method.
+        self.ga_obj._set_run_event_after_run()
+
+        # The _run_event should now be set.
+        self.assertTrue(self.ga_obj.run_event.is_set())
 
 
 if __name__ == '__main__':

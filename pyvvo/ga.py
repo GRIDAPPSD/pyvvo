@@ -1,6 +1,4 @@
 """Module for pyvvo's genetic algorithm.
-
-TODO: Create some sort of configuration file, like ga_config.json.
 """
 # Standard library:
 import multiprocessing as mp
@@ -12,6 +10,8 @@ import time
 import operator
 import math
 import itertools
+import copy
+from functools import wraps
 
 # Third party:
 import numpy as np
@@ -2215,6 +2215,10 @@ class DeadProcessError(Error):
     pass
 
 
+class GAInterruptedError(Error):
+    """Raised when the genetic algorithm is externally interrupted."""
+
+
 def _tournament(population, tournament_size, n):
     """Helper for performing tournament selection.
 
@@ -2354,68 +2358,327 @@ def _update_equipment_with_individual(ind, regs, caps):
     # And we're done!
 
 
-def main(regulators, capacitors, glm_mgr, starttime, stoptime):
-    """Function to run the GA in its entirety.
+def _clear_and_set_event(method):
+    """Decorator for use with the GA class to clear() a threading.Event
+    object while a method is running, and set() the event after. For
+    now, this decorator is hard-coded to use the _not_running_event
+    attribute of the GA object. This could be made more generic by
+    following advice found
+    `here <https://stackoverflow.com/a/10176276>`_.
 
-    :param regulators: dictionary as returned by
-        equipment.initialize_regulators. WARNING: The states of these
-        objects will be altered after the algorithm has run. It is
-        recommended that a deepcopy be passed in.
-    :param capacitors: dictionary as returned by
-        equipment.initialize_capacitors/ WARNING: The states of these
-        objects will be altered after the algorithm has run. It is
-        recommended that a deepcopy be passed in.
-    :param glm_mgr: glm.GLMManager object. The model will be updated
-        via this modules 'prep_glm_mgr' function, so this object should
-        just be the raw model from the platform. WARNING: This object
-        will be modified, so it is recommended that a deepcopy be
-        passed in.
-    :param starttime: Python datetime object for simulation start. For
-        more details, see the docstring for prep_glm_mgr.
-    :param stoptime: Python datetime object for simulation end. See
-        prep_glm_mgr.
-
-    :returns: regulators, capacitors after state modification.
+    NOTE: An exception will be raised if the _not_running_event is
+    already set at the beginning of this method.
     """
-    # We'll time the algorithm runtime.
-    t0 = time.time()
-    # Initialize the Population object.
-    pop = Population(regulators=regulators, capacitors=capacitors,
-                     glm_mgr=glm_mgr, starttime=starttime,
-                     stoptime=stoptime)
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # Raise an exception if _not_running_event is not already set.
+        if not self._not_running_event.is_set():
+            raise RuntimeError('The _not_running_event is set when it '
+                               'should not be. This could mean that "run" was '
+                               'called before a previous call to "run" had '
+                               'finished.')
 
-    # Fill the population with individuals.
-    pop.initialize_population()
-    # Evaluate each individual. This will take some time.
-    pop.evaluate_population()
+        # Clear the event to indicate the method is running.
+        self._not_running_event.clear()
 
-    # Loop over the generations to perform natural selection, crossover,
-    # and mutation.
-    g = 1
-    while g <= CONFIG['ga']['generations']:
-        pop.natural_selection()
-        # The best individual will always be in position 0 after
-        # natural selection.
-        best = pop.population[0]
-        LOG.info('After generation {}, best fitness: {:.2f} from individual {}'
-                 .format(g, best.fitness, best.uid))
-        pop.crossover_and_mutate()
-        pop.evaluate_population()
-        g += 1
+        # Run the method.
+        try:
+            result = method(self, *args, **kwargs)
+        finally:
+            # Set the event to indicate the method is not running.
+            self._not_running_event.set()
 
-    # Sort the population.
-    pop.sort_population()
-    t1 = time.time()
-    best = pop.population[0]
-    LOG.info('Best overall fitness: {:.2f} from individual {}'
-             .format(best.fitness, best.uid))
+        return result
 
-    LOG.info('Total GA run time: {:.2f}'.format(t1-t0))
+    return wrapper
 
-    # Update the regulators and capacitors with the positions given by
-    # the best individual.
-    _update_equipment_with_individual(ind=best, regs=regulators,
-                                      caps=capacitors)
 
-    # And we're done!
-    return regulators, capacitors
+class GA:
+    """Class for managing the genetic algorithm. Use the "run" and
+    "stop" methods to start/stop the algorithm."""
+
+    def __init__(self, regulators, capacitors, starttime, stoptime,
+                 stop_timeout=120.0):
+        """
+        :param regulators: dictionary as returned by
+            equipment.initialize_regulators. Since the states of
+            these objects will be altered after the algorithm has run,
+            a deepcopy will be made.
+        :param capacitors: dictionary as returned by
+            equipment.initialize_capacitors. Since the states of
+            these objects will be altered after the algorithm has run,
+            a deepcopy will be made.
+        :param starttime: Python datetime object for simulation start.
+            For more details, see the docstring for prep_glm_mgr.
+        :param stoptime: Python datetime object for simulation end. See
+            prep_glm_mgr.
+        :param stop_timeout: Timeout (seconds) for waiting on the
+            algorithm to stop after the "stop" method is called. If this
+            timeout is exceeded, future calls to "run" will do nothing.
+        """
+        # Set up logging.
+        self.log = logging.getLogger(__class__.__name__)
+
+        # Assign inputs as attributes. Make copies of mutable objects
+        # which will be modified.
+        self._regulators = copy.deepcopy(regulators)
+        self._capacitors = copy.deepcopy(capacitors)
+        self._starttime = starttime
+        self._stoptime = stoptime
+        self.stop_timeout = stop_timeout
+
+        # Initialize attribute which will be replaced with a Population
+        # object once the algorithm is running.
+        self._population = None
+
+        # Initialize attribute which will be replaced with a thread
+        # while the genetic algorithm is running.
+        self._run_thread = None
+
+        # Initialize event for signaling algorithm interruption.
+        # If this event is set, the GA can run. If it is not set, the
+        # GA cannot run.
+        self._run_event = threading.Event()
+        self._run_event.set()
+
+        # Initialize event for tracking if the genetic algorithm is
+        # running. If not set, the GA is currently running. If set,
+        # the GA is not running.
+        self._not_running_event = threading.Event()
+        self._not_running_event.set()
+
+    @property
+    def regulators(self):
+        """Dictionary as returned by equipment.initialize_regulators.
+        The underlying regulator object states will be modified by the
+        algorithm"""
+        return self._regulators
+
+    @property
+    def capacitors(self):
+        """Dictionary as returned by equipment.initialize_capacitors.
+        The underlying capacitor object states will be modified by the
+        algorithm."""
+        return self._capacitors
+
+    @property
+    def starttime(self):
+        """Python datetime object for simulation start. For more
+        details, see the docstring for prep_glm_mgr."""
+        return self._starttime
+
+    @property
+    def stoptime(self):
+        """Python datetime object for simulation end. For more
+        details, see the docstring for prep_glm_mgr."""
+        return self._stoptime
+
+    @property
+    def population(self):
+        """ga.Population object, or None if the algorithm has not yet
+        been run.
+        """
+        return self._population
+
+    @property
+    def run_thread(self):
+        """Thread used to run the genetic algorithm."""
+        return self._run_thread
+
+    @property
+    def running(self):
+        """True if the genetic algorithm is running, False otherwise."""
+        return not self._not_running_event.is_set()
+
+    @property
+    def run_event(self):
+        """threading.Event object. If self.run_event.is_set() returns
+        True, the genetic algorithm is permitted to run. If is_set()
+        instead returns False, the genetic algorithm is not permitted
+        to run, and will begin shutting down if it was in progress.
+        """
+        return self._run_event
+
+    def run(self, glm_mgr):
+        """Run the genetic algorithm. This runs the algorithm in a
+        thread for easy interruption. It will return before the genetic
+        algorithm is complete (as soon as the thread is started).
+
+        :param glm_mgr: glm.GLMManager object. The model will be updated
+            via this modules 'prep_glm_mgr' function, so this object
+            should just be the raw model from the platform. Since the
+            states of these objects will be altered after the algorithm
+            has run, a deepcopy will be made.
+        """
+        # Copy the GLMManager.
+        mgr_copy = copy.deepcopy(glm_mgr)
+
+        # Create and start thread.
+        self._run_thread = threading.Thread(target=self._run,
+                                            kwargs={'glm_mgr': mgr_copy})
+        self._run_thread.start()
+
+        # That's it!
+        return None
+
+    @_clear_and_set_event
+    def _run(self, glm_mgr):
+        """Private method for running the genetic algorithm. Don't ever
+        use this directly, use the public "run" method instead.
+
+        This method makes extensive use of the "_run_if_set" helper
+        function so that the algorithm can be interrupted as quickly
+        as possible if/when "stop" is called.
+
+        Also note this method is decorated by _clear_and_set_event. This
+        is used to flag when the genetic algorithm is running by
+        clearing the _not_running_event before the starting the method,
+        and then setting the _not_running_event after completion (no
+        matter what happens).
+
+        :param glm_mgr: glm.GLMManager object. The model will be updated
+            via this modules 'prep_glm_mgr' function, so this object
+            should just be the raw model from the platform.
+        """
+        # We'll time the algorithm runtime.
+        t0 = time.time()
+
+        # Initialize the Population object.
+        self._population = Population(regulators=self.regulators,
+                                      capacitors=self.capacitors,
+                                      glm_mgr=glm_mgr,
+                                      starttime=self.starttime,
+                                      stoptime=self.stoptime)
+
+        try:
+            # Fill the population with individuals.
+            self._run_if_set(self.population.initialize_population)
+
+            # Evaluate each individual. This will take some time.
+            self._run_if_set(self.population.evaluate_population)
+
+            # Loop over the generations to perform natural selection,
+            # crossover, and mutation.
+            g = 1
+            while g <= CONFIG['ga']['generations']:
+                self._run_if_set(self.population.natural_selection)
+                # The best individual will always be in position 0 after
+                # natural selection.
+                self._run_if_set(self._log_best_each_gen, g)
+
+                self._run_if_set(self.population.crossover_and_mutate)
+                self._run_if_set(self.population.evaluate_population)
+                g += 1
+
+            # Sort the population.
+            self._run_if_set(self.population.sort_population)
+
+            # Log.
+            self._run_if_set(self._log_best_overall, t0)
+
+            # Update the regulators and capacitors with the positions
+            # given by the best individual.
+            self._run_if_set(_update_equipment_with_individual,
+                             ind=self.population[0], regs=self.regulators,
+                             caps=self.capacitors)
+        except GAInterruptedError:
+            # One of our many "_run_if_set" wrappers raised this,
+            # indicating the algorithm was interrupted. Return.
+            return None
+
+        # Nothing to return here, as the objects themselves get updated.
+        return None
+
+    def _run_if_set(self, func, *args, **kwargs):
+        """Helper to run a function if self.run_event.is_set() returns
+        True. This method should only be called from within the _run
+        method.
+
+        :param func: Function to run.
+        :param args: Positional arguments to pass to func.
+        :param kwargs: Keyword arguments to pass to func.
+
+        :returns: Directly returns the return from running func.
+
+        :raises GAInterruptedError: Raised if the run_event is not set.
+        """
+        if self.run_event.is_set():
+            return func(*args, **kwargs)
+        else:
+            # Log.
+            self.log.warning(
+                'Did not run {} because the run_event is not set.'
+                .format(func))
+
+            # Raise exception.
+            raise GAInterruptedError('The genetic algorithm was interrupted.')
+
+    def _log_best_each_gen(self, gen: int):
+        """Helper for logging during execution of _run. Should only be
+        called from _run.
+
+        :param gen: Generation number of the genetic algorithm.
+        """
+        best = self.population.population[0]
+        self.log.info(
+            'After generation {}, best fitness: {:.2f} from individual'
+            ' {}'.format(gen, best.fitness, best.uid))
+
+    def _log_best_overall(self, t0: float):
+        """Helper for logging at the end of the genetic algorithm.
+        Should only be called from _run.
+
+        :param t0: Starting time of the genetic algorithm. Should come
+            from a time.time() call.
+        """
+        t1 = time.time()
+        best = self.population.population[0]
+        self.log.info('Best overall fitness: {:.2f} from individual {}'
+                      .format(best.fitness, best.uid))
+
+        self.log.info('Total GA run time: {:.2f}'.format(t1 - t0))
+
+    def stop(self):
+        """Method to interrupt the running genetic algorithm. This
+        method will immediately return after kicking off the stopping
+        process. To check on whether or not the genetic algorithm is
+        still running, check self.running.
+        """
+        if not self.running:
+            self.log.warning('The "stop" method was called, but the genetic '
+                             'algorithm is not running.')
+        else:
+            # Flag that we need to stop.
+            self._run_event.clear()
+
+            # Stop the population object from running.
+            self.population.graceful_shutdown()
+
+            # Start up a thread that will set the run_event once the
+            # _run function has finished.
+            t = threading.Thread(target=self._set_run_event_after_run)
+            t.start()
+
+        # All done.
+        return None
+
+    def _set_run_event_after_run(self):
+        """Helper used by "stop" to set the _run_event after the _run
+        method finishes (as signaled by setting _not_running_event).
+        """
+        # Wait for _not_running_event to be set.
+        result = self._not_running_event.wait(timeout=self.stop_timeout)
+
+        if result:
+            # Success.
+            self._run_event.set()
+        else:
+            # Well, the algorithm failed to stop within the specified
+            # timeout. Warn.
+            self.log.warning('The "run" method failed to stop within {:.2f} '
+                             'seconds of calling "stop." Future calls to '
+                             '"run" will do nothing until the "run_event" is '
+                             'set.'.format(self.stop_timeout))
+
+        # All done.
+        return None
