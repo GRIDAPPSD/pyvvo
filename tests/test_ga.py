@@ -5,15 +5,15 @@ from datetime import datetime
 from copy import deepcopy
 import multiprocessing as mp
 import threading
-from time import sleep
+from time import sleep, time
 import itertools
 
 import tests.data_files as _df
-from tests.models import IEEE_8500, IEEE_9500, IEEE_13
+from tests.models import IEEE_9500, IEEE_13
 from pyvvo import ga
 from pyvvo import equipment
 from pyvvo.glm import GLMManager
-from pyvvo.utils import run_gld
+from pyvvo.utils import run_gld, time_limit
 from pyvvo import db
 
 import numpy as np
@@ -948,16 +948,15 @@ class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 to 9500
-        cls.reg_df = _df.read_pickle(_df.REGULATORS_8500)
-        cls.caps_df = _df.read_pickle(_df.CAPACITORS_8500)
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_9500)
+        cls.caps_df = _df.read_pickle(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(cls.reg_df)
         cls.caps = equipment.initialize_capacitors(cls.caps_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
 
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
 
         cls.ind = ga.Individual(uid=0, chrom_len=cls.len,
                                 chrom_map=cls.map, num_eq=cls.num_eq)
@@ -974,6 +973,11 @@ class IndividualUpdateCapBadStateTestCase(unittest.TestCase):
                                  glm_mgr=self.fresh_mgr)
 
 
+# Dictionary used by the tests below.
+PARTIAL_DICT = {'voltage_high': 1, 'voltage_low': 2, 'power_factor_lead': 3,
+                'power_factor_lag': 4, 'energy': 5}
+
+
 class IndividualEvaluateTestCase(unittest.TestCase):
     """Test the evaluate method of an Individual.
     """
@@ -988,14 +992,20 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         cls.caps = equipment.initialize_capacitors(cap_df)
 
         cls.map, cls.len, cls.num_eq = ga.map_chromosome(cls.regs, cls.caps)
-        cls.ind = ga.Individual(uid=0, chrom_len=cls.len, chrom_map=cls.map,
-                                num_eq=cls.num_eq)
+
+    def setUp(self):
+        # Initialize an individual.
+        self.ind = ga.Individual(uid=0, chrom_len=self.len, chrom_map=self.map,
+                                 num_eq=self.num_eq)
+
+        # Patch inputs to the Individual's evaluate method.
+        self.mock_glm = unittest.mock.create_autospec(GLMManager,
+                                                      spec_set=True)
+        self.mock_db = unittest.mock.create_autospec(MySQLdb.connection,
+                                                     set_spec=True)
 
     @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
-           return_value={'voltage_high': 1, 'voltage_low': 2,
-                         'power_factor_lead': 3,
-                         'power_factor_lag': 4,
-                         'energy': 5})
+           return_value=PARTIAL_DICT)
     @patch('pyvvo.ga._Evaluator.__init__', autospec=True, return_value=None)
     def test_evaluate(self, eval_init_patch, eval_evaluate_patch):
         """Patch everything, ensure the correct methods are called.
@@ -1008,33 +1018,21 @@ class IndividualEvaluateTestCase(unittest.TestCase):
 
         https://stackoverflow.com/q/57044593/11052174
         """
-        # Patch inputs to the Individual's evaluate method.
-        mock_glm = unittest.mock.create_autospec(GLMManager, spec_set=True)
-        mock_db = unittest.mock.create_autospec(MySQLdb.connection,
-                                                set_spec=True)
-
-        # partial_dict is going to be the patched return from
-        # _Evaluator.evaluate. This is hard-coded to match the
-        # return_value in the patch above.
-        partial_dict = {'voltage_high': 1, 'voltage_low': 2,
-                        'power_factor_lead': 3, 'power_factor_lag': 4,
-                        'energy': 5}
-
         with patch.object(self.ind, '_update_model_compute_costs',
                           autospec=True, return_value=(6, 7)) as p_update:
-            self.ind.evaluate(glm_mgr=mock_glm, db_conn=mock_db)
+            self.ind.evaluate(glm_mgr=self.mock_glm, db_conn=self.mock_db)
 
         # Assertion time.
         # Ensure _update_model_compute_costs is called and called
         # correctly.
         p_update.assert_called_once()
-        p_update.assert_called_with(glm_mgr=mock_glm)
+        p_update.assert_called_with(glm_mgr=self.mock_glm)
 
         # Ensure our _Evaluator is constructor appropriately.
         eval_init_patch.assert_called_once()
         self.assertDictEqual(eval_init_patch.call_args[1],
-                             {'uid': self.ind.uid, 'glm_mgr': mock_glm,
-                              'db_conn': mock_db})
+                             {'uid': self.ind.uid, 'glm_mgr': self.mock_glm,
+                              'db_conn': self.mock_db})
 
         # Ensure _Evaluator._evaluate is called.
         eval_evaluate_patch.assert_called_once()
@@ -1043,8 +1041,25 @@ class IndividualEvaluateTestCase(unittest.TestCase):
         self.assertEqual(28, self.ind.fitness)
 
         # Ensure our penalties dict comes back as expected.
-        expected = {**partial_dict, 'regulator_tap': 6, 'capacitor_switch': 7}
+        expected = {**PARTIAL_DICT, 'regulator_tap': 6, 'capacitor_switch': 7}
         self.assertDictEqual(expected, self.ind.penalties)
+
+    @patch('pyvvo.ga._Evaluator.evaluate', autospec=True,
+           side_effect=UserWarning('Dummy exception for testing.'))
+    @patch('pyvvo.ga._Evaluator.__init__', autospec=True, return_value=None)
+    def test_error(self, eval_init_patch, eval_evaluate_patch):
+        """Ensure the behavior is correct when an exception is raised
+        during evaluation.
+        """
+        with patch.object(self.ind, '_update_model_compute_costs',
+                          autospec=True, return_value=(6, 7)):
+            with self.assertRaisesRegex(UserWarning, 'Dummy exception for t'):
+                self.ind.evaluate(glm_mgr=self.mock_glm, db_conn=self.mock_db)
+
+        # A failed evaluation should result in an infinite fitness, and
+        # penalties should be None.
+        self.assertEqual(self.ind.fitness, np.inf)
+        self.assertIsNone(self.ind.penalties)
 
 
 class PatchSubprocessResult:
@@ -1339,13 +1354,56 @@ class MockIndividual:
         self.penalties = {'p1': 10, 'p2': 30, 'p3': 0.1}
 
 
-class EvaluateWorkerTestCase(unittest.TestCase):
-    """Test _evaluate_worker function."""
+class MockIndividual2(MockIndividual):
+    """Same as MockIndividual, except evaluate throws and exception."""
+    def evaluate(self, *args, **kwargs):
+        self.fitness = np.inf
+        self.penalties = None
+        raise RuntimeError('Dummy error for testing.')
+
+
+class SleepyMockIndividual(MockIndividual):
+    """Same as MockIndividual, except evaluate sleeps."""
+
+    sleep_time = 0.02
+
+    def evaluate(self, *args, **kwargs):
+        sleep(self.sleep_time)
+        self.fitness = 1
+        self.penalties = {'p1': 10, 'p2': 30, 'p3': 0.1}
+
+
+class EvaluateWorkerBadInputTestCase(unittest.TestCase):
 
     def test_bad_input_queue(self):
         with self.assertRaisesRegex(TypeError, 'input_queue must be '):
             ga._evaluate_worker(input_queue=['hi'], logging_queue=[],
                                 output_queue=[], glm_mgr=None)
+
+
+class EvaluateWorkerTestCase(unittest.TestCase):
+    """Test _evaluate_worker function."""
+
+    def setUp(self) -> None:
+        # Create queues.
+        self.input_queue = mp.JoinableQueue()
+        self.output_queue = mp.Queue()
+        self.logging_queue = mp.Queue()
+        self.glm_mgr = create_autospec(GLMManager)
+
+        self.p = mp.Process(target=ga._evaluate_worker,
+                            kwargs={'input_queue': self.input_queue,
+                                    'output_queue': self.output_queue,
+                                    'logging_queue': self.logging_queue,
+                                    'glm_mgr': self.glm_mgr})
+
+        self.p.start()
+
+    def tearDown(self) -> None:
+        self.input_queue.put(None)
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.01)
+        self.assertFalse(self.p.is_alive())
 
     def test_expected_behavior(self):
         """Mock up an individual and glm_mgr. IMPORTANT NOTE: Since
@@ -1356,27 +1414,15 @@ class EvaluateWorkerTestCase(unittest.TestCase):
             something gets broken. The .join() call should probably
             be wrapped with some sort of timeout.
         """
-        input_queue = mp.JoinableQueue()
-        output_queue = mp.Queue()
-        logging_queue = mp.Queue()
-        glm_mgr = create_autospec(GLMManager)
         ind_in = MockIndividual()
 
-        p = mp.Process(target=ga._evaluate_worker,
-                       kwargs={'input_queue': input_queue,
-                               'output_queue': output_queue,
-                               'logging_queue': logging_queue,
-                               'glm_mgr': glm_mgr})
+        self.input_queue.put(ind_in)
 
-        p.start()
+        self.input_queue.join()
 
-        input_queue.put(ind_in)
+        log_out = self.logging_queue.get()
 
-        input_queue.join()
-
-        log_out = logging_queue.get()
-
-        ind_out = output_queue.get_nowait()
+        ind_out = self.output_queue.get_nowait()
 
         self.assertEqual(ind_out.fitness, 1)
         self.assertIn('time', log_out)
@@ -1385,44 +1431,103 @@ class EvaluateWorkerTestCase(unittest.TestCase):
                               'penalties': {'p1': 10, 'p2': 30, 'p3': 0.1}},
                              log_out)
 
-        input_queue.put(None)
-        # Sleep to ensure we don't encounter a race condition.
-        sleep(0.1)
-        self.assertFalse(p.is_alive())
+    def test_exception_handling(self):
+        """When an exception is thrown during evaluation, the worker
+        should catch it and put the exception into the queue.
+        """
+        # Create a mock individual which will raise an exception upon
+        # evaluation.
+        ind_in = MockIndividual2()
+
+        self.input_queue.put(ind_in)
+
+        self.input_queue.join()
+
+        # Extract the logging output and the individual.
+        log_out = self.logging_queue.get()
+        ind_out = self.output_queue.get_nowait()
+
+        # Errors should result in infinite fitness.
+        self.assertEqual(ind_out.fitness, np.inf)
+        # There should be an error and uid field.
+        self.assertIn('error', log_out)
+        self.assertIn('uid', log_out)
+
+        with self.assertRaisesRegex(RuntimeError,
+                                    'Dummy error for testing.'):
+            raise log_out['error']
+
+        # Despite the error, the process should still be alive.
+        self.assertTrue(self.p.is_alive())
+
+    def test_none_terminates_processes(self):
+        # Process should start out alive.
+        self.assertTrue(self.p.is_alive())
+        # Putting None in should terminate the process.
+        self.input_queue.put_nowait(None)
+        # The task should be marked as done, so join should work. Use a
+        # time limit so our test doesn't hang on failure.
+        with time_limit(1):
+            self.input_queue.join()
+
+        # Give it a moment to die, then ensure it's dead.
+        sleep(0.01)
+        self.assertFalse(self.p.is_alive())
 
 
 class LoggingThreadTestCase(unittest.TestCase):
     """Test _logging_thread function."""
 
-    def test_expected_behavior(self):
+    def setUp(self) -> None:
+        self.q = mp.Queue()
+
+        self.t = threading.Thread(target=ga._logging_thread,
+                                  kwargs={'logging_queue': self.q})
+
+        self.t.start()
+
+    def tearDown(self) -> None:
+        self.assertTrue(self.t.is_alive())
+
+        # Kill the thread.
+        self.q.put(None)
+
+        # Sleep to ensure we don't encounter a race condition.
+        sleep(0.01)
+
+        # Ensure the thread is dead.
+        self.assertFalse(self.t.is_alive())
+
+    def test_expected_normal_behavior(self):
         """NOTE: Couldn't get assertLogs to work here, so this test is
         close to useless. I guess it makes sure things don't error out,
         which is something.
         """
-        q = mp.Queue()
+        self.assertTrue(self.t.is_alive())
 
-        t = threading.Thread(target=ga._logging_thread,
-                             kwargs={'logging_queue': q})
+        # Ensure we get a debug message.
+        with self.assertLogs(level='DEBUG', logger=ga.LOG):
+            self.q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16},
+                        'time': 5})
+            # Sleep to ensure we get logs out.
+            sleep(0.01)
 
-        t.start()
+    def test_exception_behavior(self):
+        """If given an 'error' key, the behavior is different."""
+        self.assertTrue(self.t.is_alive())
 
-        self.assertTrue(t.is_alive())
+        # Generate an exception.
+        my_e = None
+        try:
+            raise UserWarning('Dummy exception')
+        except UserWarning as e:
+            my_e = e
 
-        # Why won't this work?! Oh well...
-        # with self.assertLogs(level='INFO', logger=ga.LOG):
-        #     with self.assertLogs(level='DEBUG', logger=ga.LOG):
-        q.put({'uid': 7, 'fitness': 16, 'penalties': {'p': 16}})
-
-        self.assertTrue(t.is_alive())
-
-        # Kill the thread.
-        q.put(None)
-
-        # Sleep to ensure we don't encounter a race condition.
-        sleep(0.1)
-
-        # Ensure the thread is dead.
-        self.assertFalse(t.is_alive())
+        with self.assertLogs(level='ERROR', logger=ga.LOG):
+            # Put exception in queue.
+            self.q.put({'uid': 42, 'error': my_e})
+            # Sleep to allow logging to occur.
+            sleep(0.01)
 
 
 class TournamentTestCase(unittest.TestCase):
@@ -1490,26 +1595,73 @@ class DumpQueueTestCase(unittest.TestCase):
     def test_correct(self):
         # Need to sleep due to the small delay for the background thread
         # which stuff things into the queue.
-        sleep(0.05)
+        sleep(0.01)
+        self.assertFalse(self.q.empty())
+
         i2 = ga._dump_queue(q=self.q, i=self.i)
 
         self.assertIs(i2, self.i)
         self.assertListEqual([1, 2, 3, 4, 5, 6], self.i)
 
+        sleep(0.01)
+
+        self.assertTrue(self.q.empty())
+
+
+class DrainQueueTestCase(unittest.TestCase):
+    """Test _drain_queue."""
+
+    def test_drain_makes_empty_joinable(self):
+
+        q = mp.JoinableQueue()
+
+        for n in range(4, 7):
+            q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+        self.assertFalse(q.empty())
+
+        ga._drain_queue(q)
+
+        sleep(0.01)
+
+        self.assertTrue(q.empty())
+
+        # Ensure all tasks were marked as done.
+        with time_limit(1):
+            q.join()
+
+    def test_drain_makes_empty_not_joinable(self):
+        q = mp.Queue()
+
+        for n in range(4, 7):
+            q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+        self.assertFalse(q.empty())
+
+        ga._drain_queue(q)
+
+        sleep(0.01)
+
+        self.assertTrue(q.empty())
+
 
 class PopulationTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 0, 20)
 
         # Get regulators and capacitors.
-        # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        reg_df = pd.read_csv(_df.REGULATORS_9500)
+        cap_df = pd.read_csv(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -1681,7 +1833,8 @@ class PopulationTestCase(unittest.TestCase):
 
         for p in self.pop_obj.processes:
             self.assertIsInstance(p, mp.Process)
-            self.assertTrue(p.is_alive())
+
+        self.assertTrue(self.pop_obj.all_processes_alive)
 
     def test_ind_init(self):
         self.assertDictEqual(self.pop_obj.ind_init,
@@ -1862,7 +2015,8 @@ class PopulationTestCase(unittest.TestCase):
         for _ in range(pop_obj.population_size):
             pop_obj.population.append(MockIndividual())
 
-        pop_obj.evaluate_population()
+        with self.assertLogs(logger=pop_obj.log, level='INFO'):
+            pop_obj.evaluate_population()
 
         # evaluate_population overrides the part of the population which
         # has not yet been evaluated, so make sure we get the same
@@ -1922,6 +2076,27 @@ class PopulationTestCase(unittest.TestCase):
     def test_evaluate_population_error(self):
         with self.assertRaisesRegex(ValueError, 'evaluate_population should '):
             self.pop_obj.evaluate_population()
+
+    def test_evaluate_population_dead_process(self):
+        """We should get an error if there's a dead process."""
+        # Initialize population object.
+        pop_obj = self.helper_create_pop_obj()
+
+        # Override it's population so we can bypass the first exception.
+        pop_obj._population = [None for _ in range(pop_obj.population_size)]
+
+        # Grab a reference to a process, and kill it.
+        p = pop_obj.processes[0]
+        p.terminate()
+
+        # Don't move on until the processes registers as dead.
+        while p.is_alive():
+            sleep(0.01)
+
+        # Try to evaluate the population.
+        with self.assertRaisesRegex(ga.DeadProcessError,
+                                    'evaluate_population called, but not all'):
+            pop_obj.evaluate_population()
 
     def test_natural_selection(self):
         # Get a new population object to avoid state contamination.
@@ -2247,22 +2422,119 @@ class PopulationTestCase(unittest.TestCase):
         self.assertIs(children[0], p_mutate.call_args_list[0][0][0])
         self.assertIs(children[1], p_mutate.call_args_list[1][0][0])
 
+    def test_lock(self):
+        # These will error out if the lock doesn't have the
+        # attributes.
+        ac = self.pop_obj._lock.acquire
+        re = self.pop_obj._lock.release
+
+        try:
+            # Acquire the lock.
+            ac()
+
+            # Try to get the lock.
+            self.assertFalse(ac(blocking=False))
+        finally:
+            # Release it.
+            re()
+
+    # Couldn't get this method to work in a reasonable time and just
+    # need to move on.
+    # def test_dump_queue_into_population_locks(self):
+    #     sleep_1 = 0.5
+    #     sleep_2 = 0.2
+    #
+    #     # Create function to sleep
+    #     def sleep_a_bit():
+    #         sleep(sleep_1)
+    #
+    #     try:
+    #         # Patch the _dump_queue method so it sleeps.
+    #         with patch('pyvvo.ga._dump_queue', new_callable=sleep_a_bit):
+    #             with patch.object(self.pop_obj, '_population'):
+    #                 # Start a thread to run the method.
+    #                 t = threading.Thread(
+    #                     target=self.pop_obj._dump_queue_into_population)
+    #
+    #                 t.start()
+    #
+    #                 # Sleep less than sleep_a_bit sleeps.
+    #                 sleep(sleep_2)
+    #
+    #                 # Try to acquire the lock.
+    #                 self.assertFalse(self.pop_obj._lock.acquire(
+    #                     blocking=False))
+    #
+    #                 # Sleep a bit.
+    #                 sleep(sleep_1 - sleep_2 + 0.005)
+    #
+    #                 # Now we should be able to acquire the lock.
+    #                 self.assertTrue(self.pop_obj._lock.acquire(blocking=False))
+    #
+    #     finally:
+    #         # Release the lock.
+    #         self.pop_obj._lock.release()
+
+    def test_graceful_shutdown(self):
+        """Ensure the graceful shutdown method empties out the queues
+        and stops the processes.
+        """
+        # Initialize fresh population object.
+        pop = self.helper_create_pop_obj()
+
+        # Sleep for a bit since multiprocessing stuff takes finite
+        # time.
+        sleep(0.01)
+
+        # Ensure all our processes are running and good to go.
+        self.assertTrue(pop.all_processes_alive)
+
+        # Load up the input queue with mock individuals that sleep when
+        # evaluate is called. Note we put 2 times as many individuals
+        # in the queue as there are processes.
+        for _ in range(2 * len(pop.processes)):
+            pop.input_queue.put_nowait(SleepyMockIndividual())
+
+        # Shut things down. Sleep to allow the processes to extract the
+        # individuals.
+        sleep(0.01)
+        with self.assertLogs(logger=pop.log, level='WARNING'):
+            pop.graceful_shutdown()
+
+        # The input queue should be empty.
+        self.assertTrue(pop.input_queue.empty())
+
+        # After waiting for all tasks in the input queue to be marked
+        # as complete, the output queue should have the same size as
+        # the number of processes.
+        with time_limit(1):
+            pop.input_queue.join()
+
+        self.assertEqual(len(pop.processes), pop.output_queue.qsize())
+
+        # At this point, all the processes should be dead. Sleep to
+        # ensure processes have time to die.
+        sleep(0.02)
+        self.assertTrue(pop.all_processes_dead)
+
+    def test_forceful_shutdown(self):
+        self.assertRaises(NotImplementedError, self.pop_obj.forceful_shutdown)
+
 
 class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
     """Test _update_equipment_with_individual"""
 
     @classmethod
     def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
+        cls.glm_mgr = GLMManager(IEEE_9500)
         # 20 second model runtime.
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
 
         # Get regulators and capacitors.
         # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        reg_df = pd.read_csv(_df.REGULATORS_9500)
+        cap_df = pd.read_csv(_df.CAPACITORS_9500)
 
         cls.regs = equipment.initialize_regulators(reg_df)
         cls.caps = equipment.initialize_capacitors(cap_df)
@@ -2360,96 +2632,286 @@ class UpdateEquipmentWithIndividualTestCase(unittest.TestCase):
                     self.assertEqual(0, sc.state)
 
 
-class MainTestCase(unittest.TestCase):
-    """Test the 'main' method in ga.py."""
+class GAInitTestCase(unittest.TestCase):
+    """Test initialization of the GA class. DO NOT RUN ANY METHODS."""
 
     @classmethod
-    def setUpClass(cls):
-        # TODO: Change from 8500 node model to 9500 node model.
-        cls.glm_mgr = GLMManager(IEEE_8500)
-        # 20 second model runtime.
-        cls.starttime = datetime(2013, 4, 1, 12, 0)
-        cls.stoptime = datetime(2013, 4, 1, 12, 1, 0)
+    def setUpClass(cls) -> None:
+        cls.regs = {'some': 'dict'}
+        cls.caps = {'other': 'dict'}
+        cls.starttime = datetime(2019, 10, 7, 11, 47)
+        cls.stoptime = datetime(2019, 10, 7, 12, 47)
+        cls.stop_timeout = 10
 
-        # Get regulators and capacitors.
-        # TODO: update to 9500 node
-        reg_df = pd.read_csv(_df.REGULATORS_8500)
-        cap_df = pd.read_csv(_df.CAPACITORS_8500)
+        cls.ga_obj = ga.GA(regulators=cls.regs, capacitors=cls.caps,
+                           starttime=cls.starttime, stoptime=cls.stoptime,
+                           stop_timeout=cls.stop_timeout)
 
-        cls.regs = equipment.initialize_regulators(reg_df)
-        cls.caps = equipment.initialize_capacitors(cap_df)
+    def test_regs(self):
+        """Ensure a copy is made."""
+        self.assertIsNot(self.ga_obj.regulators, self.regs)
+        self.assertDictEqual(self.ga_obj.regulators, self.regs)
 
-        # It seems we don't have a way of getting capacitor state from
-        # the CIM (which is where those DataFrames originate from). So,
-        # let's randomly command each capacitor.
-        for c in cls.caps.values():
-            if isinstance(c, equipment.CapacitorSinglePhase):
-                c.state = np.random.randint(low=0, high=2, size=None,
-                                            dtype=int)
-            elif isinstance(c, dict):
-                for cc in c.values():
-                    cc.state = np.random.randint(low=0, high=2, size=None,
-                                                 dtype=int)
+    def test_caps(self):
+        """Ensure a copy is made."""
+        self.assertIsNot(self.ga_obj.capacitors, self.caps)
+        self.assertDictEqual(self.ga_obj.capacitors, self.caps)
 
-    def test_methods_called_correctly(self):
-        """Do plenty of patching, and just ensure everything is called
-        correctly.
+    def test_starttime(self):
+        self.assertEqual(self.starttime, self.ga_obj.starttime)
+
+    def test_stoptime(self):
+        self.assertEqual(self.stoptime, self.ga_obj.stoptime)
+
+    def test_stop_timeout(self):
+        self.assertEqual(self.stop_timeout, self.ga_obj.stop_timeout)
+
+    def test_population(self):
+        self.assertIsNone(self.ga_obj.population)
+
+    def test_run_thread(self):
+        self.assertIsNone(self.ga_obj.run_thread)
+
+    def test_run_event(self):
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+    def test_not_running_event(self):
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+
+    def test_running(self):
+        self.assertFalse(self.ga_obj.running)
+
+
+class ClearAndSetEventTestCase(unittest.TestCase):
+    """Test that _clear_and_set_event works as expected.
+    """
+
+    def test_simple(self):
+
+        # Define a simple class for testing this.
+        class MyClass:
+            def __init__(self):
+                self._not_running_event = threading.Event()
+                self._not_running_event.set()
+
+            @ga._clear_and_set_event
+            def sleep_a_bit(self):
+                sleep(0.05)
+
+        # Initialize class object.
+        obj = MyClass()
+
+        # At this point in time, the _not_running_event should be set.
+        self.assertTrue(obj._not_running_event.is_set())
+
+        # Start a thread to run sleep_a_bit.
+        t = threading.Thread(target=obj.sleep_a_bit)
+        t.start()
+
+        # Wait a small amount (less than sleep_a_bit) for the thread to
+        # get going.
+        sleep(0.01)
+
+        # Now, the event should be cleared by the decorator.
+        self.assertFalse(obj._not_running_event.is_set())
+
+        # Sleep the duration of sleep_a_bit in order to let the event
+        # get reset.
+        sleep(0.05)
+
+        self.assertTrue(obj._not_running_event.is_set())
+
+
+class GATestCase(unittest.TestCase):
+    """Test the GA class in ga.py. Initialization tests are handled in
+    the GAInitTestCase, so here we'll focus on running the methods.
+    However, we'll patch long running processes.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.regs = {'some': 'dict'}
+        cls.caps = {'other': 'dict'}
+        cls.starttime = datetime(2019, 10, 7, 11, 47)
+        cls.stoptime = datetime(2019, 10, 7, 12, 47)
+        cls.stop_timeout = 0.5
+
+    def setUp(self) -> None:
+        self.ga_obj = ga.GA(regulators=self.regs, capacitors=self.caps,
+                            starttime=self.starttime, stoptime=self.stoptime,
+                            stop_timeout=self.stop_timeout)
+
+    def test_run_copies_glm_mgr(self):
+        """Ensure that when "run" is called, a copy of the GLMManager is
+        made.
         """
+        mgr = NonCallableMagicMock()
+        with patch.object(self.ga_obj, '_run') as p:
+            self.ga_obj.run(mgr)
 
-        # Create a mock individual and assign it a fitness value.
-        mock_ind = MockIndividual()
-        mock_ind.fitness = 10
+        # Sleep a little to ensure the function gets called by the
+        # thread.
+        sleep(0.005)
 
-        # Create a mock to be returned by Population()
-        mock_pop = NonCallableMagicMock()
-        mock_pop.population = [mock_ind]
+        # Our run method should be called a single time.
+        p.assert_called_once()
 
-        # Number of generations:
-        g = 3
+        # Ensure a copy was made.
+        self.assertIsNot(p.call_args[1]['glm_mgr'], mgr)
 
-        with patch('pyvvo.ga.Population', return_value=mock_pop,
-                   autospec=True) as p_pop:
-            with patch('pyvvo.ga._update_equipment_with_individual',
-                       autospec=True) as p_update:
-                with patch.dict(ga.CONFIG['ga'], {'generations': g}):
-                    regs, caps = \
-                        ga.main(regulators=self.regs, capacitors=self.caps,
-                                glm_mgr=self.glm_mgr, starttime=self.starttime,
-                                stoptime=self.stoptime)
+    @patch('pyvvo.ga._update_equipment_with_individual')
+    def test_running_attribute(self, update_mock):
+        """Ensure the "running" attribute properly reflects whether or
+        not the GA is running.
 
-        p_pop.assert_called_once()
-        p_pop.assert_called_with(regulators=self.regs, capacitors=self.caps,
-                                 glm_mgr=self.glm_mgr,
-                                 starttime=self.starttime,
-                                 stoptime=self.stoptime)
+        This method seems to be really fragile on the patching front,
+        and I simply cannot figure out why. I had to put the patch
+        for _update_equipment_with_individual as a decorator, as it
+        simply would not work (the patch wouldn't get applied) if I
+        nested it with the patch of Population.
+        """
+        sleep_time = 0.05
 
-        # We only initialize the population once.
-        mock_pop.initialize_population.assert_called_once()
+        def sleep_a_bit(*args, **kwargs):
+            sleep(sleep_time)
 
-        # All the GA methods should be called once per generation,
-        # except for evaluate which gets called once extra.
-        self.assertEqual(g+1, mock_pop.evaluate_population.call_count)
-        self.assertEqual(g, mock_pop.natural_selection.call_count)
-        self.assertEqual(g, mock_pop.crossover_and_mutate.call_count)
+        # Mock a GLMManager.
+        mgr = NonCallableMagicMock()
 
-        # If we weren't mocking the Population object, sort_population
-        # would be called more since it's called within
-        # natural_selection. However, for the purposes of this test we
-        # need to ensure it's just called once.
-        mock_pop.sort_population.assert_called_once()
+        # Need this for a logging call.
+        pop_mock = NonCallableMagicMock()
+        pop_mock.population = [MockIndividual()]
+        pop_mock.population[0].fitness = 3
+        # Ensure we "sleep a bit" once in the "_run" function.
+        pop_mock.initialize_population.side_effect = sleep_a_bit
 
-        # Ensure we correctly call _update_equipment_with_individual.
-        p_update.assert_called_once()
-        p_update.assert_called_with(ind=mock_ind, regs=self.regs,
-                                    caps=self.caps)
+        # Patch the Population initializer as well as
+        # _update_equipment_with_individual so the "_run" method of
+        # GA will run without error.
+        with patch('pyvvo.ga.Population', return_value=pop_mock) as p1:
+            # I'm not sure why patching here didn't work, but moving the
+            # patch to a decorator does. Getting some odd behavior...
+            # with patch('pyvvo.ga._update_equipment_with_individual') as p2:
 
-        # Finally, ensure our returns are indeed the given regulators
-        # and capacitors.
-        # IMPORTANT NOTE: IN THE NON-PATCHED IMPLEMENTATION, THIS WILL
-        # NOT BE TRUE, AS THE OBJECTS WILL GET PICKLED FOR
-        # MULTIPROCESSING.
-        self.assertIs(regs, self.regs)
-        self.assertIs(caps, self.caps)
+            # To begin, we shouldn't be running.
+            self.assertFalse(self.ga_obj.running)
+            # Run.
+            self.ga_obj.run(glm_mgr=mgr)
+
+        # Wait a short amount of time for the thread's activity to
+        # start.
+        sleep(sleep_time / 5)
+
+        # We've slept less than the sleeping happening (via patch)
+        # inside the "_run" method, so the method should be running.
+        self.assertTrue(self.ga_obj.running)
+
+        # Sleep more to ensure the "_run" thread stops.
+        sleep_a_bit()
+
+        # Ensure our mocks were used. This is just here because I was
+        # having a ridiculously hard time getting my mocks to work...
+        p1.assert_called_once()
+        update_mock.assert_called_once()
+        pop_mock.initialize_population.assert_called_once()
+
+        # At this point, the "_run" thread should have stopped, thus
+        # flipping the "running" flag.
+        self.assertFalse(self.ga_obj.running)
+
+    def test_run_if_set(self):
+        """Ensure our _run_if_set method behaves correctly."""
+        # The run_event should start set.
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # I should be able to call a little helper function.
+        def dumb_func(a, b):
+            return "Hello, {}, hello, {}".format(a, b)
+
+        out = self.ga_obj._run_if_set(dumb_func, 'Brandon', b='someone else')
+
+        self.assertEqual(out, "Hello, Brandon, hello, someone else")
+
+        # Now, if I toggle the run event (clear it), I should get an
+        # exception.
+        self.ga_obj._run_event.clear()
+
+        with self.assertRaisesRegex(ga.GAInterruptedError,
+                                    "The genetic algorithm was interrupted."):
+            with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+                self.ga_obj._run_if_set(print, 'stuff')
+
+    def test_stop_when_not_running(self):
+        """We should get a warning if we try to stop the algorithm
+        when it isn't running.
+        """
+        self.assertFalse(self.ga_obj.running)
+
+        with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+            self.ga_obj.stop()
+
+    def test_stop(self):
+        """stop() should trigger a graceful shutdown in the genetic
+        algorithm.
+        """
+        # We should start "not running"
+        self.assertFalse(self.ga_obj.running)
+
+        # However, we should be able to run, as indicated by the
+        # run_event.
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # Fake running by toggling the _not_running_event.
+        self.ga_obj._not_running_event.clear()
+        self.assertTrue(self.ga_obj.running)
+
+        # Patch the population object and call stop.
+        with patch.object(self.ga_obj, '_population') as p:
+            self.ga_obj.stop()
+
+        # Calling stop signals that the algorithm is not allowed to
+        # run.
+        self.assertFalse(self.ga_obj.run_event.is_set())
+
+        # Set the _not_running_event, indicating the algorithm is no
+        # longer running.
+        self.ga_obj._not_running_event.set()
+
+        # After the _not_running_event flag gets set (and after a
+        # small delay due to threading), the the algorithm should be
+        # allowed to run again.
+        sleep(0.05)
+        self.assertTrue(self.ga_obj.run_event.is_set())
+
+        # The graceful_shutdown() method should have been called once.
+        p.graceful_shutdown.assert_called_once()
+
+    def test_set_run_event_after_run_times_out(self):
+        """Ensure _set_run_event_after_run times out as it should."""
+        # Clear the _not_running_event to cause _set_run_event_after_run
+        # to wait.
+        self.ga_obj._not_running_event.clear()
+
+        # We should get a warning.
+        with patch.object(self.ga_obj, 'stop_timeout', new=0.01):
+            with self.assertLogs(logger=self.ga_obj.log, level='WARNING'):
+                self.ga_obj._set_run_event_after_run()
+
+    def test_set_run_event_sets_run_event(self):
+        """Ensure _set_run_event_after_run actually does that :)"""
+        # Ensure the _not_running_event is set so we don't get any
+        # timeouts.
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+
+        # Clear the _run_event.
+        self.ga_obj._run_event.clear()
+        self.assertFalse(self.ga_obj.run_event.is_set())
+
+        # Call the method.
+        self.ga_obj._set_run_event_after_run()
+
+        # The _run_event should now be set.
+        self.assertTrue(self.ga_obj.run_event.is_set())
 
 
 if __name__ == '__main__':

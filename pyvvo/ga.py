@@ -1,6 +1,4 @@
 """Module for pyvvo's genetic algorithm.
-
-TODO: Create some sort of configuration file, like ga_config.json.
 """
 # Standard library:
 import multiprocessing as mp
@@ -12,6 +10,8 @@ import time
 import operator
 import math
 import itertools
+import copy
+from functools import wraps
 
 # Third party:
 import numpy as np
@@ -812,27 +812,39 @@ class Individual:
         :param db_conn: Active database connection which follows
             PEP 249.
         """
-        # First, update regulators and capacitors in the glm_mgr's model
-        # based on this Individual's chromosome. As the glm_mgr is
-        # mutable, it's updated without a return for it here.
-        reg_penalty, cap_penalty = \
-            self._update_model_compute_costs(glm_mgr=glm_mgr)
+        try:
+            # First, update regulators and capacitors in the glm_mgr's
+            # model based on this Individual's chromosome. As the
+            # glm_mgr is mutable, it's updated without a return for it
+            # here.
+            reg_penalty, cap_penalty = \
+                self._update_model_compute_costs(glm_mgr=glm_mgr)
 
-        # Create an _Evaluator to do the work of running the model and
-        # computing associated costs.
-        evaluator = _Evaluator(uid=self.uid, glm_mgr=glm_mgr, db_conn=db_conn)
-        penalties = evaluator.evaluate()
+            # Create an _Evaluator to do the work of running the model
+            # and computing associated costs.
+            evaluator = _Evaluator(uid=self.uid, glm_mgr=glm_mgr,
+                                   db_conn=db_conn)
+            penalties = evaluator.evaluate()
 
-        # Add the regulator tap changing and capacitor switching costs.
-        penalties['regulator_tap'] = reg_penalty
-        penalties['capacitor_switch'] = cap_penalty
+            # Add the regulator tap changing and capacitor switching
+            # costs.
+            penalties['regulator_tap'] = reg_penalty
+            penalties['capacitor_switch'] = cap_penalty
 
-        # An individual's fitness is the sum of their penalties.
-        self._fitness = 0
-        for p in penalties.values():
-            self._fitness += p
+            # An individual's fitness is the sum of their penalties.
+            self._fitness = 0
+            for p in penalties.values():
+                self._fitness += p
 
-        self._penalties = penalties
+            self._penalties = penalties
+        except Exception as e:
+            # Something failed. Set fitness to infinity, and penalties
+            # to None.
+            self._fitness = np.inf
+            self._penalties = None
+
+            # Re-raise the exception.
+            raise e from None
 
     def _update_model_compute_costs(self, glm_mgr):
         """Helper to update a glm.GLMManager's model via this
@@ -1277,24 +1289,42 @@ def _evaluate_worker(input_queue, output_queue, logging_queue, glm_mgr):
 
         # Terminate if None is received.
         if ind is None:
+            # Mark the task as done so joins won't hang later.
+            input_queue.task_done()
+            # We're done here. Deuces.
             return
 
-        t0 = time.time()
-        # So, we now have an individual. Evaluate.
-        ind.evaluate(glm_mgr=glm_mgr,
-                     db_conn=db.connect_loop(timeout=10, retry_interval=0.1))
-        t1 = time.time()
+        try:
+            t0 = time.time()
+            # So, we now have an individual. Evaluate.
+            ind.evaluate(glm_mgr=glm_mgr,
+                         db_conn=db.connect_loop(timeout=10,
+                                                 retry_interval=0.1))
+            t1 = time.time()
 
-        # Dump information into the logging queue.
-        logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
-                           'penalties': ind.penalties,
-                           'time': t1 - t0})
-
-        # Put the now fully evaluated individual in the output queue.
-        output_queue.put(ind)
-
-        # Mark this task as complete.
-        input_queue.task_done()
+            # Dump information into the logging queue.
+            logging_queue.put({'uid': ind.uid, 'fitness': ind.fitness,
+                               'penalties': ind.penalties,
+                               'time': t1 - t0})
+        except Exception as e:
+            # This is intentionally broad, and is here to ensure that
+            # the process attached to this method (or when this method
+            # is attached to a process?) doesn't crash and burn.
+            logging_queue.put({'error': e,
+                               'uid': ind.uid})
+        finally:
+            try:
+                # Put the (possibly) fully evaluated individual in the
+                # output queue. Error handling in ind.evaluate will
+                # ensure a failed evaluation results in a fitness of
+                # infinity.
+                output_queue.put(ind)
+            finally:
+                # Mark this task as complete. Putting this in a finally
+                # block should avoid us getting in a stuck state where
+                # a failure in evaluation causes us to not mark a task
+                # as complete.
+                input_queue.task_done()
 
 
 def _logging_thread(logging_queue):
@@ -1305,6 +1335,9 @@ def _logging_thread(logging_queue):
         dictionaries of the following format placed in it:
         {'uid': <uid, integer>, 'fitness': <fitness, float>,
         'penalties': <penalties, dictionary>}.
+
+        In the case of an upstream exception, the dictionary will look
+        like {'error': <exception object>}
 
         If None is received in the queue, the thread will terminate.
     """
@@ -1317,15 +1350,56 @@ def _logging_thread(logging_queue):
         if log_dict is None:
             return
 
-        # Log the individual completion.
-        # TODO: We may want this to be a debug message instead.
-        LOG.info('Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.'
-                 .format(log_dict['uid'], log_dict['time'],
-                         log_dict['fitness']))
+        try:
+            # See if we have an error.
+            log_dict['error']
 
-        LOG.debug("Individual {}'s penalties:\n{}"
-                  .format(log_dict['uid'],
-                          json.dumps(log_dict['penalties'], indent=4)))
+        except KeyError:
+            # Log the individual completion.
+            LOG.debug(
+                'Individual {} evaluated in {:.2f} seconds. Fitness: {:.2f}.\n'
+                'Penalties:\n{}'
+                .format(log_dict['uid'], log_dict['time'], log_dict['fitness'],
+                        json.dumps(log_dict['penalties'], indent=4))
+            )
+
+        else:
+            # We have an error.
+            # noinspection PyBroadException
+            try:
+                raise log_dict['error'] from None
+            except Exception:
+                LOG.exception('Individual {} encountered an error during '
+                              'evaluation.'.format(log_dict['uid']))
+
+
+def _progress_thread(input_queue, output_queue, log, num_processes,
+                     interval=5):
+    """Log size of input and output queues every interval seconds.
+
+    :param input_queue: threading.Queue like object with a qsize()
+        method. This queue should hold individuals waiting to be
+        evaluated.
+    :param output_queue: Same as input_queue, but holds individuals
+        which have already been evaluated.
+    :param log: logging.Logger object to log to.
+    :param num_processes: Number of processes used for evaluation. This
+        represents approximately how many individuals are in progress
+        at any given time.
+    :param interval: Time (seconds) to wait between logging calls.
+    """
+    while True:
+        size_in = input_queue.qsize()
+        size_out = output_queue.qsize()
+        log.info('Approximately {} individuals have been evaluated, {} '
+                 'are in the queue, and {} are currently being evaluated.'
+                 .format(size_out, size_in, num_processes))
+
+        # If the input queue is empty, quit.
+        if size_in == 0:
+            return
+
+        time.sleep(interval)
 
 
 class Population:
@@ -1361,7 +1435,7 @@ class Population:
         self._uid_counter = itertools.count()
 
         ################################################################
-        # Setup queues.
+        # Setup queues and lock.
         # Queue for individual evaluation.
         self._input_queue = mp.JoinableQueue()
 
@@ -1371,6 +1445,8 @@ class Population:
         # Queue for logging evaluation as it proceeds.
         self._logging_queue = mp.Queue()
 
+        # Lock used to avoid collisions when stopping the algorithm.
+        self._lock = threading.Lock()
         ################################################################
         # Threads and processes.
 
@@ -1448,6 +1524,9 @@ class Population:
         # tournament.
         self._tournament_size = math.ceil(self._tournament_fraction
                                           * self._population_size)
+
+        # Logging interval for using during calls to "evaluate".
+        self._log_interval = CONFIG['ga']['log_interval']
 
         ################################################################
 
@@ -1530,6 +1609,11 @@ class Population:
         ceil(population_size * tournament_fraction)
         """
         return self._tournament_size
+
+    @property
+    def log_interval(self):
+        """How often (seconds) to log during evaluation."""
+        return self._log_interval
 
     ####################################################################
     # Initializer inputs.
@@ -1629,6 +1713,19 @@ class Population:
     def processes(self):
         """List of processes for performing individual evaluation."""
         return self._processes
+
+    @property
+    def all_processes_alive(self):
+        """True if all processes return True on is_alive(), else False.
+        """
+        return np.array([p.is_alive() for p in self.processes]).all()
+
+    @property
+    def all_processes_dead(self):
+        """True if all processes return False on is_alive(), else True.
+        """
+        return np.array([not p.is_alive() for p in self.processes]).all()
+
     ####################################################################
 
     @property
@@ -1902,6 +1999,14 @@ class Population:
             raise ValueError('evaluate_population should only be '
                              'called when the population is full.')
 
+        # Throw an error if all of our processes aren't alive.
+        # Technically this can run if just one is alive, but that would
+        # cause the algorithm to run very slowly.
+        if not self.all_processes_alive:
+            m = 'evaluate_population called, but not all processes are alive!'
+            self.log.error(m)
+            raise DeadProcessError(m)
+
         # Initialize list of indices for individuals we're evaluating.
         idx = []
 
@@ -1914,6 +2019,18 @@ class Population:
                 # population since we'll be retrieving the evaluated
                 # version later.
                 idx.append(i)
+
+        # Start a thread to log progress.
+        # TODO: are we okay with the consequences if this thread doesn't
+        #   ever get properly shut down? I think so. Eventually the
+        #   queues will get emptied or deleted, and the thread will die.
+        t = threading.Thread(target=_progress_thread,
+                             kwargs={'input_queue': self.input_queue,
+                                     'output_queue': self.output_queue,
+                                     'log': self.log,
+                                     'num_processes': len(self.processes),
+                                     'interval': self.log_interval})
+        t.start()
 
         # Make a new version of the population sans the individuals
         # who are currently being evaluated.
@@ -1929,17 +2046,23 @@ class Population:
         # Wait for processing to finish.
         self.input_queue.join()
 
-        # Get list to dump individuals in.
-        evaluated_individuals = []
+        # Transfer the evaluated individuals into the population.
+        self._dump_queue_into_population()
 
-        # Dump the output queue into new list.
-        _dump_queue(q=self.output_queue, i=evaluated_individuals)
-
-        # Put the individuals back in the population (recall we popped
-        # them from the list earlier).
-        self._population.extend(evaluated_individuals)
+        # Check to see if we were interrupted.
+        if len(self.population) != self.population_size:
+            self.log.warning('The length of the population does not match the '
+                             'expected population size. Perhaps evaluation was'
+                             ' interrupted?')
 
         # All done.
+
+    @utils.wait_for_lock
+    def _dump_queue_into_population(self):
+        """Simple helper used by evaluate_population to put the contents
+        of the output_queue into the population list. This is put into a
+        helper function so it can be wrapped by wait_for_lock."""
+        self._population = _dump_queue(q=self.output_queue, i=self._population)
 
     def natural_selection(self):
         """Trim the population via both elitism and tournaments."""
@@ -2014,10 +2137,86 @@ class Population:
                  'all individuals have been evaluated, and try again.')
             raise TypeError(s) from None
 
+    @utils.wait_for_lock
+    def graceful_shutdown(self):
+        """Helper to "gracefully" stop an in-progress run of
+        evaluate_population. By "gracefully", I mean that no processes
+        will be terminated mid-run. Instead, the queue will be emptied
+        out, and then the processes terminated.
 
-class ChromosomeAlreadyExistedError(Exception):
+        For now, "graceful" does not mean that we can simply resume
+        where we left off. If that is desired later, it'll be pretty
+        similar to this method, and not too complicated.
+
+        Note this method is intended to be run quickly and exit. It will
+        not wait for the processes to finish. If the processes should
+        be waited on, this should happen outside of this method.
+
+        Check the all_processes_dead attribute to ensure everything's
+        been killed.
+        """
+        self.log.warning('Gracefully stopping genetic algorithm evaluation.')
+
+        # Drain the input queue. This will prevent any further
+        # individuals from being evaluated.
+        _drain_queue(self.input_queue)
+
+        # Drain the output queue. This will prevent extra work from
+        # being done later.
+        _drain_queue(self.output_queue)
+
+        # Send in the shutdown signal to all the processes.
+        for _ in range(len(self.processes)):
+            self.input_queue.put_nowait(None)
+
+        # Log.
+        self.log.info('The input and output queues have been drained, and the '
+                      'termination signal has been sent to the processes.')
+
+        # We're done here. Actually waiting for the processes to finish
+        # should be done elsewhere - we don't want this method to wait.
+        return None
+
+    def forceful_shutdown(self):
+        """This is a bit tricky due to (probably) bad design. We have
+        each process attached to a target, in this case that target is
+        _evaluate_worker. During the course of running, the process
+        opens up a subprocess to run GridLAB-D. Currently, that's done
+        with subprocess.run, which doesn't allow us to kill the
+        running subprocess. I'm concerned that if we just send the
+        terminate or kill signal to the process, the GridLAB-D process
+        will either keep running or die in a way that causes issues
+        (like bad stuff with MySQL). In the former case (GLD keeps
+        running), the forceful shutdown is practically pointless. Sure,
+        it'll save some queries to the database during evaluation, but
+        that's not where the heavy lifting is. In the latter case (the
+        GLD process is forcefully stopped), we could totally hose
+        things. So, until there's a compelling reason to implement a
+        forceful shutdown, let's call it good with the graceful
+        shutdown.
+        """
+        raise NotImplementedError
+
+
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class ChromosomeAlreadyExistedError(Error):
     """Raised if a chromosome has already been existed.
     """
+    pass
+
+
+class DeadProcessError(Error):
+    """Raised when a Population object has a dead process but shouldn't.
+    """
+    pass
+
+
+class GAInterruptedError(Error):
+    """Raised when the genetic algorithm is externally interrupted."""
 
 
 def _tournament(population, tournament_size, n):
@@ -2062,6 +2261,28 @@ def _dump_queue(q, i):
             i.append(q.get_nowait())
         except queue.Empty:
             return i
+
+
+def _drain_queue(q):
+    """Helper to simply clear out a queue. The items in the queue will
+    be discarded. If the queue is joinable (has a task_done() method),
+    it will be called for each get_nowait() call.
+
+    :param q: A queue.Queue lik object (e.g.
+        multiprocessing.JoinableQueue)
+
+    :returns: None
+    """
+    while True:
+        try:
+            q.get_nowait()
+            try:
+                q.task_done()
+            except AttributeError:
+                pass
+
+        except queue.Empty:
+            break
 
 
 def _update_equipment_with_individual(ind, regs, caps):
@@ -2137,68 +2358,327 @@ def _update_equipment_with_individual(ind, regs, caps):
     # And we're done!
 
 
-def main(regulators, capacitors, glm_mgr, starttime, stoptime):
-    """Function to run the GA in its entirety.
+def _clear_and_set_event(method):
+    """Decorator for use with the GA class to clear() a threading.Event
+    object while a method is running, and set() the event after. For
+    now, this decorator is hard-coded to use the _not_running_event
+    attribute of the GA object. This could be made more generic by
+    following advice found
+    `here <https://stackoverflow.com/a/10176276>`_.
 
-    :param regulators: dictionary as returned by
-        equipment.initialize_regulators. WARNING: The states of these
-        objects will be altered after the algorithm has run. It is
-        recommended that a deepcopy be passed in.
-    :param capacitors: dictionary as returned by
-        equipment.initialize_capacitors/ WARNING: The states of these
-        objects will be altered after the algorithm has run. It is
-        recommended that a deepcopy be passed in.
-    :param glm_mgr: glm.GLMManager object. The model will be updated
-        via this modules 'prep_glm_mgr' function, so this object should
-        just be the raw model from the platform. WARNING: This object
-        will be modified, so it is recommended that a deepcopy be
-        passed in.
-    :param starttime: Python datetime object for simulation start. For
-        more details, see the docstring for prep_glm_mgr.
-    :param stoptime: Python datetime object for simulation end. See
-        prep_glm_mgr.
-
-    :returns: regulators, capacitors after state modification.
+    NOTE: An exception will be raised if the _not_running_event is
+    already set at the beginning of this method.
     """
-    # We'll time the algorithm runtime.
-    t0 = time.time()
-    # Initialize the Population object.
-    pop = Population(regulators=regulators, capacitors=capacitors,
-                     glm_mgr=glm_mgr, starttime=starttime,
-                     stoptime=stoptime)
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        # Raise an exception if _not_running_event is not already set.
+        if not self._not_running_event.is_set():
+            raise RuntimeError('The _not_running_event is set when it '
+                               'should not be. This could mean that "run" was '
+                               'called before a previous call to "run" had '
+                               'finished.')
 
-    # Fill the population with individuals.
-    pop.initialize_population()
-    # Evaluate each individual. This will take some time.
-    pop.evaluate_population()
+        # Clear the event to indicate the method is running.
+        self._not_running_event.clear()
 
-    # Loop over the generations to perform natural selection, crossover,
-    # and mutation.
-    g = 1
-    while g <= CONFIG['ga']['generations']:
-        pop.natural_selection()
-        # The best individual will always be in position 0 after
-        # natural selection.
-        best = pop.population[0]
-        LOG.info('After generation {}, best fitness: {:.2f} from individual {}'
-                 .format(g, best.fitness, best.uid))
-        pop.crossover_and_mutate()
-        pop.evaluate_population()
-        g += 1
+        # Run the method.
+        try:
+            result = method(self, *args, **kwargs)
+        finally:
+            # Set the event to indicate the method is not running.
+            self._not_running_event.set()
 
-    # Sort the population.
-    pop.sort_population()
-    t1 = time.time()
-    best = pop.population[0]
-    LOG.info('Best overall fitness: {:.2f} from individual {}'
-             .format(best.fitness, best.uid))
+        return result
 
-    LOG.info('Total GA run time: {:.2f}'.format(t1-t0))
+    return wrapper
 
-    # Update the regulators and capacitors with the positions given by
-    # the best individual.
-    _update_equipment_with_individual(ind=best, regs=regulators,
-                                      caps=capacitors)
 
-    # And we're done!
-    return regulators, capacitors
+class GA:
+    """Class for managing the genetic algorithm. Use the "run" and
+    "stop" methods to start/stop the algorithm."""
+
+    def __init__(self, regulators, capacitors, starttime, stoptime,
+                 stop_timeout=120.0):
+        """
+        :param regulators: dictionary as returned by
+            equipment.initialize_regulators. Since the states of
+            these objects will be altered after the algorithm has run,
+            a deepcopy will be made.
+        :param capacitors: dictionary as returned by
+            equipment.initialize_capacitors. Since the states of
+            these objects will be altered after the algorithm has run,
+            a deepcopy will be made.
+        :param starttime: Python datetime object for simulation start.
+            For more details, see the docstring for prep_glm_mgr.
+        :param stoptime: Python datetime object for simulation end. See
+            prep_glm_mgr.
+        :param stop_timeout: Timeout (seconds) for waiting on the
+            algorithm to stop after the "stop" method is called. If this
+            timeout is exceeded, future calls to "run" will do nothing.
+        """
+        # Set up logging.
+        self.log = logging.getLogger(__class__.__name__)
+
+        # Assign inputs as attributes. Make copies of mutable objects
+        # which will be modified.
+        self._regulators = copy.deepcopy(regulators)
+        self._capacitors = copy.deepcopy(capacitors)
+        self._starttime = starttime
+        self._stoptime = stoptime
+        self.stop_timeout = stop_timeout
+
+        # Initialize attribute which will be replaced with a Population
+        # object once the algorithm is running.
+        self._population = None
+
+        # Initialize attribute which will be replaced with a thread
+        # while the genetic algorithm is running.
+        self._run_thread = None
+
+        # Initialize event for signaling algorithm interruption.
+        # If this event is set, the GA can run. If it is not set, the
+        # GA cannot run.
+        self._run_event = threading.Event()
+        self._run_event.set()
+
+        # Initialize event for tracking if the genetic algorithm is
+        # running. If not set, the GA is currently running. If set,
+        # the GA is not running.
+        self._not_running_event = threading.Event()
+        self._not_running_event.set()
+
+    @property
+    def regulators(self):
+        """Dictionary as returned by equipment.initialize_regulators.
+        The underlying regulator object states will be modified by the
+        algorithm"""
+        return self._regulators
+
+    @property
+    def capacitors(self):
+        """Dictionary as returned by equipment.initialize_capacitors.
+        The underlying capacitor object states will be modified by the
+        algorithm."""
+        return self._capacitors
+
+    @property
+    def starttime(self):
+        """Python datetime object for simulation start. For more
+        details, see the docstring for prep_glm_mgr."""
+        return self._starttime
+
+    @property
+    def stoptime(self):
+        """Python datetime object for simulation end. For more
+        details, see the docstring for prep_glm_mgr."""
+        return self._stoptime
+
+    @property
+    def population(self):
+        """ga.Population object, or None if the algorithm has not yet
+        been run.
+        """
+        return self._population
+
+    @property
+    def run_thread(self):
+        """Thread used to run the genetic algorithm."""
+        return self._run_thread
+
+    @property
+    def running(self):
+        """True if the genetic algorithm is running, False otherwise."""
+        return not self._not_running_event.is_set()
+
+    @property
+    def run_event(self):
+        """threading.Event object. If self.run_event.is_set() returns
+        True, the genetic algorithm is permitted to run. If is_set()
+        instead returns False, the genetic algorithm is not permitted
+        to run, and will begin shutting down if it was in progress.
+        """
+        return self._run_event
+
+    def run(self, glm_mgr):
+        """Run the genetic algorithm. This runs the algorithm in a
+        thread for easy interruption. It will return before the genetic
+        algorithm is complete (as soon as the thread is started).
+
+        :param glm_mgr: glm.GLMManager object. The model will be updated
+            via this modules 'prep_glm_mgr' function, so this object
+            should just be the raw model from the platform. Since the
+            states of these objects will be altered after the algorithm
+            has run, a deepcopy will be made.
+        """
+        # Copy the GLMManager.
+        mgr_copy = copy.deepcopy(glm_mgr)
+
+        # Create and start thread.
+        self._run_thread = threading.Thread(target=self._run,
+                                            kwargs={'glm_mgr': mgr_copy})
+        self._run_thread.start()
+
+        # That's it!
+        return None
+
+    @_clear_and_set_event
+    def _run(self, glm_mgr):
+        """Private method for running the genetic algorithm. Don't ever
+        use this directly, use the public "run" method instead.
+
+        This method makes extensive use of the "_run_if_set" helper
+        function so that the algorithm can be interrupted as quickly
+        as possible if/when "stop" is called.
+
+        Also note this method is decorated by _clear_and_set_event. This
+        is used to flag when the genetic algorithm is running by
+        clearing the _not_running_event before the starting the method,
+        and then setting the _not_running_event after completion (no
+        matter what happens).
+
+        :param glm_mgr: glm.GLMManager object. The model will be updated
+            via this modules 'prep_glm_mgr' function, so this object
+            should just be the raw model from the platform.
+        """
+        # We'll time the algorithm runtime.
+        t0 = time.time()
+
+        # Initialize the Population object.
+        self._population = Population(regulators=self.regulators,
+                                      capacitors=self.capacitors,
+                                      glm_mgr=glm_mgr,
+                                      starttime=self.starttime,
+                                      stoptime=self.stoptime)
+
+        try:
+            # Fill the population with individuals.
+            self._run_if_set(self.population.initialize_population)
+
+            # Evaluate each individual. This will take some time.
+            self._run_if_set(self.population.evaluate_population)
+
+            # Loop over the generations to perform natural selection,
+            # crossover, and mutation.
+            g = 1
+            while g <= CONFIG['ga']['generations']:
+                self._run_if_set(self.population.natural_selection)
+                # The best individual will always be in position 0 after
+                # natural selection.
+                self._run_if_set(self._log_best_each_gen, g)
+
+                self._run_if_set(self.population.crossover_and_mutate)
+                self._run_if_set(self.population.evaluate_population)
+                g += 1
+
+            # Sort the population.
+            self._run_if_set(self.population.sort_population)
+
+            # Log.
+            self._run_if_set(self._log_best_overall, t0)
+
+            # Update the regulators and capacitors with the positions
+            # given by the best individual.
+            self._run_if_set(_update_equipment_with_individual,
+                             ind=self.population[0], regs=self.regulators,
+                             caps=self.capacitors)
+        except GAInterruptedError:
+            # One of our many "_run_if_set" wrappers raised this,
+            # indicating the algorithm was interrupted. Return.
+            return None
+
+        # Nothing to return here, as the objects themselves get updated.
+        return None
+
+    def _run_if_set(self, func, *args, **kwargs):
+        """Helper to run a function if self.run_event.is_set() returns
+        True. This method should only be called from within the _run
+        method.
+
+        :param func: Function to run.
+        :param args: Positional arguments to pass to func.
+        :param kwargs: Keyword arguments to pass to func.
+
+        :returns: Directly returns the return from running func.
+
+        :raises GAInterruptedError: Raised if the run_event is not set.
+        """
+        if self.run_event.is_set():
+            return func(*args, **kwargs)
+        else:
+            # Log.
+            self.log.warning(
+                'Did not run {} because the run_event is not set.'
+                .format(func))
+
+            # Raise exception.
+            raise GAInterruptedError('The genetic algorithm was interrupted.')
+
+    def _log_best_each_gen(self, gen: int):
+        """Helper for logging during execution of _run. Should only be
+        called from _run.
+
+        :param gen: Generation number of the genetic algorithm.
+        """
+        best = self.population.population[0]
+        self.log.info(
+            'After generation {}, best fitness: {:.2f} from individual'
+            ' {}'.format(gen, best.fitness, best.uid))
+
+    def _log_best_overall(self, t0: float):
+        """Helper for logging at the end of the genetic algorithm.
+        Should only be called from _run.
+
+        :param t0: Starting time of the genetic algorithm. Should come
+            from a time.time() call.
+        """
+        t1 = time.time()
+        best = self.population.population[0]
+        self.log.info('Best overall fitness: {:.2f} from individual {}'
+                      .format(best.fitness, best.uid))
+
+        self.log.info('Total GA run time: {:.2f}'.format(t1 - t0))
+
+    def stop(self):
+        """Method to interrupt the running genetic algorithm. This
+        method will immediately return after kicking off the stopping
+        process. To check on whether or not the genetic algorithm is
+        still running, check self.running.
+        """
+        if not self.running:
+            self.log.warning('The "stop" method was called, but the genetic '
+                             'algorithm is not running.')
+        else:
+            # Flag that we need to stop.
+            self._run_event.clear()
+
+            # Stop the population object from running.
+            self.population.graceful_shutdown()
+
+            # Start up a thread that will set the run_event once the
+            # _run function has finished.
+            t = threading.Thread(target=self._set_run_event_after_run)
+            t.start()
+
+        # All done.
+        return None
+
+    def _set_run_event_after_run(self):
+        """Helper used by "stop" to set the _run_event after the _run
+        method finishes (as signaled by setting _not_running_event).
+        """
+        # Wait for _not_running_event to be set.
+        result = self._not_running_event.wait(timeout=self.stop_timeout)
+
+        if result:
+            # Success.
+            self._run_event.set()
+        else:
+            # Well, the algorithm failed to stop within the specified
+            # timeout. Warn.
+            self.log.warning('The "run" method failed to stop within {:.2f} '
+                             'seconds of calling "stop." Future calls to '
+                             '"run" will do nothing until the "run_event" is '
+                             'set.'.format(self.stop_timeout))
+
+        # All done.
+        return None
