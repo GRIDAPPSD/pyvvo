@@ -114,6 +114,21 @@ By default, PyCharm is not configured to follow the line length
 requirements laid out in PEP-8. See [this section](#set-visual-guides-for-pep-8)
 of this README for details on setting up configuring line length.
 
+### MySQL
+PyVVO relies on MySQL for running the genetic algorithm. In short, 
+GridLAB-D is used as a power flow solver/simulator, and simulation
+results get put into a MySQL database. Then, PyVVO pulls the data from
+MySQL to evaluate which simulation performed best.
+
+At the time of writing (2019-10-11), a Docker repository is not set up
+for PyVVO's MySQL container, so you'll need to build it yourself.
+Luckily, this is very simple. Do the following in a bash shell (
+assuming you cloned the repository into `~/git/pyvvo`):
+```
+cd ~/git/pyvvo/mysql
+./build.sh
+```
+
 ### Setting up PyCharm to work with PyVVO
 #### Introduction
 To enable debugging, the PyVVO application is run *outside* of the
