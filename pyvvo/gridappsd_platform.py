@@ -260,7 +260,7 @@ class PlatformManager:
     sparql.py
     """
 
-    def __init__(self, timeout=45):
+    def __init__(self, timeout=60):
         """Connect to the GridAPPS-D platform by initializing a
         gridappsd.GridAPPSD object.
 
@@ -542,31 +542,32 @@ class PlatformManager:
         geo_name = "_73C512BD-7249-4F50-50DA-D93849B89C43"
         subgeo_name = "_A1170111-942A-6ABD-D325-C64886DC4D7D"
 
-        run_config = \
-            {"power_system_config": {
+        run_config = {
+            "power_system_config": {
                 "GeographicalRegion_name": geo_name,
                 "SubGeographicalRegion_name": subgeo_name,
-                "Line_name": feeder_id},
-                "application_config": {"applications": applications},
-                "simulation_config": {
-                    "start_time": utils.dt_to_s_from_epoch(start_time),
-                    "duration": str(duration),
-                    "simulator": "GridLAB-D",
-                    "timestep_frequency": "1000",
-                    "timestep_increment": "1000",
-                    "run_realtime": realtime,
-                    "simulation_name": "ieee8500",
-                    "power_flow_solver_method": "NR",
-                    "model_creation_config": {
-                        "load_scaling_factor": "1",
-                        "schedule_name": "ieeezipload",
-                        "z_fraction": str(z_fraction),
-                        "i_fraction": str(i_fraction),
-                        "p_fraction": str(p_fraction),
-                        "randomize_zipload_fractions": random_zip,
-                        "use_houses": houses}},
-                "test_config": {"events": [],
-                                "appId": feeder_id}}
+                "Line_name": feeder_id
+            },
+            "application_config": {"applications": applications},
+            "simulation_config": {
+                "start_time": utils.dt_to_s_from_epoch(start_time),
+                "duration": str(duration),
+                "simulator": "GridLAB-D",
+                "timestep_frequency": "1000",
+                "timestep_increment": "1000",
+                "run_realtime": realtime,
+                "simulation_name": "ieee8500",
+                "power_flow_solver_method": "NR",
+                "model_creation_config": {
+                    "load_scaling_factor": "1",
+                    "schedule_name": "ieeezipload",
+                    "z_fraction": str(z_fraction),
+                    "i_fraction": str(i_fraction),
+                    "p_fraction": str(p_fraction),
+                    "randomize_zipload_fractions": random_zip,
+                    "use_houses": houses}},
+            "test_config": {"events": [],
+                            "appId": feeder_id}}
 
         # Simulation is not complete yet.
         self.sim_complete = False
