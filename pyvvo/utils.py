@@ -174,15 +174,17 @@ def gld_installed(env=None):
 
 
 def run_gld(model_path, env=None):
-    """Helper to run a GRIDLAB-D model. Returns True for success, False
-    for failure. The GridLAB-D executable will be run from the same
-    directory as the model.
+    """Helper to run a GRIDLAB-D model. The GridLAB-D executable will be
+    run from the same directory as the model.
 
     If needed, run options can be added in the future.
 
     :param model_path: path (preferably full path) to GridLAB-D model.
     :param env: used to override the environment for subprocess. Leave
         this as None.
+
+    :returns: A subprocess.CompletedProcess object corresponding to the
+        GridLAB-D run.
     """
     cwd = os.path.dirname(model_path)
     if len(cwd) == 0:

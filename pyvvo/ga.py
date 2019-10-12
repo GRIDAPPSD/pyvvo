@@ -998,6 +998,10 @@ class _Evaluator:
         :param db_conn: Active database connection which follows
             PEP 249.
         """
+        # Set up log.
+        # TODO: The issue is this gets run in multiprocessing.
+        # self.log = logging.getLogger(__class__.__name__ + '_{}'.format(uid))
+
         # Don't check uid, it's been validated by an Individual.
         self.uid = uid
 
@@ -1457,9 +1461,8 @@ class Population:
 
         self.logging_thread.start()
 
-        # On to processes. For now, use all but one core.
-        # TODO: We'll want to make this configurable in the future.
-        n_jobs = mp.cpu_count() - 1
+        # On to processes.
+        n_jobs = CONFIG['ga']['processes']
 
         # Initialize processes.
         # TODO: Move this to a method like load_model.LoadModelManager.
@@ -2078,9 +2081,8 @@ class Population:
             # since that's fixed for a full population.
             winner_idx = \
                 _tournament(population=self._population,
-                            tournament_size=
-                            math.ceil(self.tournament_fraction
-                                      * len(self._population)),
+                            tournament_size=math.ceil(self.tournament_fraction
+                                                      * len(self._population)),
                             n=1)[0]
 
             # Put the winner into the new population.

@@ -13,14 +13,16 @@
     },
     "intervals": {
       "sample": 5,
-      "minimum_timestep": 1
+      "minimum_timestep": 1,
+      "model_run": 60
     },
     "population_size": 28,
     "generations": 3,
     "top_fraction": 0.1,
     "total_fraction": 0.5,
     "tournament_fraction": 0.2,
-    "log_interval": 5
+    "log_interval": 5,
+    "processes": 6
   },
   "limits": {
     "voltage_high": 1.05,
