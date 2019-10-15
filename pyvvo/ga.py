@@ -2668,19 +2668,38 @@ class GA:
         """Helper used by "stop" to set the _run_event after the _run
         method finishes (as signaled by setting _not_running_event).
         """
-        # Wait for _not_running_event to be set.
-        result = self._not_running_event.wait(timeout=self.stop_timeout)
-
-        if result:
-            # Success.
-            self._run_event.set()
-        else:
+        try:
+            self.wait(timeout=self.stop_timeout)
+        except TimeoutError:
             # Well, the algorithm failed to stop within the specified
             # timeout. Warn.
             self.log.warning('The "run" method failed to stop within {:.2f} '
                              'seconds of calling "stop." Future calls to '
                              '"run" will do nothing until the "run_event" is '
                              'set.'.format(self.stop_timeout))
+        else:
+            # Success.
+            self._run_event.set()
 
         # All done.
+        return None
+
+    def wait(self, timeout=None):
+        """Wait for the "run" method to complete.
+
+        :param timeout: Time (seconds) to wait for the "run" method to
+            complete. Defaults to None (wait forever).
+
+        :returns: None
+
+        :raises TimeoutError:
+        """
+        # Wait for the _not_running_event.
+        r = self._not_running_event.wait(timeout=timeout)
+
+        # An Event object's wait method returns False if it timed out.
+        if not r:
+            raise TimeoutError('Genetic algorithm did not finish within the '
+                               'specified {} seconds.'.format(timeout))
+
         return None

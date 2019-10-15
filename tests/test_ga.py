@@ -2913,6 +2913,20 @@ class GATestCase(unittest.TestCase):
         # The _run_event should now be set.
         self.assertTrue(self.ga_obj.run_event.is_set())
 
+    def test_wait_times_out(self):
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+        self.ga_obj._not_running_event.clear()
+        with self.assertRaises(TimeoutError):
+            self.ga_obj.wait(timeout=0.01)
+
+    def test_wait(self):
+        self.assertTrue(self.ga_obj._not_running_event.is_set())
+        with time_limit(1):
+            r = self.ga_obj.wait(timeout=2)
+
+        self.assertIsNone(r)
+
+
 
 if __name__ == '__main__':
     unittest.main()
