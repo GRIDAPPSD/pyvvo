@@ -2506,6 +2506,19 @@ class GA:
         thread for easy interruption. It will return before the genetic
         algorithm is complete (as soon as the thread is started).
 
+        Recall that this class's "running" property indicates whether
+        or not the genetic algorithm is currently running.
+
+        After the genetic algorithm finishes, self.regulators and
+        self.capacitors will get updated with the settings from the
+        best individual. Then, one could use an EquipmentManager's
+        "build_equipment_commands" method in conjunction with this
+        object's self.regulators/self.capacitors attributes in order
+        to get commands ready to send into the GridAPPS-D platform.
+
+        If you'd like to wait for the algorithm to complete, use this
+        class's "wait" method after calling "run."
+
         :param glm_mgr: glm.GLMManager object. The model will be updated
             via this modules 'prep_glm_mgr' function, so this object
             should just be the raw model from the platform. Since the
@@ -2538,9 +2551,15 @@ class GA:
         and then setting the _not_running_event after completion (no
         matter what happens).
 
+        Rather than returning, this function updates self.regulators
+        and self.capacitors with the states from the individual which
+        is determined to be best.
+
         :param glm_mgr: glm.GLMManager object. The model will be updated
             via this modules 'prep_glm_mgr' function, so this object
             should just be the raw model from the platform.
+
+        :returns: None
         """
         # We'll time the algorithm runtime.
         t0 = time.time()
