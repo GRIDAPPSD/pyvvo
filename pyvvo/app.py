@@ -2,10 +2,9 @@
 from pyvvo import sparql
 from pyvvo.glm import GLMManager
 from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter
-from pyvvo import equipment
-from pyvvo import ga, utils
+from pyvvo import equipment, ga, utils
 from gridappsd import topics
-from datetime import datetime
+from datetime import datetime, timedelta
 import simplejson as json
 import time
 import logging
@@ -15,41 +14,32 @@ LOG = logging.getLogger(__name__)
 
 
 def main(sim_id, sim_request):
+    LOG.debug("Simulation ID: {}".format(sim_id))
+    LOG.debug("Simulation Request:\n{}".format(json.dumps(sim_request,
+                                                          indent=2)))
+
     # Extract the feeder_mrid from the simulation request.
     feeder_mrid = sim_request["power_system_config"]["Line_name"]
-
-    # # Determine whether we're running inside or outside the platform.
-    # PLATFORM = os.environ['platform']
-    #
-    # Hard-code 8500 node MRID for now.
-    # feeder_mrid = '_4F76A5F9-271D-9EB8-5E31-AA362D86F2C3'
-    # 9500
-    # feeder_mrid = '_AAE94E4A-2465-6F5E-37B1-3E72183A4E44'
-    # IEEE 13 bus
-    # feeder_mrid = '_49AD8E07-3BF9-A4E2-CB8F-C3722F837B62'
-    # IEEE 123 bus
-    # feeder_mrid = '_C1C3E687-6FFD-C753-582B-632A27E28507'
+    LOG.debug("Feeder MRID extracted from simulation request.")
 
     # Get a SPARQL manager.
     sparql_mgr = sparql.SPARQLManager(feeder_mrid=feeder_mrid)
-    # houses = sparql_mgr.query_houses()
 
     # Get a platform manager
     platform = PlatformManager()
 
-    # print('hooray')
-    #
-    # # m = platform.get_historic_measurements(sim_id=sim_id, mrid=None)
-    #
-    # Hard-code some dates to work with.
-    starttime = datetime(2013, 1, 14, 0, 0)
-    stoptime = datetime(2013, 1, 14, 0, 1)
+    # Extract dates from the simulation request.
+    start_seconds = int(sim_request["simulation_config"]["start_time"])
+    duration = int(sim_request["simulation_config"]["duration"])
+    LOG.debug("Simulation start time and duration extracted from simulation "
+              "request.")
 
-    # sim_id = platform.run_simulation(feeder_id=feeder_mrid,
-    #                                  start_time=starttime,
-    #                                  duration=20, realtime=False)
+    # Convert times to datetime.
+    # TODO: Add information indicating this is UTC.
+    starttime = datetime.fromtimestamp(start_seconds)
+    stoptime = starttime + timedelta(seconds=duration)
+    LOG.debug("starttime: {}, stoptime: {}".format(starttime, stoptime))
 
-    # sim_id = '1524166554'
     # ####################################################################
     # # GET PREREQUISITE DATA
     # ####################################################################
@@ -89,6 +79,17 @@ def main(sim_id, sim_request):
         eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
     )
 
+    # Get list of dictionaries for routing output.
+    fn_mrid_list = [
+        {'functions': reg_mgr.update_state, 'mrids': reg_meas_mrid},
+        {'functions': cap_mgr.update_state, 'mrids': cap_meas_mrid},
+        {'functions': switch_mgr.update_state, 'mrids': switch_meas_mrid}
+    ]
+
+    # Create a SimOutRouter to listen to simulation outputs.
+    router = SimOutRouter(platform_manager=platform, sim_id=sim_id,
+                          fn_mrid_list=fn_mrid_list)
+
     # Get EnergyConsumer (load) data.
     load_nom_v = sparql_mgr.query_load_nominal_voltage()
     load_meas = sparql_mgr.query_load_measurements()
@@ -100,11 +101,33 @@ def main(sim_id, sim_request):
     substation_bus_meas = sparql_mgr.query_measurements_for_bus(
         bus_mrid=substation.iloc[0]['bus_mrid'])
 
-    # Get model, make it runnable.
+    # Get model, instantiate GLMManager.
     model = platform.get_glm(model_id=feeder_mrid)
-    glm = GLMManager(model=model, model_is_path=False)
-    model_start = datetime(2013, 4, 1, 12, 0)
-    model_end = datetime(2013, 4, 1, 12, 5)
+    glm_mgr = GLMManager(model=model, model_is_path=False)
+
+    # Run the genetic algorithm.
+    # TODO: Manage times in a better way.
+    ga_stop = (starttime
+               + timedelta(seconds=ga.CONFIG["ga"]["intervals"]["model_run"]))
+    ga_mgr = ga.GA(regulators=reg_objects, capacitors=cap_objects,
+                   starttime=starttime, stoptime=ga_stop)
+    ga_mgr.run(glm_mgr=glm_mgr)
+
+    # Wait for the genetic algorithm to complete.
+    ga_mgr.wait()
+
+    # Extract equipment settings.
+    reg_forward = ga_mgr.regulators
+    cap_forward = ga_mgr.capacitors
+
+    # Get the commands.
+    reg_cmd = reg_mgr.build_equipment_commands(reg_forward)
+    cap_cmd = cap_mgr.build_equipment_commands(cap_forward)
+
+    # Send 'em!
+    platform.send_command(sim_id=sim_id, **reg_cmd)
+    platform.send_command(sim_id=sim_id, **cap_cmd)
+    LOG.info('Commands sent in.')
 
     # glm.add_run_components(starttime=model_start, stoptime=model_end)
     # glm.write_model(out_path='8500.glm')
@@ -139,19 +162,10 @@ def main(sim_id, sim_request):
     # # print('unsubscribed!', flush=True)
     # #
     #
-    # # Get list of dictionaries for routing output.
-    # fn_mrid_list = [
-    #     {'functions': reg_mgr.update_state, 'mrids': reg_meas_mrid},
-    #     {'functions': cap_mgr.update_state, 'mrids': cap_meas_mrid},
-    #     # {'functions': switch_mgr.update_state, 'mrids': switch_meas_mrid}
-    # ]
     #
     # # Run a simulation.
     # sim_id = platform.run_simulation()
     #
-    # # Create a SimOutRouter to listen to simulation outputs.
-    # router = SimOutRouter(platform_manager=platform, sim_id=sim_id,
-    #                       fn_mrid_list=fn_mrid_list)
     #
     # # # Send commands to running simulation. Command all regulators to
     # # # their maximum.
@@ -188,3 +202,20 @@ def main(sim_id, sim_request):
     # #                       reverse_values=reg_reverse, sim_id=sim_id)
     #
     # print('hooray')
+
+
+if __name__ == '__main__':
+    pass
+    # Use crappy names to avoid scope name overshadowing.
+    # p = PlatformManager()
+    # s = datetime(2013, 1, 14, 0, 0)
+    # d = 1200
+    # sid = p.run_simulation(
+    #     feeder_id='_AAE94E4A-2465-6F5E-37B1-3E72183A4E44',
+    #     start_time=s, duration=d, realtime=True
+    # )
+    #
+    # # Do some crude sleeping to avoid timeouts later, since the platform
+    # # takes forever and a day to start a simulation.
+    # time.sleep(30)
+    # main(sim_id=sid, sim_request=p.last_sim_config)
