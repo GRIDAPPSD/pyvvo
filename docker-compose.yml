@@ -11,6 +11,9 @@ services:
       DB_PORT: "3306"
     depends_on:
       - db
+#    entrypoint:
+#      - sleep
+#      - infinity
   db:
     image: gridappsd/pyvvo-mysql:latest
     volumes:
