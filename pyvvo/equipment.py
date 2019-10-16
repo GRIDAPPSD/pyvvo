@@ -726,15 +726,17 @@ class EquipmentManager:
 
             # Update!
             try:
-                self.meas_eq_map[meas_mrid].state = value
+                eq = self.meas_eq_map[meas_mrid]
             except KeyError:
                 self.log.warning(
                     'Measurement MRID {} not present in the map!'.format(
                         meas_mrid))
             else:
-                self.log.debug('Equipment {} state updated to: {}'.format(
-                    str(self.meas_eq_map[meas_mrid]), value
-                ))
+                if eq.state != value:
+                    eq.state = value
+                    self.log.debug('Equipment {} state updated to: {}'.format(
+                        str(self.meas_eq_map[meas_mrid]), value
+                    ))
 
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
@@ -778,11 +780,28 @@ class EquipmentManager:
 
                 raise ValueError(m) from None
 
-            # Append values to output.
-            out['object_ids'].append(eq_mrid)
-            out['attributes'].append(eq_for.STATE_CIM_PROPERTY)
-            out['forward_values'].append(eq_for.state)
-            out['reverse_values'].append(eq_rev.state)
+            # Only build commands if the states are different.
+            if eq_for.state != eq_rev.state:
+                # We need to convert from numpy data types to regular
+                # Python. Helpful:
+                # https://stackoverflow.com/a/11389998/11052174
+                state_for = eq_for.state
+                state_rev = eq_rev.state
+                try:
+                    state_for = state_for.item()
+                except AttributeError:
+                    pass
+
+                try:
+                    state_rev = state_rev.item()
+                except AttributeError:
+                    pass
+
+                # Append values to output.
+                out['object_ids'].append(eq_mrid)
+                out['attributes'].append(eq_for.STATE_CIM_PROPERTY)
+                out['forward_values'].append(state_for)
+                out['reverse_values'].append(state_rev)
 
         # Initialize output.
         output = {"object_ids": [], "attributes": [], "forward_values": [],
@@ -962,7 +981,7 @@ def initialize_switches(df):
     return out
 
 
-def loop_helper(eq_dict, func):
+def loop_helper(eq_dict, func, *args, **kwargs):
     """Loop over an equipment dictionary returned from one of the
     initialize_* functions and apply a function to each
     EquipmentSinglePhase object.
@@ -982,9 +1001,9 @@ def loop_helper(eq_dict, func):
         if isinstance(eq_or_dict, dict):
             # Loop over the phases.
             for eq in eq_or_dict.values():
-                func(eq)
+                func(eq, *args, **kwargs)
         elif isinstance(eq_or_dict, EquipmentSinglePhase):
-            func(eq_or_dict)
+            func(eq_or_dict, *args, **kwargs)
         else:
             raise TypeError('Value was not a dict or EquipmentSinglePhase.')
 

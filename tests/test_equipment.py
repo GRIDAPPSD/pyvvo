@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch
 from random import randint, choice
 from copy import deepcopy
+import numpy as np
 import pandas as pd
 import simplejson as json
 from datetime import datetime
@@ -24,6 +25,13 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         with open(_df.REG_MEAS_MSG_9500, 'r') as f:
             cls.reg_meas_msg = json.load(f)
 
+        # Do some bad, fragile stuff: loop over all the measurements
+        # and increment the value by one. This way, we ensure the
+        # regulator actually changes state (I'm pretty sure the original
+        # message has the regulators in their original state).
+        for d in cls.reg_meas_msg:
+            d['value'] += 1
+
         # Just create a bogus datetime.
         cls.sim_dt = datetime(2019, 9, 2, 17, 8)
 
@@ -40,6 +48,23 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
                 meas_mrid_col=REG_MEAS_MEAS_MRID_COL,
                 eq_mrid_col=REG_MEAS_REG_MRID_COL
             )
+
+    @staticmethod
+    def random_update(reg_dict_in):
+        """Helper to randomly update tap steps."""
+        # Randomly update steps.
+        forward_vals = []
+        for reg_single in reg_dict_in.values():
+
+            new_step = reg_single.state
+
+            while new_step == reg_single.state:
+                new_step = randint(reg_single.low_step, reg_single.high_step)
+
+            reg_single.state = new_step
+            forward_vals.append(new_step)
+
+        return forward_vals
 
     def test_reg_dict_attribute(self):
         self.assertIs(self.reg_dict, self.reg_mgr.eq_dict)
@@ -199,6 +224,17 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, 'string indices must be'):
             self.reg_mgr.update_state(msg=['hello there'], sim_dt=self.sim_dt)
 
+    def test_build_equipment_commands_no_op(self):
+        """Ensure that if equipment has the same state, no update
+        command comes out.
+        """
+        # Just use the same dictionary to make a "do nothing" command.
+        out = self.reg_mgr.build_equipment_commands(
+            eq_dict_forward=self.reg_dict)
+
+        for v in out.values():
+            self.assertEqual(0, len(v))
+
     def test_build_equipment_commands(self):
         """One stop big function which probably should be spun off into
         its own test case.
@@ -213,18 +249,14 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         #         _df.read_pickle(_df.REGULATORS_9500))
 
         # Randomly update steps.
-        forward_vals = []
-        for reg_single in reg_dict_forward.values():
-            new_step = randint(reg_single.low_step, reg_single.high_step)
-            reg_single.state = new_step
-            forward_vals.append(new_step)
+        forward_vals = self.random_update(reg_dict_forward)
 
         # Grab reverse values.
         reverse_vals = []
         for reg_single in self.reg_dict.values():
             reverse_vals.append(reg_single.state)
 
-        # Just use the same dictionary to make a "do nothing" command.
+        # Command the regulators.
         out = self.reg_mgr.build_equipment_commands(
             eq_dict_forward=reg_dict_forward)
 
@@ -255,6 +287,58 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, 'not matching up with'):
             self.reg_mgr.build_equipment_commands(reg_dict_forward)
+
+    def test_build_equipment_commands_json_serializable(self):
+        """If any Numpy data types leak in, we've got a problem in that
+        we can't serialize the data into json. Inject numpy types and
+        attempt to serialize the result.
+        """
+        # Make a copy of the message
+        msg = deepcopy(self.reg_meas_msg)
+
+        # Change all the data types.
+        for d in msg:
+            d['value'] = np.int64(d['value'])
+
+        def assert_64(eq):
+            assert isinstance(eq.state, np.int64)
+
+        def assert_32(eq):
+            assert isinstance(eq.state, np.int32)
+
+        # Update the regulators.
+        self.reg_mgr.update_state(msg=msg, sim_dt='high noon')
+
+        # Ensure the equipment actually has int64 states.
+        equipment.loop_helper(self.reg_dict, assert_64)
+
+        # Similarly, update all the equipment in the dictionary.
+
+        # Helper for casting to int32.
+        def to_int32(eq):
+            eq.state = np.int32(eq.state)
+
+        # Get a copy of the regulators and randomly change their states.
+        reg_dict_copy = deepcopy(self.reg_dict)
+        self.random_update(reg_dict_copy)
+
+        # Now cast the now randomized states to int32.
+        equipment.loop_helper(eq_dict=reg_dict_copy, func=to_int32)
+        equipment.loop_helper(reg_dict_copy, assert_32)
+
+        # Build the equipment commands. This returns a dictionary.
+        cmd = self.reg_mgr.build_equipment_commands(reg_dict_copy)
+
+        # Ensure we actually get commands out, otherwise we're giving
+        # ourselves false confidence in this test.
+        for v in cmd.values():
+            self.assertGreater(len(v), 0)
+
+        # Attempt to serialize cmd.
+        j_str = json.dumps(cmd)
+
+        # Put in an assert just for good measure.
+        self.assertIsInstance(j_str, str)
 
     def test_lookup_locked(self):
         """Ensure lookup_eq_by_mrid_and_phase uses the lock."""
