@@ -272,6 +272,11 @@ class PowerFactorTestCase(unittest.TestCase):
                              0.7071067811865475, -0.7071067811865475])
         np.testing.assert_allclose(actual, expected)
 
+    def test_zeros(self):
+        """Ensure we get NaNs for division by zero."""
+        out = utils.power_factor(np.array([1+1j, 0+0j]))
+        self.assertTrue(np.isnan(out[-1]))
+
 
 class GetComplex(unittest.TestCase):
     def test_scalar_degrees(self):
