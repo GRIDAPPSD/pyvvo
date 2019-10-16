@@ -12,7 +12,6 @@ import os
 import logging
 import re
 from datetime import datetime
-import copy
 import time
 from threading import Lock
 
@@ -29,6 +28,7 @@ DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # Compile regular expressions for fixing bad json return.
 # TODO: remove when the platform is fixed.
+# noinspection RegExpRedundantEscape
 REGEX_1 = re.compile(r'^\s*\{\s*"data"\s*:\s*')
 REGEX_2 = re.compile(r'\s*,\s*"responseComplete".+$')
 
@@ -604,6 +604,7 @@ class PlatformManager:
         # Return the simulation ID.
         return self.sim.simulation_id
 
+    # noinspection PyUnusedLocal
     def _update_sim_complete(self, *args):
         self.sim_complete = True
         self.log.info('Simulation complete!')
@@ -653,5 +654,3 @@ class QueryReturnEmptyError(Error):
         self.message = 'Query on topic {} returned no data! Query: {}'.format(
             self.topic, self.query
         )
-
-
