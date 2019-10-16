@@ -510,6 +510,15 @@ class PlatformManagerTestCase(unittest.TestCase):
         # Ensure we called self.gad.send.
         mock.assert_called_once()
 
+    def test_platform_manager_send_command_empty(self):
+        """If empty lists get sent in, this should be a no-op."""
+        with self.assertLogs(logger=self.platform.log, level='INFO'):
+            out = self.platform.send_command(object_ids=[],
+                                             attributes=[], forward_values=[],
+                                             reverse_values=[])
+
+        self.assertIsNone(out)
+
     def test__query_simulation_output_bad_sim_id_type(self):
         with self.assertRaisesRegex(TypeError, 'simulation_id must be a str'):
             self.platform._query_simulation_output(simulation_id=1234)
@@ -642,6 +651,16 @@ class PlatformManagerTestCase(unittest.TestCase):
 
         # Now, sim_complete should be None.
         self.assertIsNone(p.sim_complete)
+
+    def test_send_command_no_sim_id(self):
+        """Ensure things properly blow up if there's no simulation ID to
+        be found when trying to send a command.
+        """
+        # Get a fresh manager.
+        p = gridappsd_platform.PlatformManager()
+        with self.assertRaisesRegex(ValueError, 'In order to send a command,'):
+            p.send_command(object_ids=['a'], attributes=['b'],
+                           forward_values=[1], reverse_values=[2])
 
 
 if __name__ == '__main__':

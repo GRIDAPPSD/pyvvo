@@ -287,6 +287,9 @@ class PlatformManager:
         # complete.
         self.sim_complete = None
 
+        # For debugging, track the simulation configuration message.
+        self.last_sim_config = None
+
     def send_command(self, object_ids, attributes, forward_values,
                      reverse_values, sim_id=None):
         """Function for sending a command into a running simulation.
@@ -306,6 +309,10 @@ class PlatformManager:
         :param sim_id: Simulation ID. If None, will attempt to use
             self.sim.simulation_id. If that is also None, ValueError
             will be raised.
+
+        :returns: Dictionary representing the message that gets sent in.
+            If no message will be sent (if input lists are empty),
+            returns None instead.
         """
         # Ensure we get lists.
         if ((not isinstance(object_ids, list))
@@ -325,6 +332,11 @@ class PlatformManager:
                 'must be the same length!'
             raise ValueError(m)
 
+        # Don't bother continuing if the lists are empty.
+        if len(object_ids) == 0:
+            self.log.info('send_command given empty lists, returning None.')
+            return None
+
         # Ensure we have a simulation ID.
         if sim_id is None:
             try:
@@ -332,7 +344,7 @@ class PlatformManager:
             except AttributeError:
                 m = ('sim_id input is None, and so is self.sim.simulation_id. '
                      'In order to send a command, we must have a sim_id.')
-                raise ValueError(m)
+                raise ValueError(m) from None
 
         self.log.debug('Input checks complete for send_command.')
 
@@ -349,11 +361,13 @@ class PlatformManager:
 
         # Get the message and log it.
         msg = diff_builder.get_message()
-        self.log.info('Preparing to send following command: {}'.format(msg))
+        msg_str = json.dumps(msg)
+        self.log.info('Preparing to send following command: {}'
+                      .format(msg_str))
 
         # Send command to simulation.
         self.gad.send(topic=topics.simulation_input_topic(sim_id),
-                      message=json.dumps(msg))
+                      message=msg_str)
 
         # Return the message in case we want to examine it, audit, etc.
         # Mainly useful for testing at this point.
@@ -576,6 +590,8 @@ class PlatformManager:
         self.sim = simulation.Simulation(gapps=self.gad,
                                          run_config=run_config)
 
+        self.last_sim_config = run_config
+
         # Add a callback to update sim_complete.
         self.sim.add_oncomplete_callback(self._update_sim_complete)
 
@@ -606,6 +622,7 @@ class PlatformManager:
             return
 
         # Use a crude while loop and sleep call to wait.
+        # TODO: Update to use threading.Event
         while not self.sim_complete:
             time.sleep(0.1)
 
