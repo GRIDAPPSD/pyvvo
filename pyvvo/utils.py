@@ -276,17 +276,18 @@ def map_dataframe_columns(map, df, cols):
     return df
 
 
-def power_factor(p):
+def power_factor(s):
     """Given a numpy array of complex values, compute power factor.
 
-    :param p: numpy.ndarray of complex values.
+    :param s: numpy.ndarray of complex values representing apparent
+        power (VA).
 
     :returns: An array of power factor values. Value will be negative
         if leading, positive if lagging.
     """
     # The use of abs here ensures this also works for power generation.
-    pf = np.abs(p.real) / np.abs(p)
-    angle = np.angle(p)
+    pf = np.abs(s.real) / np.abs(s)
+    angle = np.angle(s)
     return pf * np.sign(angle)
 
 
