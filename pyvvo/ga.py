@@ -2574,25 +2574,34 @@ class GA:
         try:
             # Fill the population with individuals.
             self._run_if_set(self.population.initialize_population)
+            self.log.debug('Population initialized.')
 
             # Evaluate each individual. This will take some time.
             self._run_if_set(self.population.evaluate_population)
+            self.log.debug('Initial population evaluation complete.')
 
             # Loop over the generations to perform natural selection,
             # crossover, and mutation.
             g = 1
             while g <= CONFIG['ga']['generations']:
                 self._run_if_set(self.population.natural_selection)
+                self.log.debug('Natural selection for generation {} complete.'
+                               .format(g))
                 # The best individual will always be in position 0 after
                 # natural selection.
                 self._run_if_set(self._log_best_each_gen, g)
 
                 self._run_if_set(self.population.crossover_and_mutate)
+                self.log.debug('Crossover and mutation for generation {} '
+                               'complete.'.format(g))
                 self._run_if_set(self.population.evaluate_population)
+                self.log.debug('Population evaluation for new individuals '
+                               'for generation {} complete.'.format(g))
                 g += 1
 
             # Sort the population.
             self._run_if_set(self.population.sort_population)
+            self.log.debug('Final population sorting complete.')
 
             # Log.
             self._run_if_set(self._log_best_overall, t0)
@@ -2600,11 +2609,15 @@ class GA:
             # Update the regulators and capacitors with the positions
             # given by the best individual.
             self._run_if_set(_update_equipment_with_individual,
-                             ind=self.population[0], regs=self.regulators,
-                             caps=self.capacitors)
+                             ind=self.population.population[0],
+                             regs=self.regulators, caps=self.capacitors)
+            self.log.debug('Equipment updated with settings from the best '
+                           'individual.')
+
         except GAInterruptedError:
             # One of our many "_run_if_set" wrappers raised this,
             # indicating the algorithm was interrupted. Return.
+            self.log.debug('Caught GAInterruptedError, returning.')
             return None
 
         # Nothing to return here, as the objects themselves get updated.
