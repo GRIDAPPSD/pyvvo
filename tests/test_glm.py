@@ -8,8 +8,12 @@ import re
 
 # Import module to test
 from pyvvo import glm, db
-from pyvvo.utils import gld_installed, run_gld
+from pyvvo.utils import gld_installed, run_gld, read_gld_csv
 from tests.models import MODEL_DIR, IEEE_13, IEEE_123_mod, IEEE_9500
+
+# Installed packages.
+import numpy as np
+import pandas as pd
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -20,6 +24,7 @@ TEST_FILE2 = os.path.join(MODEL_DIR, 'test2.glm')
 TEST_FILE3 = os.path.join(MODEL_DIR, 'test3.glm')
 TEST_FILE4 = os.path.join(MODEL_DIR, 'test4.glm')
 EXPECTED4 = os.path.join(MODEL_DIR, 'test4_expected.glm')
+TEST_SUBSTATION_METER = os.path.join(MODEL_DIR, 'test_substation_meter.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()
@@ -1427,6 +1432,197 @@ class IEEE123ModForYuanTestCase(unittest.TestCase):
                 continue
 
         self.assertTrue(found)
+
+# Create some expected results for the SubstationMeterTapeTestCase and
+# the SubstationMeterMySQLTestCase. Note values are hard-coded based on
+# what's in the TEST_SUBSTATION_METER testing file. Variables will be
+# prefixed with "MT_" for "meter test"
+
+
+# Recorder properties.
+MT_REC_PROP = ['measured_real_energy', 'measured_real_power',
+               'measured_reactive_power']
+
+MT_REC_PROP_STR = '"{}"'.format(', '.join(MT_REC_PROP))
+
+
+# One minute simulation, 5 second record interval.
+MT_LEN = int(60 / 5)
+# Ensure all our power values are as expected. HARD-CODING!
+MT_EXPECTED_REAL = np.array([10000 * 3] * MT_LEN)
+MT_EXPECTED_REACTIVE = np.array([1000 * 3] * MT_LEN)
+
+# Now, ensure our energy is as expected. More hard coding coming
+# right up. Note this is for "real" energy only.
+# 10000 * 3 --> power
+# 60 * 60 --> seconds in an hour
+# 5 --> recorder interval in seconds
+MT_ENERGY_PER_INTERVAL = 10000 * 3 / (60 * 60 / 5)
+# noinspection PyTypeChecker
+MT_ENERGY_P_I_ARRAY = \
+    np.array([0] + [MT_ENERGY_PER_INTERVAL] * (MT_LEN - 1))
+# Create a cumulative sum.
+MT_ENERGY_CUM = np.cumsum(MT_ENERGY_P_I_ARRAY)
+
+
+def helper_compare_data(data):
+    """Helper function for the SubstationMeterTapeTestCase and
+    SubstationMeterMySQLTestCase.
+    """
+    # Ensure we have the expected columns in our DataFrame.
+    for c in MT_REC_PROP:
+        assert c in data.columns.values
+
+    # Ensure all our power values are as expected. HARD-CODING!
+    np.testing.assert_array_equal(MT_EXPECTED_REAL,
+                                  data['measured_real_power'].values)
+    np.testing.assert_array_equal(MT_EXPECTED_REACTIVE,
+                                  data['measured_reactive_power'].values)
+
+    # Ensure energy values are as expected.
+    np.testing.assert_allclose(MT_ENERGY_CUM,
+                               data['measured_real_energy'].values,
+                               rtol=1e-5, atol=0)
+
+
+@unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+class SubstationMeterTapeTestCase(unittest.TestCase):
+    """Test that we get expected results when adding a tape recorder to
+    the TEST_SUBSTATION_METER file.
+    """
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Create a GLMManager.
+        cls.glm_mgr = glm.GLMManager(TEST_SUBSTATION_METER, model_is_path=True)
+
+        # Define output file.
+        cls.out_csv = 'sub_out.csv'
+
+        # Add a recorder. Hard-coding to match what's in the model
+        # rather than the more robust approach of programmatic
+        # discovery.
+        cls.glm_mgr.add_item({'object': 'recorder', 'file': cls.out_csv,
+                              'name': 'substation_recorder',
+                              'parent': '"sourcebus_meter"',
+                              'property': MT_REC_PROP_STR,
+                              'interval': 5,
+                              'limit': -1})
+
+        # Add the tape module.
+        cls.glm_mgr.add_item({'module': 'tape'})
+
+        # Write model to file.
+        cls.out_model = 'test_sub_meter_tape.glm'
+        cls.glm_mgr.write_model(cls.out_model)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # Remove the model.
+        try:
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_model)
+        except FileNotFoundError:
+            pass
+
+        # Remove the csv file.
+        try:
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_csv)
+        except FileNotFoundError:
+            pass
+
+    def test_run_and_expected(self):
+        """Run the model, ensure results are as expected."""
+        # Run model.
+        result = run_gld(self.out_model)
+
+        # Ensure success.
+        self.assertEqual(result.returncode, 0)
+
+        # Load the results.
+        data = read_gld_csv(self.out_csv)
+
+        helper_compare_data(data)
+
+
+@unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+@unittest.skipIf(not DB_ENVIRON_PRESENT,
+                 reason='Database environment variables are not present.')
+class SubstationMeterMySQLTestCase(unittest.TestCase):
+    """Test that we get expected results when adding a MySQL recorder to
+    the TEST_SUBSTATION_METER file.
+    """
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Create a GLMManager.
+        cls.glm_mgr = glm.GLMManager(TEST_SUBSTATION_METER, model_is_path=True)
+
+        # Add database object.
+        cls.glm_mgr.add_item({'object': 'database',
+                              'hostname': os.environ['DB_HOST'],
+                              'username': os.environ['DB_USER'],
+                              'password': os.environ['DB_PASS'],
+                              'port': os.environ['DB_PORT'],
+                              'schema': os.environ['DB_DB']})
+
+        # Add a recorder. Hard-coding to match what's in the model
+        # rather than the more robust approach of programmatic
+        # discovery.
+        cls.table = 'sub_tmp'
+        cls.glm_mgr.add_item({'object': 'mysql.recorder',
+                              'table': cls.table,
+                              'name': 'substation_recorder',
+                              'parent': '"sourcebus_meter"',
+                              'property': MT_REC_PROP_STR,
+                              'interval': 5,
+                              'limit': -1,
+                              'mode': 'w',
+                              'query_buffer_limit': 20000})
+
+        # Add the MySQL module.
+        cls.glm_mgr.add_item({'module': 'mysql'})
+
+        # Write model to file.
+        cls.out_model = 'test_sub_meter_tape.glm'
+        cls.glm_mgr.write_model(cls.out_model)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # Remove the model.
+        try:
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_model)
+        except FileNotFoundError:
+            pass
+
+        # Drop the table.
+        db_conn = db.connect_loop(timeout=1)
+        result = db.execute_and_fetch_all(db_conn=db_conn,
+                                          query='DROP TABLE {};'.format(
+                                              cls.table))
+
+        assert result == tuple()
+
+    def test_run_and_expected(self):
+        """Run the model, ensure results are as expected."""
+        # Run model.
+        result = run_gld(self.out_model)
+
+        # Ensure success.
+        self.assertEqual(result.returncode, 0)
+
+        # Load the results.
+        db_conn = db.connect_loop(timeout=1)
+        data = pd.read_sql(sql='SELECT * FROM {};'.format(self.table),
+                           con=db_conn)
+        # Can't use read_sql_table without SQLAlchemy.
+        # data = pd.read_sql_table(table_name=self.table,
+        #                          con=db_conn)
+
+        # The tape and MySQL recorders handle the stopping time
+        # differently. So, we'll send in all data except the last row.
+
+        helper_compare_data(data[0:-1])
 
 
 if __name__ == '__main__':
