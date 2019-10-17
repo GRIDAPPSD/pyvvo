@@ -25,6 +25,7 @@ TEST_FILE3 = os.path.join(MODEL_DIR, 'test3.glm')
 TEST_FILE4 = os.path.join(MODEL_DIR, 'test4.glm')
 EXPECTED4 = os.path.join(MODEL_DIR, 'test4_expected.glm')
 TEST_SUBSTATION_METER = os.path.join(MODEL_DIR, 'test_substation_meter.glm')
+TEST_INVERTER = os.path.join(MODEL_DIR, 'test_inverter_output.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()
@@ -1623,6 +1624,54 @@ class SubstationMeterMySQLTestCase(unittest.TestCase):
         # differently. So, we'll send in all data except the last row.
 
         helper_compare_data(data[0:-1])
+
+
+@unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+class InverterOutputTestCase(unittest.TestCase):
+    """Ensure that given a model with an inverter that lacks an explicit
+    DC source and if the inverter is in CONSTANT_PQ mode, the output
+    of the inverter will be the correct power.
+    """
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Set up the manager and extract the inverter and recorder.
+        cls.mgr = glm.GLMManager(TEST_INVERTER)
+        cls.inverter = cls.mgr.find_object(obj_type='inverter',
+                                           obj_name='"pv_inverter"')
+        cls.recorder = cls.mgr.find_object(obj_name='inverter_recorder',
+                                           obj_type='recorder')
+        # the run_gld helper runs the model from its directory.
+        cls.out_file = os.path.join(MODEL_DIR, cls.recorder['file'])
+
+        # Run the model.
+        result = run_gld(TEST_INVERTER)
+        assert result.returncode == 0
+
+        # Read the file.
+        cls.output = read_gld_csv(cls.out_file)
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # Remove the file the recorder writes.
+        # noinspection PyUnresolvedReferences
+        os.remove(cls.out_file)
+
+    def test_inv_pq(self):
+        """Ensure the inverter is in CONSTANT_PQ mode."""
+        self.assertEqual(self.inverter['four_quadrant_control_mode'],
+                         'CONSTANT_PQ')
+        self.assertEqual(self.inverter['inverter_type'],
+                         'FOUR_QUADRANT')
+
+    def test_results_match_settings(self):
+        """Ensure the inverters P_Out and Q_Out match what's in the
+        output file.
+        """
+        p = float(self.inverter['P_Out'])
+        q = float(self.inverter['Q_Out'])
+
+        self.assertTrue((self.output['P_Out'].values == p).all())
+        self.assertTrue((self.output['Q_Out'].values == q).all())
 
 
 if __name__ == '__main__':
