@@ -44,6 +44,19 @@ Non-runnable model for testing object recursion.
 Flattened version of test4.glm, used to ensure glm.py's recursion 
 properly flattens nested objects.
 
+### test_inverter_output.glm
+Simple model with a triplex swing node, a triplex line, triplex load,
+and an inverter (without an explicit DC source). This file was created
+to ensure that GridLAB-D will output the specified P and Q of the 
+inverter even while the system changes.
+
+### test_substation_meter.glm
+Test file to ensure we get the expected results when parenting a
+meter to a substation, and then subsequently parenting a recorder to
+the meter. So that tests can run this with both the tape and mysql
+modules, the recorder itself and tape/mysql modules will be left 
+out.
+
 ### test_zip.glm
 Model with a variety of ZIP loads. Used to ensure zip.py behaves in the
 same way as GridLAB-D for several cases. 
