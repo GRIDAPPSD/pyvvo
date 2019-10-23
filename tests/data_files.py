@@ -15,6 +15,7 @@ from unittest.mock import patch
 from pyvvo import sparql, gridappsd_platform, timeseries, load_model
 
 # Third-party.
+import numpy as np
 import pandas as pd
 import simplejson as json
 from gridappsd import topics
@@ -82,6 +83,7 @@ LOAD_MEAS_9500 = os.path.join(DATA_DIR, 'query_load_measurements_9500.csv')
 SUBSTATION_9500 = os.path.join(DATA_DIR, 'query_substation_source_9500.csv')
 SWITCHES_9500 = os.path.join(DATA_DIR, 'query_switches_9500.csv')
 SWITCH_MEAS_9500 = os.path.join(DATA_DIR, 'query_switch_meas_9500.csv')
+INVERTERS_9500 = os.path.join(DATA_DIR, 'query_inverters_9500.csv')
 
 # Misc json files.
 REG_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'reg_meas_message_9500.json')
@@ -217,7 +219,8 @@ def gen_expected_sparql_results():
         (s4.query_load_measurements, LOAD_MEAS_9500),
         (s4.query_substation_source, SUBSTATION_9500),
         (s4.query_switches, SWITCHES_9500),
-        (s4.query_switch_measurements, SWITCH_MEAS_9500)
+        (s4.query_switch_measurements, SWITCH_MEAS_9500),
+        (s4.query_inverters, INVERTERS_9500)
     ]
 
     for a in [a1, a2, a3, a4]:
@@ -234,7 +237,7 @@ def gen_expected_sparql_results():
             # If changing column names, etc, you'll need to write to
             # file here. Otherwise, to just update MRIDs the file gets
             # written at the end of the loop.
-            to_file(actual, b[1])
+            # to_file(actual, b[1])
 
             # Read file.
             expected = read_pickle(b[1])
@@ -243,7 +246,7 @@ def gen_expected_sparql_results():
             ensure_frame_equal_except_mrid(actual, expected)
 
             # Write new file.
-            # to_csv(actual, b[1])
+            to_file(actual, b[1])
 
 
 def ensure_frame_equal_except_mrid(left, right):
@@ -265,6 +268,15 @@ def ensure_frame_equal_except_mrid(left, right):
     for df in [left[left_id_cols], right[right_id_cols]]:
         for c in list(df.columns):
             for v in df[c].values:
+                # For the inverters query, there are optional "phase"
+                # objects which will have a NaN MRID if the "phase"
+                # object is not present. So, we'll simply continue here
+                # if a NaN pops up.
+                # Hopefully this doesn't bite me later...
+                if not isinstance(v, str):
+                    assert np.isnan(v)
+                    continue
+
                 # GridAPPS-D prefixes all of the UUIDs with an
                 # underscore.
                 assert v[0] == '_'

@@ -367,6 +367,24 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # Ensure we get 6 back (3 phases, current and voltage)
         self.assertEqual(actual.shape[0], 6)
 
+    def test_query_inverters_expected_shape(self):
+        """Hard code the expected number of inverters for the 9500 node
+        model.
+        """
+        result = self.sparql.query_inverters()
+        # NOTE: This could fail in one of two cases:
+        # a) more inverters are added.
+        # b) inverterMode, maxQ, or minQ are added.
+        self.assertEqual((356, 11), result.shape)
+
+    def test_sparql_manager_query_inverters_calls_query(self):
+        # NOTE: bus_mrid is for the substation source bus.
+        self.mock_query(
+            function_string='query_inverters',
+            query='INVERTER_QUERY',
+            to_numeric=True
+        )
+
 
 class ExpectedResults13TestCase(unittest.TestCase):
     """Check expected results for the 13 bus model."""
@@ -445,6 +463,7 @@ class ExpectedResults9500TestCase(unittest.TestCase):
             # For now, reluctantly commenting out this line.
             # (cls.s.query_switches, _df.SWITCHES_9500),
             # (cls.s.query_switch_measurements, _df.SWITCH_MEAS_9500)
+            (cls.s.query_inverters, _df.INVERTERS_9500)
         ]
 
     def test_all(self):

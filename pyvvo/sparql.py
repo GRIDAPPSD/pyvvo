@@ -180,6 +180,13 @@ class SPARQLManager:
         self.log.info('Switch status measurement information obtained.')
         return result
 
+    def query_inverters(self):
+        """Get inverter attributes."""
+        result = self._query(self.INVERTER_QUERY.format(
+            feeder_mrid=self.feeder_mrid), to_numeric=True)
+        self.log.info('Inverter information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -699,6 +706,54 @@ class SPARQLManager:
          "?eq r:type c:LoadBreakSwitch . "
          "}} "
          "ORDER BY ?{switch_mrid}"
+         )
+
+    # NOTE: For whatever reason, "inverterMode," "maxQ," and "minQ" are
+    # not included for the 9500 node model, and have thus been moved
+    # into an OPTIONAL block.
+    #
+    # NOTE: Naming conventions: "inverter_" is associated with the
+    # "Wires::PowerElectronicsConnection" object, and "phase_" is
+    # associated with the "Wires::PowerElectronicsConnectionPhase"
+    # object. Documentation:
+    # https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
+    # noinspection PyPep8
+    INVERTER_QUERY = \
+        (PREFIX +
+         'SELECT ?inverter_mrid ?inverter_name ?inverter_mode ?inverter_max_q '
+         '?inverter_min_q ?inverter_p ?inverter_q ?inverter_rated_s '
+         '?inverter_rated_u ?phase_mrid ?phase_name ?phase_p ?phase_q '
+         r'(group_concat(distinct ?phs;separator="\n") as ?phases) '
+         "WHERE {{ "
+            'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+            "?s r:type c:PowerElectronicsConnection. "
+            "?s c:Equipment.EquipmentContainer ?fdr. "
+            "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+            "?s c:IdentifiedObject.mRID ?inverter_mrid. "
+            "?s c:IdentifiedObject.name ?inverter_name. "
+            "?s c:PowerElectronicsConnection.p ?inverter_p. "
+            "?s c:PowerElectronicsConnection.q ?inverter_q. "
+            "?s c:PowerElectronicsConnection.ratedS ?inverter_rated_s. "
+            "?s c:PowerElectronicsConnection.ratedU ?inverter_rated_u. "
+            "OPTIONAL {{ "
+                "?s c:PowerElectronicsConnection.inverterMode ?inverter_mode. "
+                "?s c:PowerElectronicsConnection.maxQ ?inverter_max_q. "
+                "?s c:PowerElectronicsConnection.minQ ?inverter_min_q. "
+            "}} "
+            "OPTIONAL {{ "
+                "?pecp c:PowerElectronicsConnectionPhase.PowerElectronicsConnection ?s. "
+                "?pecp c:IdentifiedObject.mRID ?phase_mrid. "
+                "?pecp c:IdentifiedObject.name ?phase_name. "
+                "?pecp c:PowerElectronicsConnectionPhase.p ?phase_p. "
+                "?pecp c:PowerElectronicsConnectionPhase.q ?phase_q. "
+                "?pecp c:PowerElectronicsConnectionPhase.phase ?phsraw "
+                'bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs) '
+            "}} "
+         "}} "
+         "GROUP BY ?inverter_mrid ?inverter_name ?inverter_rated_s "
+         "?inverter_rated_u ?inverter_p ?inverter_q ?phase_mrid ?phase_name "
+         "?phase_p ?phase_q ?inverter_mode ?inverter_max_q ?inverter_min_q "
+         "ORDER BY ?inverter_mrid"
          )
 
 
