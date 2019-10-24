@@ -461,7 +461,7 @@ def generate_sensor_service_measurements_9500():
                                      start_time=SENSOR_MEASUREMENT_TIME_START,
                                      duration=time_diff.seconds,
                                      realtime=False,
-                                     applications=[{'name': 'sample_app'}],
+                                     applications=[{'name': 'pyvvo'}],
                                      random_zip=False, houses=False)
 
     # Wait for simulation completion.
