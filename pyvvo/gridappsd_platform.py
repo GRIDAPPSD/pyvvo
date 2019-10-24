@@ -528,7 +528,7 @@ class PlatformManager:
     def run_simulation(self, feeder_id, start_time, duration, realtime,
                        applications=None, random_zip=False,
                        houses=False, z_fraction=0, i_fraction=1,
-                       p_fraction=0):
+                       p_fraction=0, services=None):
         """Start a simulation and return the simulation ID.
 
         For now, this is hard-coded to the point where it'll likely only
@@ -547,9 +547,15 @@ class PlatformManager:
         :param z_fraction: Impedance fraction for loads.
         :param i_fraction: Current fraction for loads.
         :param p_fraction: Power fraction for loads.
+        :param services: List of dictionaries of services to configure.
+            Check out
+            https://gridappsd-sensor-simulator.readthedocs.io/en/sensor-service-configuration/.
         """
         if applications is None:
             applications = []
+
+        if services is None:
+            services = []
 
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
@@ -562,7 +568,9 @@ class PlatformManager:
                 "SubGeographicalRegion_name": subgeo_name,
                 "Line_name": feeder_id
             },
-            "application_config": {"applications": applications},
+            "application_config": {
+                "applications": applications
+            },
             "simulation_config": {
                 "start_time": utils.dt_to_s_from_epoch(start_time),
                 "duration": str(duration),
@@ -580,8 +588,9 @@ class PlatformManager:
                     "p_fraction": str(p_fraction),
                     "randomize_zipload_fractions": random_zip,
                     "use_houses": houses}},
-            "test_config": {"events": [],
-                            "appId": feeder_id}}
+            "test_config": {"events": [], "appId": feeder_id},
+            "service_configs": services
+        }
 
         # Simulation is not complete yet.
         self.sim_complete = False
