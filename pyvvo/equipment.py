@@ -272,31 +272,9 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     ####################################################################
 
     @property
-    def name(self):
-        """Capacitor name corresponding to object in GridLAB-D model.
-
-        Note that the name_prefix is prepended to the given name.
-        """
-        return self._name
-
-    @property
-    def mrid(self):
-        """CIM MRID for capacitor."""
-        return self._mrid
-
-    @property
-    def phase(self):
-        """Phase which capacitor is on."""
-        return self._phase
-
-    @property
     def mode(self):
         """Control mode."""
         return self._mode
-
-    @property
-    def controllable(self):
-        return self._controllable
 
 
 class RegulatorSinglePhase(EquipmentSinglePhase):
