@@ -1194,5 +1194,50 @@ class InitializeSwitchesTestCase(unittest.TestCase):
                     self.assertFalse(value.controllable)
 
 
+class InverterSinglePhaseTestCase(unittest.TestCase):
+    """Test InverterSinglePhase class"""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.p = 12.5
+        cls.q = 18
+        cls.inverter = equipment.InverterSinglePhase(mrid='abcd',
+                                                     name='my_inv',
+                                                     phase='s2',
+                                                     controllable=True,
+                                                     p=cls.p, q=cls.q)
+
+    def test_state_expected(self):
+        self.assertEqual(self.inverter.state, (self.p, self.q))
+
+    def test_p_expected(self):
+        self.assertEqual(self.inverter.p, self.p)
+
+    def test_q_expected(self):
+        self.assertEqual(self.inverter.q, self.q)
+
+    def test_valid_state_update(self):
+        inv_copy = deepcopy(self.inverter)
+        inv_copy.state = (9, 3.1)
+        self.assertEqual(inv_copy.state, (9, 3.1))
+
+    def test_init_invalid_state(self):
+        with self.assertRaisesRegex(ValueError, 'The contents of the state'):
+            # noinspection PyUnusedLocal
+            inv = equipment.InverterSinglePhase(mrid='blah', name='bleh',
+                                                phase='C', controllable=False,
+                                                p=3.2, q='a')
+
+    def test_set_invalid_state_bad_length(self):
+        inv_copy = deepcopy(self.inverter)
+        with self.assertRaisesRegex(ValueError, 'state must be a two element'):
+            inv_copy.state = (3, 6, 9)
+
+    def test_set_invalid_state_non_tuple(self):
+        inv_copy = deepcopy(self.inverter)
+        with self.assertRaisesRegex(TypeError, 'state must be a two element'):
+            inv_copy.state = [13.5, -22.7]
+
+
 if __name__ == '__main__':
     unittest.main()

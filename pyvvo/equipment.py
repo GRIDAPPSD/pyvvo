@@ -559,6 +559,67 @@ class SwitchSinglePhase(EquipmentSinglePhase):
             raise TypeError('state must None or one of {}'.format(self.STATES))
 
 
+class InverterSinglePhase(EquipmentSinglePhase):
+    """Single phase inverter. This does not quite fit the mold since it
+    essentially has two states we care about: active and reactive power.
+    """
+
+    # Our other classes only have a single property... we'll have to see
+    # how to manage this.
+    STATE_CIM_PROPERTY = ("PowerElectronicsConnection.p",
+                          "PowerElectronicsConnection.q")
+
+    # Inverters can additionally be on secondaries. It's important
+    # that S1 and S2 be upper-case here to work with the parent class.
+    PHASES = ('A', 'B', 'C', 'S1', 'S2')
+
+    def __init__(self, mrid, name, phase, controllable, p, q):
+        # TODO: Add more properties later (e.g. rated power, etc.).
+        # Get log.
+        self.log = logging.getLogger(self.__class__.__name__)
+
+        # Call super.
+        super().__init__(mrid=mrid, name=name, phase=phase,
+                         controllable=controllable)
+
+        # Set the state.
+        self.state = (p, q)
+
+    def _check_state(self, value):
+        """States must be 2 item tuples of (p, q)."""
+        if not isinstance(value, tuple):
+            raise TypeError('state must be a two element tuple of (p, q).')
+
+        # Ensure we get length of two.
+        if len(value) != 2:
+            raise ValueError('state must be a two element tuple of (p, q).')
+
+        for v in value:
+            try:
+                f_v = float(v)
+            except ValueError:
+                m = ('The contents of the state tuple are invalid, as casting '
+                     '{} to a float failed.'.format(v))
+                raise ValueError(m) from None
+
+            if f_v != v:
+                raise ValueError('Contents of the state tuple should be '
+                                 'floats. float({}) != {}.'.format(v, f_v))
+
+        # TODO: Ensure inverter is capable of given state. I.e., ensure
+        #   |p + jq| < |rated s|
+
+    @property
+    def p(self):
+        """Current active power output in Watts."""
+        return self.state[0]
+
+    @property
+    def q(self):
+        """Current reactive power output in var."""
+        return self.state[1]
+
+
 class EquipmentManager:
     """Class to keep EquipmentSinglePhase objects up to date as a
     simulation proceeds. E.g. capacitors or regulators.
