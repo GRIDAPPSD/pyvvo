@@ -463,12 +463,12 @@ def generate_sensor_service_measurements_9500():
             # Well, this isn't true for all the measurements, but oh
             # well. We care less about the values and more about
             # actually getting the values.
-            'nominal-voltage': 120,
-            'perunit-confidence-rate': 0.95,
+            "nominal-value": 120,
+            "perunit-confidence-band": 0.01,
             # TODO: Is this in seconds or time steps?
-            'aggregation-interval': 30,
+            "aggregation-interval": 30,
             # No drop out for now.
-            'perunit-drop-rate': 0
+            "perunit-drop-rate": 0
         }
 
     full_config = [{'id': "gridappsd-sensor-simulator",
@@ -477,7 +477,7 @@ def generate_sensor_service_measurements_9500():
                         "random-seed": 42,
                         "default-aggregation-interval": 30,
                         "passthrough-if-not-specified": False,
-                        "default-perunit-confidence-rate": 0.95,
+                        "default-perunit-confidence-band": 0.01,
                         "default-perunit-drop-rate": 0
                     }}]
 
@@ -489,7 +489,7 @@ def generate_sensor_service_measurements_9500():
                                      start_time=SENSOR_MEASUREMENT_TIME_START,
                                      duration=time_diff.seconds,
                                      realtime=False,
-                                     applications=[{'name': 'pyvvo'}],
+                                     applications=[],
                                      random_zip=False, houses=False,
                                      services=full_config)
 
