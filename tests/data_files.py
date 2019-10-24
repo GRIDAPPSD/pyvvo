@@ -84,6 +84,8 @@ SUBSTATION_9500 = os.path.join(DATA_DIR, 'query_substation_source_9500.csv')
 SWITCHES_9500 = os.path.join(DATA_DIR, 'query_switches_9500.csv')
 SWITCH_MEAS_9500 = os.path.join(DATA_DIR, 'query_switch_meas_9500.csv')
 INVERTERS_9500 = os.path.join(DATA_DIR, 'query_inverters_9500.csv')
+INVERTER_MEAS_9500 = os.path.join(DATA_DIR,
+                                  'query_inverter_measurements_9500.csv')
 
 # Misc json files.
 REG_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'reg_meas_message_9500.json')
@@ -220,7 +222,8 @@ def gen_expected_sparql_results():
         (s4.query_substation_source, SUBSTATION_9500),
         (s4.query_switches, SWITCHES_9500),
         (s4.query_switch_measurements, SWITCH_MEAS_9500),
-        (s4.query_inverters, INVERTERS_9500)
+        (s4.query_inverters, INVERTERS_9500),
+        (s4.query_inverter_measurements, INVERTER_MEAS_9500)
     ]
 
     for a in [a1, a2, a3, a4]:
@@ -234,9 +237,9 @@ def gen_expected_sparql_results():
             except IndexError:
                 actual = actual_full
 
-            # If changing column names, etc, you'll need to write to
-            # file here. Otherwise, to just update MRIDs the file gets
-            # written at the end of the loop.
+            # If changing column names, creating a new file, etc.,
+            # you'll need to write to file here. Otherwise, to just
+            # update MRIDs the file gets written at the end of the loop.
             # to_file(actual, b[1])
 
             # Read file.

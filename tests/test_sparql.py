@@ -378,11 +378,26 @@ class SPARQLManagerTestCase(unittest.TestCase):
         self.assertEqual((356, 11), result.shape)
 
     def test_sparql_manager_query_inverters_calls_query(self):
-        # NOTE: bus_mrid is for the substation source bus.
         self.mock_query(
             function_string='query_inverters',
             query='INVERTER_QUERY',
             to_numeric=True
+        )
+
+    def test_query_inverter_measurements_shape(self):
+        """Hard code expected number of inverter measurements for the
+        9500 node model.
+        """
+        result = self.sparql.query_inverter_measurements()
+        self.assertEqual((720, 3), result.shape)
+        self.assertSetEqual(set(result['phase'].unique()),
+                            {'s2', 's1', 'A', 'B', 'C'})
+
+    def test_query_inverter_measurements_calls_query(self):
+        self.mock_query(
+            function_string='query_inverter_measurements',
+            query='INVERTER_MEASUREMENTS_QUERY',
+            to_numeric=False
         )
 
 
@@ -463,7 +478,8 @@ class ExpectedResults9500TestCase(unittest.TestCase):
             # For now, reluctantly commenting out this line.
             # (cls.s.query_switches, _df.SWITCHES_9500),
             # (cls.s.query_switch_measurements, _df.SWITCH_MEAS_9500)
-            (cls.s.query_inverters, _df.INVERTERS_9500)
+            (cls.s.query_inverters, _df.INVERTERS_9500),
+            (cls.s.query_inverter_measurements, _df.INVERTER_MEAS_9500)
         ]
 
     def test_all(self):

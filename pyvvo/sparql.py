@@ -187,6 +187,13 @@ class SPARQLManager:
         self.log.info('Inverter information obtained.')
         return result
 
+    def query_inverter_measurements(self):
+        """Get measurements associated with inverters."""
+        result = self._query(self.INVERTER_MEASUREMENTS_QUERY.format(
+            feeder_mrid=self.feeder_mrid), to_numeric=False)
+        self.log.info('Inverter measurement information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -753,6 +760,30 @@ class SPARQLManager:
          "GROUP BY ?inverter_mrid ?inverter_name ?inverter_rated_s "
          "?inverter_rated_u ?inverter_p ?inverter_q ?phase_mrid ?phase_name "
          "?phase_p ?phase_q ?inverter_mode ?inverter_max_q ?inverter_min_q "
+         "ORDER BY ?inverter_mrid"
+         )
+
+    # NOTE: It would appear that the measurements for inverters are
+    # associated with PowerElectronicsConnection objects and NOT
+    # PowerElectronicsConnectionPhase objects. You can prove this by
+    # replacing PowerElectronicsConnection with
+    # PowerElectronicsConnectionPhase below.
+    INVERTER_MEASUREMENTS_QUERY = \
+        (PREFIX +
+         "SELECT ?inverter_mrid ?meas_mrid ?phase "
+         "WHERE {{ "
+            'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+            "?s r:type ?type. "
+            "?s c:IdentifiedObject.mRID ?meas_mrid. "
+            "?s c:Measurement.PowerSystemResource ?eq. "
+            "?s c:Measurement.Terminal ?trm. "
+            "?s c:Measurement.phases ?phsraw. "
+            '{{bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)}} .'
+            "?eq c:IdentifiedObject.mRID ?inverter_mrid. "
+            "?eq r:type c:PowerElectronicsConnection. "
+            "?eq c:Equipment.EquipmentContainer ?fdr. "
+            "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
+         "}} "
          "ORDER BY ?inverter_mrid"
          )
 
