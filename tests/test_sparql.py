@@ -270,7 +270,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # (e.g. 's1') then the 'name' will have a suffix, either 'a' or
         # 'b'.
         expected = pd.Series({'name': '2127146b0', 'bus': 'sx3160864b',
-                              'basev': 208, 'conn': 'Y', 'phases': 's1,s2'})
+                              'basev': 208, 'conn': 'Y', 'phases': 's2,s1'})
 
         full_actual = self.sparql.query_load_nominal_voltage()
 
