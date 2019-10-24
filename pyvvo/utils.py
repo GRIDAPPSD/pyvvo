@@ -285,8 +285,24 @@ def power_factor(s):
     :returns: An array of power factor values. Value will be negative
         if leading, positive if lagging.
     """
+    # Initialize array of NaNs. We'll then place the division in here
+    # over the top of it. This is to avoid division by zero errors
+    # (some other modules may change Numpy error handling to raise an
+    # error on division by zero rather than warning and creating a NaN.)
+    pf = np.empty_like(s)
+    pf[:] = np.nan
+
+    # Pre-compute the magnitude array.
+    s_abs = np.abs(s)
+    # Divide the magnitude of the active power by the apparent power
+    # magnitude.
     # The use of abs here ensures this also works for power generation.
-    pf = np.abs(s.real) / np.abs(s)
+    pf = np.divide(np.abs(s.real), s_abs, out=pf, where=(s_abs != 0))
+
+    if np.isnan(pf).any():
+        LOG.warning('Division by zero encountered in power_factor. There '
+                    'will be NaNs present.')
+
     angle = np.angle(s)
     return pf * np.sign(angle)
 

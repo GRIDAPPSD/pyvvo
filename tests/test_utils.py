@@ -273,8 +273,12 @@ class PowerFactorTestCase(unittest.TestCase):
         np.testing.assert_allclose(actual, expected)
 
     def test_zeros(self):
-        """Ensure we get NaNs for division by zero."""
-        out = utils.power_factor(np.array([1+1j, 0+0j]))
+        """Ensure we get NaNs for division by zero, and ensure we get
+        a warning.
+        """
+        with self.assertLogs(logger=utils.LOG, level='WARNING'):
+            out = utils.power_factor(np.array([1+1j, 0+0j]))
+
         self.assertTrue(np.isnan(out[-1]))
 
 
