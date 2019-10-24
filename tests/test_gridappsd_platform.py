@@ -572,7 +572,7 @@ class PlatformManagerTestCase(unittest.TestCase):
 
         with patch.object(self.platform.gad, 'get_response',
                           return_value=10) as p1:
-            with patch('pyvvo.utils.dt_to_us_from_epoch', return_value='7') \
+            with patch('pyvvo.utils.dt_to_s_from_epoch', return_value='7') \
                     as p2:
                 out = self.platform._query_simulation_output(
                     simulation_id='95', query_measurement=q,
