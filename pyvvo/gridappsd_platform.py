@@ -393,9 +393,9 @@ class PlatformManager:
         # string. Why this inconsistency? I don't know.
         payload = {'queryMeasurement': 'weather',
                    'queryFilter': {'startTime':
-                                       utils.dt_to_us_from_epoch(start_time),
+                                       utils.dt_to_s_from_epoch(start_time),
                                    'endTime':
-                                       utils.dt_to_us_from_epoch(end_time)},
+                                       utils.dt_to_s_from_epoch(end_time)},
                    'responseFormat': 'JSON'}
 
         topic = topics.TIMESERIES
@@ -492,10 +492,10 @@ class PlatformManager:
                              "'gridappsd-sensor-simulator'")
 
         if starttime is not None:
-            filter_dict['starttime'] = utils.dt_to_us_from_epoch(starttime)
+            filter_dict['starttime'] = utils.dt_to_s_from_epoch(starttime)
 
         if endtime is not None:
-            filter_dict['endtime'] = utils.dt_to_us_from_epoch(endtime)
+            filter_dict['endtime'] = utils.dt_to_s_from_epoch(endtime)
 
         if measurement_mrid is not None:
             filter_dict['measurement_mrid'] = measurement_mrid
