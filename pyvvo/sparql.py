@@ -770,10 +770,11 @@ class SPARQLManager:
     # PowerElectronicsConnectionPhase below.
     INVERTER_MEASUREMENTS_QUERY = \
         (PREFIX +
-         "SELECT ?inverter_mrid ?meas_mrid ?phase "
+         "SELECT ?inverter_mrid ?meas_mrid ?phase ?meas_type "
          "WHERE {{ "
             'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
-            "?s r:type ?type. "
+            '?s r:type c:Analog. '
+            '?s c:Measurement.measurementType ?meas_type. '
             "?s c:IdentifiedObject.mRID ?meas_mrid. "
             "?s c:Measurement.PowerSystemResource ?eq. "
             "?s c:Measurement.Terminal ?trm. "
@@ -784,7 +785,7 @@ class SPARQLManager:
             "?eq c:Equipment.EquipmentContainer ?fdr. "
             "?fdr c:IdentifiedObject.mRID ?feeder_mrid. "
          "}} "
-         "ORDER BY ?inverter_mrid"
+         "ORDER BY ?inverter_mrid ?meas_type"
          )
 
 

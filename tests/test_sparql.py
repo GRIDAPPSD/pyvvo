@@ -389,7 +389,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         9500 node model.
         """
         result = self.sparql.query_inverter_measurements()
-        self.assertEqual((720, 3), result.shape)
+        self.assertEqual((720, 4), result.shape)
         self.assertSetEqual(set(result['phase'].unique()),
                             {'s2', 's1', 'A', 'B', 'C'})
 
