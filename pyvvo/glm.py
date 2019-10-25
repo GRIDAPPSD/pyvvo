@@ -1797,6 +1797,7 @@ class GLMManager:
         # Nothing to return.
         return None
 
+
 class Error(Exception):
     """Base class for exceptions in this module."""
     pass
