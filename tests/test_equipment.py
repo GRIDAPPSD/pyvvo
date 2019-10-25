@@ -666,7 +666,7 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
             cls.inv_meas_msg = json.load(f)
 
-        # Override all the measurement magintudes and angles so we can
+        # Override all the measurement magnitudes and angles so we can
         # ensure they result in a change when the message is sent in
         # as an update command.
         n = len(cls.inv_meas_msg)
@@ -731,7 +731,7 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         # on that fact here.
         for s, inv in zip(current_state, self.mgr.meas_eq_map.values()):
             self.assertEqual(s, inv.state_old)
-            
+
         # Make sure our fancy looping didn't screw something up.
         for m in self.inv_meas_msg:
             rect = utils.get_complex(r=m['magnitude'], phi=m['angle'],
