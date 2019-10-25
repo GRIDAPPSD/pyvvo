@@ -773,6 +773,8 @@ class SPARQLManager:
          "SELECT ?inverter_mrid ?meas_mrid ?phase ?meas_type "
          "WHERE {{ "
             'VALUES ?feeder_mrid {{"{feeder_mrid}"}} '
+            # Filter to get only power measurements.
+            'VALUES ?meas_type {{"VA"}} '
             '?s r:type c:Analog. '
             '?s c:Measurement.measurementType ?meas_type. '
             "?s c:IdentifiedObject.mRID ?meas_mrid. "
