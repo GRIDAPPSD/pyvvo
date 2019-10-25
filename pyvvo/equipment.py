@@ -33,6 +33,14 @@ REG_CONTROL = ['discrete', 'ctrlenabled', 'mode', 'monphs', 'deadband',
 # variables) from sparql.py match up.
 CAP_INPUTS = ['name', 'mrid', 'phase', 'mode', 'controllable']
 
+# Hard-code some inverter related inputs.
+# TODO: inverter_mrid or phase_mrid?
+INVERTER_INPUTS = {'inverter_mrid': 'mrid',
+                   'inverter_name': 'name',
+                   'inverter_p': 'p',
+                   'inverter_q': 'q',
+                   'controllable': 'controllable',
+                   'phases': 'phase'}
 ########################################################################
 
 ########################################################################
@@ -1017,6 +1025,60 @@ def initialize_switches(df):
             # Simply create a CapacitorSinglePhase.
             out[row.mrid] = SwitchSinglePhase(**row_dict)
 
+    return out
+
+
+def initialize_inverters(df):
+    """Helper to initialize inverters given a DataFrame with inverter
+    information. The DataFrame should come from
+    sparql.SPARQLManager.query_inverters.
+
+    Assumption: if the 'phase' column is NaN, the inverter is a balanced
+    three-phase inverter. This is also specified in the
+    `documentation
+    <https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation>`_.
+    """
+    # For now, we're assuming all inverters are controllable.
+    # TODO: It doesn't seem there are properties to tell us this, so I
+    #   guess update this when there are?
+    df['controllable'] = True
+
+    # Initialize output.
+    out = {}
+
+    # Loop over the DataFrame rows, only considering columns we care
+    # about.
+    # Extract only the columns we care about.
+    for row in df[list(INVERTER_INPUTS.keys())].itertuples(index=False):
+        # Get the row as a dictionary. This is not actually a private
+        # attribute:
+        # https://docs.python.org/3/library/collections.html#collections.namedtuple
+        # noinspection PyProtectedMember
+        row_dict = row._asdict()
+
+        # Convert the dictionary into a keyword argument dict.
+        kwargs = {v: row_dict[k] for k, v in INVERTER_INPUTS.items()}
+
+        # If the phases attribute is NaN, the inverter is three phase.
+        if not isinstance(kwargs['phase'], str) and np.isnan(kwargs['phase']):
+            # Initialize entry.
+            out[kwargs['mrid']] = {}
+
+            # Create an inverter for phases A, B, and C.
+            for p in EquipmentSinglePhase.PHASES:
+                # Overwrite the phase.
+                kwargs['phase'] = p
+
+                # Create inverter.
+                out[kwargs['mrid']][p] = InverterSinglePhase(**kwargs)
+        else:
+            # Cast to upper case (required).
+            kwargs['phase'] = kwargs['phase'].upper()
+
+            # Create an inverter object.
+            out[kwargs['mrid']] = InverterSinglePhase(**kwargs)
+
+    # That's it!
     return out
 
 

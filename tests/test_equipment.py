@@ -1239,5 +1239,51 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
             inv_copy.state = [13.5, -22.7]
 
 
+class InitializeInvertersTestCase(unittest.TestCase):
+    """Test initialize_inverters."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.df = _df.read_pickle(_df.INVERTERS_9500)
+        cls.inverters = equipment.initialize_inverters(cls.df)
+
+    def test_length(self):
+        """Length should match original DataFrame."""
+        self.assertEqual(len(self.inverters), self.df.shape[0])
+
+    def test_dict_or_inverters(self):
+        """Ensure all instances are dictionaries or Inverters."""
+        equipment.loop_helper(self.inverters, self.assertIsInstance,
+                              equipment.InverterSinglePhase)
+
+    def test_all_controllable(self):
+        """At this point in time, all inverters are controllable."""
+        def assert_controllable(inverter):
+            self.assertTrue(inverter.controllable)
+
+        equipment.loop_helper(self.inverters, assert_controllable)
+
+    def test_three_phase_count(self):
+        """Ensure we get the expected number of three phase inverters.
+        """
+        # We should get a three phase inverter if the phases is NaN.
+        expected_3 = self.df['phases'].isna().values.sum()
+        
+        # For the 9500 node model, there should be more than 0 three
+        # phase inverters.
+        self.assertGreater(expected_3, 0)
+
+        # Loop and count.
+        actual_3 = 0
+        for i in self.inverters.values():
+            if isinstance(i, dict):
+                actual_3 += 1
+            elif isinstance(i, equipment.InverterSinglePhase):
+                pass
+            else:
+                raise ValueError('huh?')
+
+        self.assertEqual(actual_3, expected_3)
+
+
 if __name__ == '__main__':
     unittest.main()
