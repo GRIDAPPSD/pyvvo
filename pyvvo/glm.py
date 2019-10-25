@@ -536,6 +536,7 @@ class GLMManager:
             TRIPLEX_PARAMS for all triplex_load objects in the model.
         - update_all_triplex_loads: Well, update all the triplex loads
             in the model. Self explanatory :) Check the docstring.
+        - remove_all_solar: Remove all solar panels from the model.
 
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
@@ -1351,7 +1352,16 @@ class GLMManager:
             # This object type isn't in the model map.
             return None
 
-        return [value[1] for value in object_dict.values()]
+        # Extract the object dictionaries and put them in list for
+        # return.
+        out = [value[1] for value in object_dict.values()]
+
+        # The 'out' list can be empty if the object type is mapped,
+        # but all the objects have been removed.
+        if len(out) == 0:
+            return None
+        else:
+            return out
 
     def add_or_modify_clock(self, starttime=None,
                             stoptime=None, timezone='UTC0'):
@@ -1762,6 +1772,22 @@ class GLMManager:
             self._modify_item(item=to_modify, update_dict=tl_dict)
 
         # All done.
+
+    def remove_all_solar(self):
+        """Remove all solar objects from the model."""
+        # NOTE: This method could certainly be more efficient, but it's
+        # simpler and more robust to just use the public methods the
+        # class already has.
+
+        # Get all solar objects.
+        solar_dict = self.get_items_by_type(item_type='object',
+                                            object_type='solar')
+
+        # Remove all the objects.
+        for s in solar_dict.values():
+            self.remove_item(s)
+
+        # Pretty easy, right?
 
 
 class Error(Exception):

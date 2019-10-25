@@ -1204,7 +1204,7 @@ class UpdateCapSwitchesTestCase(unittest.TestCase):
             self.assertEqual(status, cap['switch' + phase])
 
 
-class IEEE9500Runs(unittest.TestCase):
+class IEEE9500RunsTestCase(unittest.TestCase):
     """Use add_run_components with the 9500 model and ensure it actually
     runs.
     """
@@ -1231,7 +1231,7 @@ class IEEE9500Runs(unittest.TestCase):
         self.assertEqual(0, result.returncode)
 
 
-class ClearAllTriplexLoads(unittest.TestCase):
+class ClearAllTriplexLoadsTestCase(unittest.TestCase):
     """Test GLMManager.clear_all_triplex_loads with TEST_FILE2, which
     does not have any triplex loads.
     """
@@ -1287,7 +1287,7 @@ class ClearAllTriplexLoads(unittest.TestCase):
             mgr.clear_all_triplex_loads()
 
 
-class UpdateAllTriplexLoads(unittest.TestCase):
+class UpdateAllTriplexLoadsTestCase(unittest.TestCase):
     """Test GLMManager.update_all_triplex_loads."""
     @classmethod
     def setUpClass(cls):
@@ -1314,6 +1314,27 @@ class UpdateAllTriplexLoads(unittest.TestCase):
             self.mgr.update_all_triplex_loads(
                 {'blah': {'stuff': 'and things'}}
             )
+
+
+class RemoveAllSolarTestCase(unittest.TestCase):
+    """Test the GLMManager's remove_all_solar method."""
+    def setUp(self):
+        self.mgr = glm.GLMManager(model=EXPECTED4, model_is_path=True)
+
+    def test_remove_all_solar(self):
+        """Test the remove_all_solar method."""
+        # Start by ensuring we have solar to start with.
+        solar = self.mgr.get_objects_by_type(object_type='solar')
+
+        self.assertIsNotNone(solar)
+        self.assertGreater(len(solar), 0)
+
+        # Now, remove all the solar.
+        self.mgr.remove_all_solar()
+
+        # Try to get solar.
+        solar_after = self.mgr.get_objects_by_type(object_type='solar')
+        self.assertIsNone(solar_after)
 
 
 class IEEE123ModForYuanTestCase(unittest.TestCase):
