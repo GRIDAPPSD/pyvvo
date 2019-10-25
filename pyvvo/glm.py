@@ -1783,12 +1783,19 @@ class GLMManager:
         solar_dict = self.get_items_by_type(item_type='object',
                                             object_type='solar')
 
-        # Remove all the objects.
-        for s in solar_dict.values():
-            self.remove_item(s)
+        if solar_dict is None:
+            self.log.warning('remove_all_solar was called, but there are no '
+                             'solar objects in the model!')
+        else:
+            # Remove all the objects.
+            for s in solar_dict.values():
+                self.remove_item(s)
 
-        # Pretty easy, right?
+            # Pretty easy, right?
+            self.log.info('All solar objects removed from the model.')
 
+        # Nothing to return.
+        return None
 
 class Error(Exception):
     """Base class for exceptions in this module."""

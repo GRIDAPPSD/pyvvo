@@ -1318,23 +1318,38 @@ class UpdateAllTriplexLoadsTestCase(unittest.TestCase):
 
 class RemoveAllSolarTestCase(unittest.TestCase):
     """Test the GLMManager's remove_all_solar method."""
-    def setUp(self):
-        self.mgr = glm.GLMManager(model=EXPECTED4, model_is_path=True)
 
-    def test_remove_all_solar(self):
-        """Test the remove_all_solar method."""
+    def test_remove_all_solar_solar_present(self):
+        """Test the remove_all_solar method when there is solar in the
+        model"""
+        mgr = glm.GLMManager(model=EXPECTED4, model_is_path=True)
         # Start by ensuring we have solar to start with.
-        solar = self.mgr.get_objects_by_type(object_type='solar')
+        solar = mgr.get_objects_by_type(object_type='solar')
 
         self.assertIsNotNone(solar)
         self.assertGreater(len(solar), 0)
 
         # Now, remove all the solar.
-        self.mgr.remove_all_solar()
+        with self.assertLogs(logger=mgr.log, level='INFO'):
+            mgr.remove_all_solar()
 
         # Try to get solar.
-        solar_after = self.mgr.get_objects_by_type(object_type='solar')
+        solar_after = mgr.get_objects_by_type(object_type='solar')
         self.assertIsNone(solar_after)
+
+    def test_remove_all_solar_no_solar_present(self):
+        """Test remove_all_solar operates correctly when the initial
+        model does not have any solar in it.
+        """
+        mgr = glm.GLMManager(model=TEST_FILE)
+
+        # Start by ensuring there's no solar.
+        solar = mgr.get_objects_by_type(object_type='solar')
+        self.assertIsNone(solar)
+
+        # Attempt to remove the solar.
+        with self.assertLogs(logger=mgr.log, level='WARNING'):
+            mgr.remove_all_solar()
 
 
 class IEEE123ModForYuanTestCase(unittest.TestCase):
