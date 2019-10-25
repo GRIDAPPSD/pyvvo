@@ -884,6 +884,54 @@ class EquipmentManager:
 
         return output
 
+
+class InverterEquipmentManager(EquipmentManager):
+    """Unlike regulators, switches, and capacitors, inverters have a
+    two-piece state: p and q. So, state updates and building equipment
+    commands will be different.
+    """
+
+    @utils.wait_for_lock
+    def update_state(self, msg, sim_dt):
+        """Given a message from a gridappsd_platform SimOutRouter,
+        update equipment state.
+
+        :param msg: list passed to this method via a SimOutRouter's
+            "_on_message" method.
+        :param sim_dt: datetime.datetime object passed to this method
+            via a SimOutRouter's "_on_message" method.
+        """
+
+        # Type checking:
+        if not isinstance(msg, list):
+            raise TypeError('msg must be a list!')
+
+        # The following results in a "double loop" but will prevent us
+        # from calling get_complex for every measurement, and instead
+        # do operations in a vectorized manner.
+
+        mag_angle = np.array([[m['magnitude'], m['angle']] for m in msg])
+        rect = utils.get_complex(r=mag_angle[:, 0], phi=mag_angle[:, 1],
+                                 degrees=True)
+
+        # Iterate over the message and update equipment.
+        for idx, m in enumerate(msg):
+            # Grab mrid, magnitude, and angle.
+            meas_mrid = m['measurement_mrid']
+
+            # Create the state.
+            state = (rect[idx].real, rect[idx].imag)
+
+            # Update the state.
+            self._update_state(meas_mrid=meas_mrid, state=state)
+
+    @utils.wait_for_lock
+    def build_equipment_commands(self, eq_dict_forward):
+        raise NotImplementedError('build_equipment_commands for the '
+                                  'InverterEquipmentManager has not yet been '
+                                  'implemented. This will need to be'
+                                  'implemented when PyVVO wants to command '
+                                  'inverters.')
 ########################################################################
 
 ########################################################################

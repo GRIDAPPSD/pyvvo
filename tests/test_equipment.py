@@ -7,7 +7,7 @@ import pandas as pd
 import simplejson as json
 from datetime import datetime
 
-from pyvvo import equipment
+from pyvvo import equipment, utils
 
 from pyvvo.sparql import REG_MEAS_MEAS_MRID_COL, REG_MEAS_REG_MRID_COL,\
     CAP_MEAS_MEAS_MRID_COL, CAP_MEAS_CAP_MRID_COL, SWITCH_MEAS_MEAS_MRID_COL,\
@@ -656,6 +656,91 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         # valid.
         equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
                               func=self.state_valid)
+
+
+class InverterEquipmentManagerTestCase(unittest.TestCase):
+    """Test the InverterEquipmentManager."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.inv_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
+        with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
+            cls.inv_meas_msg = json.load(f)
+
+        # Override all the measurement magintudes and angles so we can
+        # ensure they result in a change when the message is sent in
+        # as an update command.
+        n = len(cls.inv_meas_msg)
+        # Magnitude values between 1 and 1000.
+        cls.mag_values = (1000 - 1) * np.random.random(n) + 1
+        # Angle values between -90 and 90.
+        cls.angle_values = (90 + 90) * np.random.random(n) - 90
+
+        for mag, ang, m in zip(cls.mag_values, cls.angle_values,
+                               cls.inv_meas_msg):
+            m['magnitude'] = mag.item()
+            m['angle'] = ang.item()
+
+        # Just create a bogus datetime.
+        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
+
+    def setUp(self) -> None:
+        self.inv_dict = equipment.initialize_inverters(
+            _df.read_pickle(_df.INVERTERS_9500))
+
+        self.mgr = \
+            equipment.InverterEquipmentManager(eq_dict=self.inv_dict,
+                                               eq_meas=self.inv_meas,
+                                               meas_mrid_col='meas_mrid',
+                                               eq_mrid_col='inverter_mrid')
+
+    def test_init(self):
+        """Ensure initialization occurs without errors, and that we
+        get the properties expected.
+        """
+
+        self.assertIsInstance(self.mgr, equipment.EquipmentManager)
+        self.assertIs(self.inv_meas, self.mgr.eq_meas)
+        self.assertIs(self.inv_dict, self.mgr.eq_dict)
+
+        # This is a bit of a kludge, but oh well. I want to ensure that
+        # the initializer is not overridden, so we'll compare the doc
+        # strings. Not great, but maybe better than nothing.
+        self.assertEqual(self.mgr.__init__.__doc__,
+                         equipment.EquipmentManager.__init__.__doc__)
+
+    def test_build_equipment_commands(self):
+        """This hasn't been implemented yet, but will need tested when
+        it is.
+        """
+        with self.assertRaisesRegex(NotImplementedError, 'build_equipment_co'):
+            self.mgr.build_equipment_commands('bleh')
+
+    def test_update_state(self):
+        """Ensure update_state works."""
+        # Start by ensuring all inverters do not have a previous state.
+        current_state = []
+        for inv in self.mgr.meas_eq_map.values():
+            current_state.append(inv.state)
+            self.assertIsNone(inv.state_old)
+
+        self.mgr.update_state(msg=self.inv_meas_msg, sim_dt=self.sim_dt)
+
+        # Ensure that the current states match the former current states
+        # after update. Python now ensures that looping over the same
+        # dictionary twice will loop in the same order, so we'll count
+        # on that fact here.
+        for s, inv in zip(current_state, self.mgr.meas_eq_map.values()):
+            self.assertEqual(s, inv.state_old)
+            
+        # Make sure our fancy looping didn't screw something up.
+        for m in self.inv_meas_msg:
+            rect = utils.get_complex(r=m['magnitude'], phi=m['angle'],
+                                     degrees=True)
+            s = (rect.real, rect.imag)
+
+            eq = self.mgr.meas_eq_map[m['measurement_mrid']]
+
+            self.assertEqual(s, eq.state)
 
 
 class InitializeRegulatorsTestCase(unittest.TestCase):
