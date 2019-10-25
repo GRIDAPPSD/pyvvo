@@ -728,6 +728,10 @@ class EquipmentManager:
         :param mrid: MRID of the equipment to find.
         :param phase: Optional. Phase of the equipment to find.
         """
+        # Cast phase to upper case if applicable.
+        if phase is not None:
+            phase = phase.upper()
+
         # Start by just grabbing the equipment.
         eq = self.eq_dict[mrid]
 
@@ -771,19 +775,30 @@ class EquipmentManager:
             meas_mrid = m['measurement_mrid']
             value = m['value']
 
-            # Update!
-            try:
-                eq = self.meas_eq_map[meas_mrid]
-            except KeyError:
-                self.log.warning(
-                    'Measurement MRID {} not present in the map!'.format(
-                        meas_mrid))
-            else:
-                if eq.state != value:
-                    eq.state = value
-                    self.log.debug('Equipment {} state updated to: {}'.format(
-                        str(self.meas_eq_map[meas_mrid]), value
-                    ))
+            self._update_state(meas_mrid=meas_mrid, state=value)
+
+    def _update_state(self, meas_mrid: str, state):
+        """Helper for updating a piece of equipment's state, used by the
+        public update_state method.
+
+        :param meas_mrid: Measurement MRID to be looked up in the
+            meas_eq_map.
+        :param state: New state corresponding to the given measurement
+            MRID (and thus a piece of equipment).
+        """
+        # Update!
+        try:
+            eq = self.meas_eq_map[meas_mrid]
+        except KeyError:
+            self.log.warning(
+                'Measurement MRID {} not present in the map!'.format(
+                    meas_mrid))
+        else:
+            if eq.state != state:
+                eq.state = state
+                self.log.debug('Equipment {} state updated to: {}'.format(
+                    str(self.meas_eq_map[meas_mrid]), state
+                ))
 
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
