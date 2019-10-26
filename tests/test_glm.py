@@ -26,6 +26,8 @@ TEST_FILE4 = os.path.join(MODEL_DIR, 'test4.glm')
 EXPECTED4 = os.path.join(MODEL_DIR, 'test4_expected.glm')
 TEST_SUBSTATION_METER = os.path.join(MODEL_DIR, 'test_substation_meter.glm')
 TEST_INVERTER = os.path.join(MODEL_DIR, 'test_inverter_output.glm')
+TEST_INVERTER_3_PHASE = os.path.join(MODEL_DIR,
+                                     'test_three_phase_inverter_output.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()
@@ -1705,9 +1707,78 @@ class InverterOutputTestCase(unittest.TestCase):
         """
         p = float(self.inverter['P_Out'])
         q = float(self.inverter['Q_Out'])
+        va = p + 1j*q
 
         self.assertTrue((self.output['P_Out'].values == p).all())
         self.assertTrue((self.output['Q_Out'].values == q).all())
+        self.assertTrue((self.output['VA_Out'].values == va).all())
+
+
+@unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+class InverterThreePhaseOutputTestCase(unittest.TestCase):
+    """Test case for proving that inverter properties P_Out and Q_Out
+    are three phase, despite not being documented. A ticket has been
+    opened to improve the documentation:
+
+    https://github.com/gridlab-d/gridlab-d/issues/1201
+    """
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mgr = glm.GLMManager(TEST_INVERTER_3_PHASE)
+
+        cls.inverter = cls.mgr.find_object(obj_type='inverter',
+                                           obj_name='"three_phase_inv"')
+        cls.recorder_inv = cls.mgr.find_object(obj_name='inverter_recorder',
+                                               obj_type='recorder')
+        cls.recorder_meter = cls.mgr.find_object(obj_name='meter_recorder',
+                                                 obj_type='recorder')
+
+        # the run_gld helper runs the model from its directory.
+        cls.out_file_inv = os.path.join(MODEL_DIR, cls.recorder_inv['file'])
+        cls.out_file_meter = os.path.join(MODEL_DIR, cls.recorder_meter['file'])
+
+        # Run the model.
+        result = run_gld(TEST_INVERTER_3_PHASE)
+        assert result.returncode == 0
+
+        # Read the results.
+        cls.results_inv = read_gld_csv(cls.out_file_inv)
+        cls.results_meter = read_gld_csv(cls.out_file_meter)
+
+    # noinspection PyUnresolvedReferences
+    @classmethod
+    def tearDownClass(cls) -> None:
+        os.remove(cls.out_file_inv)
+        os.remove(cls.out_file_meter)
+
+    def test_inv_pq(self):
+        """Ensure the inverter is in CONSTANT_PQ mode."""
+        self.assertEqual(self.inverter['four_quadrant_control_mode'],
+                         'CONSTANT_PQ')
+        self.assertEqual(self.inverter['inverter_type'],
+                         'FOUR_QUADRANT')
+
+    def test_inverter_output(self):
+        """Ensure inverter measurements are as expected."""
+        p = float(self.inverter['P_Out'])
+        q = float(self.inverter['Q_Out'])
+        va = p + 1j*q
+
+        self.assertTrue((self.results_inv['P_Out'].values == p).all())
+        self.assertTrue((self.results_inv['Q_Out'].values == q).all())
+        self.assertTrue((self.results_inv['VA_Out'].values == va).all())
+
+    def test_meter_output(self):
+        va = float(self.inverter['P_Out']) + 1j * float(self.inverter['Q_Out'])
+
+        for p in ['A', 'B', 'C']:
+            # Show that the VA_Out is really three phase, so it should
+            # be /3 for each individual phase.
+            # noinspection PyTypeChecker
+            np.testing.assert_allclose(
+                self.results_meter[f'measured_power_{p}'].values, -va / 3,
+                rtol=1e-4, atol=0
+            )
 
 
 if __name__ == '__main__':
