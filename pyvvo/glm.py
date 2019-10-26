@@ -538,6 +538,8 @@ class GLMManager:
         - update_all_triplex_loads: Well, update all the triplex loads
             in the model. Self explanatory :) Check the docstring.
         - remove_all_solar: Remove all solar panels from the model.
+        - set_inverter_v_and_i: Add V_In and I_In to inverters according
+            to their rated power (essentially giving them a DC source).
 
     IMPORTANT NOTE ON MUTABILITY:
         As Python programmers should know, dictionaries are mutable, and
