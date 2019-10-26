@@ -1838,6 +1838,8 @@ class GLMManager:
                 # Modify the inverter.
                 self._modify_item(inv, {'V_In': v, 'I_In': i})
 
+        self.log.info('All inverters have V_In and I_In set according to '
+                      'their rated power.')
         # That's it.
         return None
 
