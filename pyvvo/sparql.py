@@ -17,6 +17,8 @@ CAP_MEAS_MEAS_MRID_COL = 'state_meas_mrid'
 CAP_MEAS_CAP_MRID_COL = 'cap_mrid'
 SWITCH_MEAS_MEAS_MRID_COL = 'state_meas_mrid'
 SWITCH_MEAS_SWITCH_MRID_COL = 'switch_mrid'
+INVERTER_MEAS_MEAS_MRID_COL = 'meas_mrid'
+INVERTER_MEAS_INV_MRID_COL = 'inverter_mrid'
 
 
 class SPARQLManager:

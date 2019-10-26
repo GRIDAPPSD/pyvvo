@@ -1111,7 +1111,8 @@ class GLMManager:
         self._update_prepend_key()
 
     def modify_item(self, item_dict):
-        """Modify an item in the model.
+        """Modify an item in the model. NOTE: The input item_dict will
+        be modified.
 
         NOTE: this method CANNOT be used to change an object's name.
 

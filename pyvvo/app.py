@@ -79,11 +79,23 @@ def main(sim_id, sim_request):
         eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
     )
 
+    # Get inverter information.
+    inverter_df = sparql_mgr.query_inverters()
+    inverter_meas = sparql_mgr.query_inverter_measurements()
+    inverter_meas_mrid = \
+        list(inverter_meas[sparql.INVERTER_MEAS_MEAS_MRID_COL])
+    inverter_objects = equipment.initialize_inverters(inverter_df)
+    inverter_mgr = equipment.InverterEquipmentManager(
+        eq_dict=inverter_objects, eq_meas=inverter_meas,
+        meas_mrid_col=sparql.INVERTER_MEAS_MEAS_MRID_COL,
+        eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL)
+
     # Get list of dictionaries for routing output.
     fn_mrid_list = [
         {'functions': reg_mgr.update_state, 'mrids': reg_meas_mrid},
         {'functions': cap_mgr.update_state, 'mrids': cap_meas_mrid},
-        {'functions': switch_mgr.update_state, 'mrids': switch_meas_mrid}
+        {'functions': switch_mgr.update_state, 'mrids': switch_meas_mrid},
+        {'functions': inverter_mgr.update_state, 'mrids': inverter_meas_mrid}
     ]
 
     # Create a SimOutRouter to listen to simulation outputs.
@@ -104,6 +116,14 @@ def main(sim_id, sim_request):
     # Get model, instantiate GLMManager.
     model = platform.get_glm(model_id=feeder_mrid)
     glm_mgr = GLMManager(model=model, model_is_path=False)
+
+    # Remove PV and ensure inverters have a power supply.
+    glm_mgr.remove_all_solar()
+    glm_mgr.set_inverter_v_and_i()
+    # TODO: Ensure all inverters are in the right mode and set to be
+    #   online.
+    # Update the inverters in the model.
+    _update_inverter_state_in_glm(glm_mgr=glm_mgr, inverters=inverter_objects)
 
     # Run the genetic algorithm.
     # TODO: Manage times in a better way.
@@ -202,6 +222,91 @@ def main(sim_id, sim_request):
     # #                       reverse_values=reg_reverse, sim_id=sim_id)
     #
     # print('hooray')
+
+
+def _update_inverter_state_in_glm(glm_mgr: GLMManager, inverters):
+    """Given a GLMManager and InverterSinglePhase objects, update the
+    inverter P and Q values in the model based on the current state of
+    the InverterSinglePhase objects.
+
+    Eventually, the genetic algorithm should be allowed to set inverter
+    set points, which will make this method obsolete.
+
+    This function feels like maybe it should go somewhere else, but at
+    the same time putting it here helps keep the proper levels of
+    abstraction in the other modules.
+
+    Also note that this method wouldn't make much sense if the inverters
+    were being "driven" by solar panels in PyVVO's internal model.
+    However, we're stripping out all the solar objects so that the
+    inverter output is simply constant. Future work should leave the
+    solar objects in, and have the panels driven by weather, where the
+    weather is created by some sort of forecast for the upcoming
+    interval.
+
+    :param glm_mgr: glm.GLMManager
+    :param inverters: Dictionary of equipment.InverterSinglePhase
+        objects and dictionaries of equipment.InverterSinglePhase
+        objects as is returned by equipment.initialize_inverters.
+
+    :returns: None. The GLMManager is updated directly.
+    """
+    # Loop over the inverters/dicts of inverters.
+    for inv_or_dict in inverters.values():
+        # Dictionary implies three phase.
+        if isinstance(inv_or_dict, dict):
+            # Loop over the phases and aggregate p and q.
+            p = 0
+            q = 0
+
+            for phase_inv in inv_or_dict.values():
+                p += phase_inv.p
+                q += phase_inv.q
+
+            # Grab the name from the last inverter.
+            # noinspection PyUnboundLocalVariable
+            inv_name = phase_inv.name
+
+        elif isinstance(inv_or_dict, equipment.InverterSinglePhase):
+            # Here we just have a single phase inverter.
+            p = inv_or_dict.p
+            q = inv_or_dict.q
+            inv_name = inv_or_dict.name
+        else:
+            raise ValueError('Unexpected item: {}'.format(inv_or_dict))
+
+        # We've got P, Q, and the name. What we don't know is whether
+        # the inverter is associated with PV or a battery, for which the
+        # platform uses different name prefixes. Start with PV, since
+        # that's more common than batteries.
+        name_pv = ga.cim_to_glm_name(prefix=ga.INVERTER_PV_PREFIX,
+                                     cim_name=inv_name)
+        inv_dict = {'object': 'inverter', 'P_Out': p, 'Q_Out': q,
+                    'name': name_pv}
+
+        try:
+            glm_mgr.modify_item(inv_dict)
+        except KeyError:
+            # Try again with the battery prefix.
+            name_bat = ga.cim_to_glm_name(
+                prefix=ga.INVERTER_BAT_PREFIX, cim_name=inv_name)
+
+            # Completely reconstruct the inverter dict since the
+            # modify_item method modifies the input dictionary.
+            inv_dict = {'object': 'inverter', 'P_Out': p, 'Q_Out': q,
+                        'name': name_bat}
+
+            try:
+                glm_mgr.modify_item(inv_dict)
+            except KeyError:
+                # TODO: Should we raise an exception?
+                m = ('When attempting to update the .glm with inverter power '
+                     f'measurements, neither {name_pv} nor {name_bat} could '
+                     'be found in the model. They have thus not been updated.')
+                LOG.error(m)
+
+    LOG.info('All inverters in the .glm have been updated with the current '
+             'inverter state.')
 
 
 if __name__ == '__main__':

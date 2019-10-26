@@ -52,10 +52,12 @@ SUBSTATION_COLUMNS = {SUBSTATION_ENERGY, SUBSTATION_REAL_POWER,
                       SUBSTATION_REACTIVE_POWER, TIME_COL}
 # The GridLAB-D models from the platform have prefixes on object names,
 # and thus don't precisely line up with the names from the CIM.
-# https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.06.beta/services/fncsgossbridge/service/fncs_goss_bridge.py
+# https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/v2019.10.0/services/fncsgossbridge/service/fncs_goss_bridge.py
 # Use these prefixes in conjunction with cim_to_glm_name
 REG_PREFIX = 'reg'
 CAP_PREFIX = 'cap'
+INVERTER_PV_PREFIX = 'inv_pv'
+INVERTER_BAT_PREFIX = 'inv_bat'
 # GridLAB-D outputs things in base units (e.g. Watts or Watt-hours), but
 # we want to keep our costs in more typical human terms.
 TO_KW_FACTOR = 1/1000
