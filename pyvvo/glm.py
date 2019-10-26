@@ -91,6 +91,7 @@ def parse(input_str, file_path=True):
     return _parse_token_list(tokens)
 
 
+# noinspection RegExpRedundantEscape
 def _tokenize_glm(input_str, file_path=True):
     """ Turn a GLM file/string into a linked list of tokens.
 
@@ -1802,6 +1803,42 @@ class GLMManager:
             self.log.info('All solar objects removed from the model.')
 
         # Nothing to return.
+        return None
+
+    def set_inverter_v_and_i(self):
+        """Set V_In and I_In for all inverters such that the DC supply
+        is supplying the 110% inverter's rated power.
+        """
+        # NOTE: This method could be implemented in a more efficient
+        # manner, but it's more readable and more robust to use the
+        # public methods the class already has.
+
+        # Get all inverter objects.
+        inverter_list = self.get_objects_by_type(object_type='inverter')
+
+        # Loop over all inverters.
+        for inv in inverter_list:
+            # Attempt to get the rated power.
+            try:
+                s_str = inv['rated_power']
+            except KeyError:
+                # No rated power. Set arbitrary V and I in.
+                self.log.warning(f"Inverter {inv['name']} does not have the "
+                                 "rated_power attribute. Setting V_In=10000 "
+                                 "I_In=10000.")
+
+                self._modify_item(inv, {'V_In': 10000, 'I_In': 10000})
+            else:
+                # We have a rated power. Set values accordingly.
+                s = float(s_str) * 1.1
+                # Just use 1000.
+                v = 1000
+                i = s/v
+
+                # Modify the inverter.
+                self._modify_item(inv, {'V_In': v, 'I_In': i})
+
+        # That's it.
         return None
 
 

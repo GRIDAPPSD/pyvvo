@@ -1803,7 +1803,7 @@ class GetItemsAndObjectsAfterRemovalTestCase(unittest.TestCase):
     def test_lines_in_map(self):
         self.assertIn('overhead_line', self.mgr.model_map['object'])
         self.assertEqual(0, len(self.mgr.model_map['object']['overhead_line']))
-        
+
     def test_get_objects_by_type_returns_none(self):
         self.assertIsNone(self.mgr.get_objects_by_type('overhead_line'))
 
@@ -1811,6 +1811,44 @@ class GetItemsAndObjectsAfterRemovalTestCase(unittest.TestCase):
         self.assertIsNone(
             self.mgr.get_items_by_type(item_type='object',
                                        object_type='overhead_line'))
+
+
+class SetInverterVAndITestCase(unittest.TestCase):
+    """Test the GLMManager's set_inverter_v_and_i method."""
+    MODEL = \
+        """
+        object inverter {
+          name inv1;
+          rated_power 25000;
+        }
+        object inverter {
+          name inv2;
+        }
+        """
+
+    def test_set_inverter_v_and_i(self):
+        # Initialize manager.
+        mgr = glm.GLMManager(model=self.MODEL, model_is_path=False)
+
+        # Call method, ensuring we get a warning for the lack of
+        # rated_power for inv2.
+        with self.assertLogs(logger=mgr.log, level='WARNING'):
+            mgr.set_inverter_v_and_i()
+
+        # Ensure v and i are expected for inv1.
+        inv1 = mgr.find_object(obj_type='inverter', obj_name='inv1')
+        v_1 = float(inv1['V_In'])
+        i_1 = float(inv1['I_In'])
+        rp = float(inv1['rated_power'])
+        self.assertEqual(rp * 1.1, v_1 * i_1)
+
+        # Ensure v and i are expected for inv2. It has not rated power,
+        # so they're both set to 10000.
+        inv2 = mgr.find_object(obj_type='inverter', obj_name='inv2')
+        v_2 = float(inv2['V_In'])
+        i_2 = float(inv2['I_In'])
+        self.assertEqual(v_2, 10000)
+        self.assertEqual(i_2, 10000)
 
 
 if __name__ == '__main__':
