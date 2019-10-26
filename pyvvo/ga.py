@@ -53,7 +53,7 @@ SUBSTATION_COLUMNS = {SUBSTATION_ENERGY, SUBSTATION_REAL_POWER,
 # The GridLAB-D models from the platform have prefixes on object names,
 # and thus don't precisely line up with the names from the CIM.
 # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.06.beta/services/fncsgossbridge/service/fncs_goss_bridge.py
-# Use these prefixes in conjunction with _cim_to_glm_name
+# Use these prefixes in conjunction with cim_to_glm_name
 REG_PREFIX = 'reg'
 CAP_PREFIX = 'cap'
 # GridLAB-D outputs things in base units (e.g. Watts or Watt-hours), but
@@ -217,7 +217,7 @@ def _binary_array_to_scalar(a):
     return (a * np.power(2, np.arange(a.shape[0] - 1, -1, -1))).sum()
 
 
-def _cim_to_glm_name(prefix, cim_name):
+def cim_to_glm_name(prefix, cim_name):
     """Helper to manage the fact that we need to prefix our object names
     to make them match what's in the GridLAB-D model.
 
@@ -914,8 +914,8 @@ class Individual:
 
         # Add the prefix to the regulator name.
         # noinspection PyUnboundLocalVariable
-        model_name = _cim_to_glm_name(prefix=REG_PREFIX,
-                                      cim_name=sp_dict['eq_obj'].name)
+        model_name = cim_to_glm_name(prefix=REG_PREFIX,
+                                     cim_name=sp_dict['eq_obj'].name)
 
         # Update this regulator in the model.
         glm_mgr.update_reg_taps(model_name, update_dict)
@@ -963,8 +963,8 @@ class Individual:
 
         # Add the prefix to the name.
         # noinspection PyUnboundLocalVariable
-        model_name = _cim_to_glm_name(prefix=CAP_PREFIX,
-                                      cim_name=sp_dict['eq_obj'].name)
+        model_name = cim_to_glm_name(prefix=CAP_PREFIX,
+                                     cim_name=sp_dict['eq_obj'].name)
 
         # Modify it.
         glm_mgr.update_cap_switches(model_name, update_dict)

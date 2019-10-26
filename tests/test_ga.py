@@ -160,22 +160,22 @@ class BinaryArrayToScalarTestCase(unittest.TestCase):
 
 
 class CIMToGLMNameTestCase(unittest.TestCase):
-    """Test _cim_to_glm_name"""
+    """Test cim_to_glm_name"""
 
     def test_one(self):
         self.assertEqual('"my_name"',
-                         ga._cim_to_glm_name(prefix='my',
-                                             cim_name='name'))
+                         ga.cim_to_glm_name(prefix='my',
+                                            cim_name='name'))
 
     def test_two(self):
         self.assertEqual('"pfah_stuff"',
-                         ga._cim_to_glm_name(prefix='pfah',
-                                             cim_name='"stuff"'))
+                         ga.cim_to_glm_name(prefix='pfah',
+                                            cim_name='"stuff"'))
 
     def test_three(self):
         self.assertEqual('"bad_people"',
-                         ga._cim_to_glm_name(prefix='"bad"',
-                                             cim_name='"people"'))
+                         ga.cim_to_glm_name(prefix='"bad"',
+                                            cim_name='"people"'))
 
 
 class IntBinLengthTestCase(unittest.TestCase):
@@ -915,8 +915,8 @@ class IndividualUpdateModelComputeCostsTestCase(unittest.TestCase):
 
         # Ensure capacitor switch position is being updated correctly.
         p.assert_called_once()
-        p.assert_called_with(ga._cim_to_glm_name(prefix=ga.CAP_PREFIX,
-                                                 cim_name='capbank0a'),
+        p.assert_called_with(ga.cim_to_glm_name(prefix=ga.CAP_PREFIX,
+                                                cim_name='capbank0a'),
                              {'A': 'CLOSED'})
 
     @patch.dict(ga.CONFIG, {'costs': {'regulator_tap': 10,
