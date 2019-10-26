@@ -272,6 +272,9 @@ class PowerFactorTestCase(unittest.TestCase):
                              0.7071067811865475, -0.7071067811865475])
         np.testing.assert_allclose(actual, expected)
 
+        # Ensure the output is not complex.
+        self.assertFalse(np.iscomplex(actual).any())
+
     def test_zeros(self):
         """Ensure we get NaNs for division by zero, and ensure we get
         a warning.

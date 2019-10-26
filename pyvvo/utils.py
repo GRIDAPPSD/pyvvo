@@ -289,7 +289,7 @@ def power_factor(s):
     # over the top of it. This is to avoid division by zero errors
     # (some other modules may change Numpy error handling to raise an
     # error on division by zero rather than warning and creating a NaN.)
-    pf = np.empty_like(s)
+    pf = np.empty(s.shape)
     pf[:] = np.nan
 
     # Pre-compute the magnitude array.
