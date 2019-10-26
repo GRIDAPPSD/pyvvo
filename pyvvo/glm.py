@@ -1038,7 +1038,7 @@ class GLMManager:
                 # the first element is a key into the model_dict, and 
                 # the user of this method doesn't care about that. Thus,
                 # we grab v[1], which is the actual dictionary.
-                return {k: v[1] for k, v in object_dict.items()}
+                out = {k: v[1] for k, v in object_dict.items()}
                 
             else:
                 # Require and object_type for item_type of 'object'
@@ -1047,19 +1047,27 @@ class GLMManager:
         elif item_type == 'clock':
             # Simply return the clock dictionary. The first item in this 
             # list is the key into the model map.
-            return dict_or_list[1]
+            out = dict_or_list[1]
         elif item_type == 'module':
             # Return a dict of dicts keyed by module name.
-            return {k: v[1] for k, v in dict_or_list.items()}
+            out = {k: v[1] for k, v in dict_or_list.items()}
         elif item_type == 'object_unnamed':
             # Return a list which doesn't include the keys into the 
             # model_dict.
-            return [i[1] for i in dict_or_list]
+            out = [i[1] for i in dict_or_list]
         else:
             # Hopefully we never get here, as the try/except at the
             # very beginning of this method will catch most cases.
             raise ValueError(
                 'The given item_type, {}, is not supported.'.format(item_type))
+
+        # We can get a 0 length if the given item type existed at one
+        # point, but has then been removed. In this case, it exists in
+        # the map, but is empty.
+        if len(out) == 0:
+            return None
+        else:
+            return out
 
     def _add_non_object(self, item_type, item_dict):
         """Add a non-object to the model.
@@ -1780,15 +1788,14 @@ class GLMManager:
         # class already has.
 
         # Get all solar objects.
-        solar_dict = self.get_items_by_type(item_type='object',
-                                            object_type='solar')
+        solar_list = self.get_objects_by_type(object_type='solar')
 
-        if solar_dict is None:
+        if solar_list is None:
             self.log.warning('remove_all_solar was called, but there are no '
                              'solar objects in the model!')
         else:
             # Remove all the objects.
-            for s in solar_dict.values():
+            for s in solar_list:
                 self.remove_item(s)
 
             # Pretty easy, right?

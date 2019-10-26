@@ -1781,5 +1781,37 @@ class InverterThreePhaseOutputTestCase(unittest.TestCase):
             )
 
 
+class GetItemsAndObjectsAfterRemovalTestCase(unittest.TestCase):
+    """Test GLMManager methods get_items_by_type and get_objects_by_type
+    to ensure they return None in the edge case where the model map
+    shows the type being present, but the objects have been removed.
+    """
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Load model.
+        cls.mgr = glm.GLMManager(TEST_FILE)
+
+        # Get overhead lines.
+        lines = cls.mgr.get_objects_by_type(object_type='overhead_line')
+
+        assert len(lines) > 0
+
+        # Remove the lines.
+        for line in lines:
+            cls.mgr.remove_item(line)
+
+    def test_lines_in_map(self):
+        self.assertIn('overhead_line', self.mgr.model_map['object'])
+        self.assertEqual(0, len(self.mgr.model_map['object']['overhead_line']))
+        
+    def test_get_objects_by_type_returns_none(self):
+        self.assertIsNone(self.mgr.get_objects_by_type('overhead_line'))
+
+    def test_get_items_by_type_returns_none(self):
+        self.assertIsNone(
+            self.mgr.get_items_by_type(item_type='object',
+                                       object_type='overhead_line'))
+
+
 if __name__ == '__main__':
     unittest.main()
