@@ -68,9 +68,6 @@ def main(sim_id, sim_request):
     # Get switch information.
     switch_df = sparql_mgr.query_switches()
     switch_objects = equipment.initialize_switches(switch_df)
-    # TODO: Uncomment below when the following is resolved:
-    # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/issues/969
-
     switch_meas = sparql_mgr.query_switch_measurements()
     switch_meas_mrid = list(switch_meas[sparql.SWITCH_MEAS_MEAS_MRID_COL])
     switch_mgr = equipment.EquipmentManager(
@@ -99,6 +96,7 @@ def main(sim_id, sim_request):
     ]
 
     # Create a SimOutRouter to listen to simulation outputs.
+    # noinspection PyUnusedLocal
     router = SimOutRouter(platform_manager=platform, sim_id=sim_id,
                           fn_mrid_list=fn_mrid_list)
 
@@ -117,13 +115,12 @@ def main(sim_id, sim_request):
     model = platform.get_glm(model_id=feeder_mrid)
     glm_mgr = GLMManager(model=model, model_is_path=False)
 
-    # Remove PV and ensure inverters have a power supply.
-    glm_mgr.remove_all_solar()
-    glm_mgr.set_inverter_v_and_i()
-    # TODO: Ensure all inverters are in the right mode and set to be
-    #   online.
-    # Update the inverters in the model.
-    _update_inverter_state_in_glm(glm_mgr=glm_mgr, inverters=inverter_objects)
+    # Tweak the model.
+    _prep_glm(glm_mgr)
+
+    # Update the inverters and switches in the model.
+    _update_glm_inverters_switches(glm_mgr, inverter_objects,
+                                   switch_objects)
 
     # Run the genetic algorithm.
     # TODO: Manage times in a better way.
@@ -149,79 +146,29 @@ def main(sim_id, sim_request):
     platform.send_command(sim_id=sim_id, **cap_cmd)
     LOG.info('Commands sent in.')
 
-    # glm.add_run_components(starttime=model_start, stoptime=model_end)
-    # glm.write_model(out_path='8500.glm')
-    # result = utils.run_gld('8500.glm')
-    # import timeit
-    # from copy import deepcopy
-    # t1 = timeit.timeit("glm = GLMManager(model=model, model_is_path=False)",
-    #                    globals=globals(), number=100)
-    # print(t1)
-    # t2 = timeit.timeit("new_glm = deepcopy(glm)", globals=globals(), number=100)
-    # print(t2)
-    # # Timing results:
-    # # 65.02 vs. 23.90
 
-    # # Get historic load measurement data.
-    # # TODO.
-    #
-    # # Get historic weather.
-    # weather = platform.get_weather(start_time=starttime, end_time=stoptime)
-    #
-    # # Get current weather.
-    # # TODO - what's the way forward here? Probably just query the
-    # #   database.
-    #
-    # # time.sleep(10)
-    #
-    # # Doesn't work with mrid filter...
-    # # meas = platform.get_historic_measurements(
-    # #     sim_id=sim_id, mrid='_fe0a57e7-573c-47a2-ba0b-23c289f39594')
-    #
-    # # platform.gad.unsubscribe(sub_id)
-    # # print('unsubscribed!', flush=True)
-    # #
-    #
-    #
-    # # Run a simulation.
-    # sim_id = platform.run_simulation()
-    #
-    #
-    # # # Send commands to running simulation. Command all regulators to
-    # # # their maximum.
-    # # reg_ids = []
-    # # reg_attr = []
-    # # reg_forward = []
-    # # reg_reverse = []
-    # #
-    # # # Loop over controllable regulators.
-    # # for reg_name, multi_reg in c_regs.items():
-    # #     # Loop over the phases in the regulator.
-    # #     for p in multi_reg.PHASES:
-    # #         # Get the single phase regulator.
-    # #         single_reg = getattr(multi_reg, p)
-    # #
-    # #         # Move along if its None.
-    # #         if single_reg is None:
-    # #             continue
-    # #
-    # #         # Add the tap change mrid.
-    # #         reg_ids.append(single_reg.tap_changer_mrid)
-    # #         # Add the attribute.
-    # #         reg_attr.append('TapChanger.step')
-    # #         # Hard-code the forward value.
-    # #         reg_forward.append(16)
-    # #         # Grab the reverse from the current tap_pos.
-    # #         # TODO: Need general solution for going from numpy to json.
-    # #         reg_reverse.append(int(single_reg.tap_pos))
-    # #
-    # # # Send in the command.
-    # # time.sleep(10)
-    # # platform.send_command(object_ids=reg_ids, attributes=reg_attr,
-    # #                       forward_values=reg_forward,
-    # #                       reverse_values=reg_reverse, sim_id=sim_id)
-    #
-    # print('hooray')
+def _prep_glm(glm_mgr: GLMManager):
+    """Perform all necessary updates to the .glm before running the
+    genetic algorithm. This includes:
+
+    - remove solar objects
+    - set inverter DC sources so they operate at constant P + Q
+    - set switches to have their states listed by phase
+
+    TODO: Ensure all inverters are in the right mode and set to be
+        online.
+
+    :param glm_mgr: GLMManager to update.
+    :returns: None. glm_mgr is updated in place.
+    """
+    glm_mgr.remove_all_solar()
+    glm_mgr.set_inverter_v_and_i()
+    glm_mgr.convert_switch_status_to_three_phase(banked=False)
+
+
+def _update_glm_inverters_switches(glm_mgr: GLMManager, inverters, switches):
+    _update_inverter_state_in_glm(glm_mgr, inverters)
+    _update_switch_state_in_glm(glm_mgr, switches)
 
 
 def _update_inverter_state_in_glm(glm_mgr: GLMManager, inverters):
@@ -307,6 +254,60 @@ def _update_inverter_state_in_glm(glm_mgr: GLMManager, inverters):
 
     LOG.info('All inverters in the .glm have been updated with the current '
              'inverter state.')
+
+
+def _update_switch_state_in_glm(glm_mgr: GLMManager, switches):
+    """Update our .glm with the current state of all the switches.
+
+    It is assumed this has been called after _prep_glm so that the
+    switches in the model have been modified to have each phase's state
+    explicitly enumerated.
+
+    :param glm_mgr: GLMManager which will have its switch states
+        updated.
+    :param switches: Dictionary of SwitchSinglePhase objects and
+        dictionaries of SwitchSinglePhase objects as would be returned
+        by equipment.initialize_switches.
+    """
+    # Helper function.
+    def add_state(switch, ud):
+        if switch.state is None:
+            raise ValueError(f'Switch {switch.name} has a state of None!')
+
+        ud[f'phase_{switch.phase}_state'] = switch.GLM_STATES[switch.state]
+
+    # Loop over the switches/dicts of switches.
+    for sw_or_dict in switches.values():
+        # Initialize dictionary for performing updates.
+        update_dict = {'object': 'switch'}
+
+        # Dictionary implies three phase.
+        if isinstance(sw_or_dict, dict):
+            # Loop over the phases.
+            for sw in sw_or_dict.values():
+                add_state(sw, update_dict)
+
+        elif isinstance(sw_or_dict, equipment.SwitchSinglePhase):
+            sw = sw_or_dict
+            add_state(sw, update_dict)
+        else:
+            raise TypeError('Unexpected type from {}.'.format(sw_or_dict))
+
+        # Get the switch name.
+        # noinspection PyUnboundLocalVariable
+        name = ga.cim_to_glm_name(prefix=ga.SWITCH_PREFIX, cim_name=sw.name)
+        update_dict['name'] = name
+
+        # Update!
+        try:
+            glm_mgr.modify_item(update_dict)
+        except KeyError:
+            # TODO: Should we raise an exception?
+            m = (f"The switch {name} could not be found in the "
+                 "model and thus its state has not been updated.")
+            LOG.error(m)
+
+    LOG.info('All switches in the .glm have been updated with current states.')
 
 
 if __name__ == '__main__':

@@ -5,6 +5,7 @@ from pyvvo import app, equipment, glm
 from tests.models import IEEE_9500
 import tests.data_files as _df
 
+import random
 
 class UpdateInverterStateInGLMTestCase(unittest.TestCase):
     """Test _update_inverter_state_in_glm."""
@@ -115,6 +116,118 @@ class UpdateInverterStateInGLMTestCase(unittest.TestCase):
         with self.assertLogs(logger=app.LOG, level='ERROR'):
             app._update_inverter_state_in_glm(glm_mgr=glm_mgr,
                                               inverters=inv_dict)
+
+
+class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
+    """Test _update_switch_state_in_glm"""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.switch_df = _df.read_pickle(_df.SWITCHES_9500)
+
+    def test_9500(self):
+        """Ensure the method runs without error when the switches are
+        properly initialized with states.
+        """
+        def update_switch(switch):
+            switch.state = random.choice(switch.STATES)
+
+        # Initialize switches.
+        switches = equipment.initialize_switches(self.switch_df)
+
+        # Initialize a GLMManager.
+        glm_mgr = glm.GLMManager(model=IEEE_9500, model_is_path=True)
+
+        # The switches currently have invalid states.
+        with self.assertRaisesRegex(ValueError,
+                                    'Switch .+ has a state of None'):
+            app._update_switch_state_in_glm(glm_mgr=glm_mgr,
+                                            switches=switches)
+
+        # Ensure all switches have valid states.
+        equipment.loop_helper(switches, update_switch)
+
+        # Update states in the mdoel and ensure we don't get errors.
+        with self.assertLogs(app.LOG, 'INFO') as cm:
+            app._update_switch_state_in_glm(glm_mgr=glm_mgr,
+                                            switches=switches)
+
+        # Ensure no errors were logged.
+        self.assertEqual(1, len(cm.output))
+
+    def test_expected_behavior(self):
+        """Use simple switches and model to ensure the behavior is
+        correct.
+        """
+        model = \
+            """
+            object switch {
+                name "swt_switch1";
+                phases ABC;
+                phase_A_state OPEN;
+                phase_B_state CLOSED;
+                phase_C_state OPEN;
+            }
+            object switch {
+                name "swt_switch2";
+                phases B;
+                phase_B_state OPEN;
+            }
+            """
+
+        mgr = glm.GLMManager(model=model, model_is_path=False)
+
+        switches = {
+            'mrid1': {
+                # Will toggle
+                'A': equipment.SwitchSinglePhase(
+                    name='switch1', phase='A', mrid='mrid1',
+                    controllable=True, state=1),
+                # Will toggle
+                'B': equipment.SwitchSinglePhase(
+                    name='switch1', phase='B', mrid='mrid1',
+                    controllable=True, state=0),
+                # Won't toggle.
+                'C': equipment.SwitchSinglePhase(
+                    name='switch1', phase='C', mrid='mrid1',
+                    controllable=True, state=0)
+            },
+            # Will toggle
+            'mrid2': equipment.SwitchSinglePhase(
+                name='switch2', phase='B', mrid='mrid2',
+                controllable=True, state=1)
+        }
+
+        # Perform the update.
+        app._update_switch_state_in_glm(glm_mgr=mgr, switches=switches)
+
+        # Check the switches.
+        switch1 = mgr.find_object(obj_type='switch', obj_name='switch1')
+        switch2 = mgr.find_object(obj_type='switch', obj_name='switch2')
+
+        self.assertEqual(switch1['phase_A_state'], 'CLOSED')
+        self.assertEqual(switch1['phase_B_state'], 'OPEN')
+        self.assertEqual(switch1['phase_C_state'], 'OPEN')
+
+        self.assertEqual(switch2['phase_B_state'], 'CLOSED')
+
+    def test_missing_switch(self):
+        model = \
+            """
+            object switch {
+                name who_cares;
+            }
+            """
+
+        mgr = glm.GLMManager(model=model, model_is_path=False)
+
+        switches = {'mrid': equipment.SwitchSinglePhase(
+            name='mismatch', mrid='eh', phase='C', controllable=False,
+            state=0
+        )}
+
+        with self.assertLogs(logger=app.LOG, level='ERROR'):
+            app._update_switch_state_in_glm(mgr, switches)
 
 
 if __name__ == '__main__':
