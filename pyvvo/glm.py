@@ -1116,7 +1116,18 @@ class GLMManager:
 
         NOTE: this method CANNOT be used to change an object's name.
 
-        :param item_dict
+        :param item_dict: Dictionary with attributes used for both
+            finding and modifying the item. E.g., for an object, both
+            the 'object' and 'name' fields are required to locate the
+            object. All other key/value pairs in the dictionary will
+            then be used to modify the item.
+
+        :raises ValueError: if item_dict contains the 'object' key but
+            not the 'name' key.
+        :raises KeyError: if an object/item cannot be found.
+        :raises TypeError: if the type of the item cannot be identified
+            or the type of the item is not supported for modification.
+        :returns: None, the item in the model is modified directly.
         """
         # Get type.
         item_type = self._get_item_type(item_dict)
