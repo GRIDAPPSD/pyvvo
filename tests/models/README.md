@@ -54,8 +54,11 @@ inverter even while the system changes.
 Test file to ensure we get the expected results when parenting a
 meter to a substation, and then subsequently parenting a recorder to
 the meter. So that tests can run this with both the tape and mysql
-modules, the recorder itself and tape/mysql modules will be left 
-out.
+modules, the recorder itself and tape/mysql modules are not included.
+
+### test_three_phase_inverter_output.glm
+Test file used in proving/confirming that a three phase inverter's 
+P_Out and Q_Out properties are three phase.
 
 ### test_zip.glm
 Model with a variety of ZIP loads. Used to ensure zip.py behaves in the

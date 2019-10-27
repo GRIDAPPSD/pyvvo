@@ -28,6 +28,7 @@ TEST_SUBSTATION_METER = os.path.join(MODEL_DIR, 'test_substation_meter.glm')
 TEST_INVERTER = os.path.join(MODEL_DIR, 'test_inverter_output.glm')
 TEST_INVERTER_3_PHASE = os.path.join(MODEL_DIR,
                                      'test_three_phase_inverter_output.glm')
+TEST_SWITCH_MOD = os.path.join(MODEL_DIR, 'test_switch_modifications.glm')
 
 # See if we have database inputs defined.
 DB_ENVIRON_PRESENT = db.db_env_defined()
@@ -1886,6 +1887,102 @@ class LoopOverObjectsHelperTestCase(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             mgr.loop_over_objects_helper(object_type='load',
                                          func=mgr.remove_item)
+
+
+class ConvertSwitchStatusToThreePhaseTestCase(unittest.TestCase):
+    """Test the convert_switch_status_to_three_phase method of the
+    GLMManager.
+    """
+    @classmethod
+    def tearDownClass(cls) -> None:
+        # Model written in test_model_runs_after_modifications
+        os.remove('tmp.glm')
+
+    def test_no_switches(self):
+        mgr = glm.GLMManager(EXPECTED4)
+        with self.assertLogs(logger=mgr.log, level='WARNING'):
+            mgr.convert_switch_status_to_three_phase()
+
+    def test_well_formed_switches(self):
+        model = \
+            """
+            object switch {
+                name switch1;
+                phases ABCN;
+                status OPEN;
+            }
+            object switch {
+                name switch2;
+                phases AC;
+                status CLOSED;
+            }
+            """
+
+        mgr = glm.GLMManager(model=model, model_is_path=False)
+
+        with self.assertLogs(logger=mgr.log, level='INFO'):
+            mgr.convert_switch_status_to_three_phase(banked=False)
+
+        # Ensure our switches are as they should be.
+        switch1 = mgr.find_object(obj_type='switch', obj_name='switch1')
+        for p in ['A', 'B', 'C']:
+            self.assertEqual(switch1[f'phase_{p}_state'], 'OPEN')
+
+        self.assertNotIn('status', switch1)
+        self.assertEqual(switch1['operating_mode'], 'INDIVIDUAL')
+
+        switch2 = mgr.find_object(obj_type='switch', obj_name='switch2')
+        for p in ['A', 'C']:
+            self.assertEqual(switch2[f'phase_{p}_state'], 'CLOSED')
+
+        self.assertNotIn('phase_B_state', switch2)
+        self.assertNotIn('status', switch2)
+        self.assertEqual(switch2['operating_mode'], 'INDIVIDUAL')
+
+    def test_malformed_switch(self):
+        model = \
+            """
+            object switch {
+                name ms;
+                phases A;
+            }
+            """
+
+        mgr = glm.GLMManager(model, model_is_path=False)
+        with self.assertLogs(logger=mgr.log, level='WARNING') as cm:
+            mgr.convert_switch_status_to_three_phase(banked=True)
+
+        self.assertEqual(len(cm.output), 1)
+        self.assertIn('Switch ms does not have the "status" attribute',
+                      cm.output[0])
+
+        s = mgr.find_object(obj_name='ms', obj_type='switch')
+        self.assertEqual(s['phase_A_state'], 'CLOSED')
+        self.assertNotIn('status', s)
+        self.assertNotIn('phase_B_state', s)
+        self.assertNotIn('phase_C_state', s)
+        self.assertEqual(s['operating_mode'], 'BANKED')
+
+    @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
+    def test_model_runs_after_modifications(self):
+        # Start by ensuring the model runs before modifications.
+        result1 = run_gld(model_path=TEST_SWITCH_MOD)
+        self.assertEqual(result1.returncode, 0)
+        self.assertEqual(result1.stderr, b'')
+        self.assertEqual(result1.stdout, b'')
+
+        # Modify the model.
+        mgr = glm.GLMManager(model=TEST_SWITCH_MOD, model_is_path=True)
+        mgr.convert_switch_status_to_three_phase(banked=False)
+
+        # Write out to file.
+        mgr.write_model(out_path='tmp.glm')
+
+        # Run it.
+        result2 = run_gld('tmp.glm')
+        self.assertEqual(result2.returncode, 0)
+        self.assertEqual(result2.stderr, b'')
+        self.assertEqual(result2.stdout, b'')
 
 
 if __name__ == '__main__':

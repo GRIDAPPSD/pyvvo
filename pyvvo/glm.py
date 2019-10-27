@@ -1882,6 +1882,69 @@ class GLMManager:
         # That's it.
         return None
 
+    def convert_switch_status_to_three_phase(self, banked=False):
+        """Ensure all multi-phase switches have their corresponding
+        phase_<phase>_state properties set.
+
+        Individual phase states will be based on the overall state
+        from the "status" property. E.g., a switch with phases ABCN and
+        a "status" of "CLOSED" will have phase_A_state "CLOSED" and the
+        same for B and C. The "status" property will be removed.
+
+        Additionally, switches will have their "operating_mode"
+        attributed modified according to the "banked" input to this
+        method.
+
+        `GridLAB-D documentation
+        <http://gridlab-d.shoutwiki.com/wiki/Power_Flow_User_Guide#Switch>`_
+
+        :param banked: If True, set all switch "operating_mode"s to
+            "BANKED." Else, set to "INDIVIDUAL."
+        """
+        # Simple set for valid phases.
+        s_abc = set('ABC')
+
+        # Determine operating_mode.
+        if banked:
+            operating_mode = 'BANKED'
+        else:
+            operating_mode = 'INDIVIDUAL'
+
+        # Function to use with the loop helper.
+        def fix_switch(switch):
+            # Extract phases.
+            p_set = set(switch['phases'])
+
+            # We only care about A, B, and C.
+            phases = p_set & s_abc
+
+            # Grab and remove the status.
+            try:
+                status = switch.pop('status')
+            except KeyError:
+                self.log.warning(f"Switch {switch['name']} does not have the "
+                                 '"status" attribute. It will be assumed '
+                                 'to be closed.')
+                status = 'CLOSED'
+
+            # Add states for each phase.
+            for p in phases:
+                switch[f"phase_{p}_state"] = status
+
+            # Set operating mode.
+            switch['operating_mode'] = operating_mode
+
+        # Call the loop helper.
+        try:
+            self.loop_over_objects_helper('switch', fix_switch)
+        except KeyError:
+            self.log.warning('convert_switch_status_to_three_phase was '
+                             'called, but no switches are present in the '
+                             'model.')
+        else:
+            self.log.info('All switches have had their states converted to '
+                          'three phase notation.')
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
