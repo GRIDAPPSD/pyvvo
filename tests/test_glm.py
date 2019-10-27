@@ -1,6 +1,6 @@
 # Standard library imports
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from datetime import datetime
 import os
 import logging
@@ -1849,6 +1849,43 @@ class SetInverterVAndITestCase(unittest.TestCase):
         i_2 = float(inv2['I_In'])
         self.assertEqual(v_2, 10000)
         self.assertEqual(i_2, 10000)
+
+
+class LoopOverObjectsHelperTestCase(unittest.TestCase):
+    """Test the loop_over_objects_helper method of GLMManager."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mgr = glm.GLMManager(model=TEST_FILE)
+
+    def test_missing_object_type(self):
+        with self.assertRaisesRegex(KeyError, 'The given object_type bleh'):
+            self.mgr.loop_over_objects_helper(object_type='bleh', func=print)
+
+    def test_removed_objects(self):
+        mgr = glm.GLMManager(model=EXPECTED4)
+        mgr.remove_all_solar()
+        with self.assertRaisesRegex(KeyError, 'The given object_type solar'):
+            mgr.loop_over_objects_helper(object_type='solar', func=print)
+
+    def test_func_called(self):
+        f = Mock()
+        self.mgr.loop_over_objects_helper('load', f, 7, silly_arg='hello')
+        # There are three loads in this model.
+        self.assertEqual(f.call_count, 3)
+        # Ensure the function is being called correctly.
+        for ca in f.call_args_list:
+            args = ca[0]
+            kwargs = ca[1]
+            self.assertEqual(len(args), 2)
+            self.assertIsInstance(args[0], dict)
+            self.assertEqual(args[1], 7)
+            self.assertDictEqual(kwargs, {'silly_arg': 'hello'})
+
+    def test_runtime_error_for_removal(self):
+        mgr = glm.GLMManager(model=TEST_FILE)
+        with self.assertRaises(RuntimeError):
+            mgr.loop_over_objects_helper(object_type='load',
+                                         func=mgr.remove_item)
 
 
 if __name__ == '__main__':

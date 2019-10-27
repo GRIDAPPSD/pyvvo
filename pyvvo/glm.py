@@ -1346,6 +1346,38 @@ class GLMManager:
         else:
             return clock
 
+    def loop_over_objects_helper(self, object_type, func, *args, **kwargs):
+        """Helper for looping over objects of a given type and doing
+        something with them.
+
+        :param object_type: Type of object to loop over, e.g. 'switch'
+        :param func: Function which each object will be passed to. The
+            first positional input should take an object of the given
+            type, which will be in dictionary format.
+        :param args: Positional arguments to be passed to func.
+        :param kwargs: Keyword arguments to be passed to func.
+        :return: None
+        :raises KeyError: if the given object_type is not present in
+            the model.
+        """
+        # Grab the given object type from the model map. If the objects
+        # are not present, raise a KeyError.
+        try:
+            object_dict = self.model_map['object'][object_type]
+        except KeyError:
+            m = f'The given object_type {object_type} is not in the model.'
+            raise KeyError(m) from None
+        else:
+            if len(object_dict) == 0:
+                m = f'The given object_type {object_type} is not in the model.'
+                raise KeyError(m) from None
+
+        # Loop over the objects.
+        for obj in object_dict.values():
+            # The dictionary representing the object itself is in
+            # the position with index 1. Call the function.
+            func(obj[1], *args, **kwargs)
+
     def get_objects_by_type(self, object_type):
         """Return a listing of objects by type, e.g. 'triplex_line.'
 
@@ -1786,7 +1818,11 @@ class GLMManager:
         # All done.
 
     def remove_all_solar(self):
-        """Remove all solar objects from the model."""
+        """Remove all solar objects from the model.
+
+        TODO: If desired, this could be made general for all object
+            types.
+        """
         # NOTE: This method could certainly be more efficient, but it's
         # simpler and more robust to just use the public methods the
         # class already has.
@@ -1816,11 +1852,8 @@ class GLMManager:
         # manner, but it's more readable and more robust to use the
         # public methods the class already has.
 
-        # Get all inverter objects.
-        inverter_list = self.get_objects_by_type(object_type='inverter')
-
-        # Loop over all inverters.
-        for inv in inverter_list:
+        # Define function to be used with the loop helper.
+        def set_v_and_i(inv):
             # Attempt to get the rated power.
             try:
                 s_str = inv['rated_power']
@@ -1836,10 +1869,13 @@ class GLMManager:
                 s = float(s_str) * 1.1
                 # Just use 1000.
                 v = 1000
-                i = s/v
+                i = s / v
 
                 # Modify the inverter.
                 self._modify_item(inv, {'V_In': v, 'I_In': i})
+
+        # Loop over the inverter objects and call the helper.
+        self.loop_over_objects_helper('inverter', set_v_and_i)
 
         self.log.info('All inverters have V_In and I_In set according to '
                       'their rated power.')
