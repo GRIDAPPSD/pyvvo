@@ -1244,6 +1244,17 @@ class SwitchSinglePhaseTestCase(unittest.TestCase):
         self.assertEqual(1, self.switch.state)
         self.assertEqual(0, self.switch.state_old)
 
+    def test_init_with_state(self):
+        switch = equipment.SwitchSinglePhase(name='sw', mrid='a', phase='C',
+                                             controllable=False, state=1)
+
+        self.assertEqual(switch.state, 1)
+
+    def test_init_bad_state(self):
+        with self.assertRaisesRegex(ValueError, 'state must be one of'):
+            equipment.SwitchSinglePhase(name='sw', mrid='a', phase='C',
+                                        controllable=False, state=3)
+
 
 class InitializeSwitchesTestCase(unittest.TestCase):
     """Test initialize_switches"""

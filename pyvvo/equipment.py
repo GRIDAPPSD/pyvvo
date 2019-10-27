@@ -542,9 +542,15 @@ class SwitchSinglePhase(EquipmentSinglePhase):
     # Allowed states. 0 for open, 1 for closed.
     STATES = (0, 1)
 
+    # Map states to GridLAB-D states. Does this belong here? Does this
+    # class have any business knowing about GridLAB-D? Maybe not, but
+    # there is precedent via the RegulatorSinglePhase class, which
+    # does indeed care about GridLAB-D.
+    GLM_STATES = {0: 'OPEN', 1: 'CLOSED'}
+
     STATE_CIM_PROPERTY = 'Switch.open'
 
-    def __init__(self, name, mrid, phase, controllable):
+    def __init__(self, name, mrid, phase, controllable, state=None):
         """See docstring for equipment.EquipmentSinglePhase for inputs.
         """
         # Get log.
@@ -553,6 +559,10 @@ class SwitchSinglePhase(EquipmentSinglePhase):
         # Call parent constructor.
         super().__init__(name=name, mrid=mrid, phase=phase,
                          controllable=controllable)
+
+        # Set the state if it isn't None.
+        if state is not None:
+            self.state = state
 
     def _check_state(self, value):
         """Method required by base class, called before setting state."""
