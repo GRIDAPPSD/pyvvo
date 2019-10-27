@@ -675,6 +675,8 @@ class SPARQLManager:
          '}} ORDER BY ?class ?type ?name'
          )
 
+    # TODO: Update this query to also get switch nominal state (e.g.
+    #   open/closed).
     SWITCHES_QUERY = \
         (PREFIX +
          "SELECT ?name ?mrid "
