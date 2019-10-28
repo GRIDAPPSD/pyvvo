@@ -3,6 +3,8 @@ import os
 import unittest
 from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
+import logging
+import re
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform, utils
@@ -661,6 +663,121 @@ class PlatformManagerTestCase(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'In order to send a command,'):
             p.send_command(object_ids=['a'], attributes=['b'],
                            forward_values=[1], reverse_values=[2])
+
+
+class SimulationClockTestCase(unittest.TestCase):
+    """Test the SimulationClock class."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Read the simulation log file.
+        with open(_df.SIMULATION_LOG, 'r') as f:
+            cls.sim_log_list = json.load(f)
+
+        # Extract the simulation ID from the first message.
+        cls.sim_id = cls.sim_log_list[0]['message']['processId']
+
+        # Hard code the topic. This will also help give us a regression
+        # test against gridappsd-python/topics
+        cls.topic = f'/topic/goss.gridappsd.simulation.log.{cls.sim_id}'
+        # The SIMULATION_LOG data file maps to the start time of the 13
+        # bus measurement generation simulation.
+        cls.sim_start_ts = int(utils.dt_to_s_from_epoch(_df.MEAS_13_START))
+
+    def setUp(self) -> None:
+        # Initialize the SimulationClock with a Mock.
+        self.gad_mock = Mock()
+        # Create a fresh clock for each test.
+        self.clock = gridappsd_platform.SimulationClock(
+            gad=self.gad_mock, sim_id=self.sim_id,
+            sim_start_ts=self.sim_start_ts)
+
+    def test_init(self):
+        """Test attributes after initialization."""
+        self.assertIsInstance(self.clock.log, logging.Logger)
+        self.assertEqual(self.sim_start_ts, self.clock.sim_start_ts)
+        self.assertIsNone(self.clock.sim_time)
+        self.assertIsNone(self.clock.time_step)
+        self.assertIsNone(self.clock.msg_time)
+        # We'll test the regex elsewhere.
+        # Ensure the subscribe method was called.
+        self.assertEqual(len(self.gad_mock.method_calls), 1)
+        self.assertEqual(self.gad_mock.method_calls[0][0], 'subscribe')
+        self.assertDictEqual(self.gad_mock.method_calls[0][2],
+                             {'topic': self.topic,
+                              'callback': self.clock._on_message})
+
+    def test_regex(self):
+        """Ensure the compiled regex for the clock works correctly."""
+        self.assertEqual(
+            '942',
+            self.clock.regexp.match('incrementing to 942').group(1))
+
+    def test_final_time(self):
+        """Run all the messages and headers through the clock, ensure
+        the final time is correct.
+        """
+        for d in self.sim_log_list:
+            self.clock._on_message(headers=d['header'], message=d['message'])
+
+        self.assertEqual(_df.MEAS_13_DURATION, self.clock.time_step)
+        self.assertEqual(self.sim_start_ts + _df.MEAS_13_DURATION,
+                         self.clock.sim_time)
+
+        # Do some fragile hard-coding to get the last time. By looking
+        # at the log messages, the last time step increment is the 2nd
+        # to last. So, grab the time from that.
+        last_msg = self.sim_log_list[-2]['message']
+        self.assertEqual(self.clock.msg_time, last_msg['timestamp'])
+
+    def test_bad_message(self):
+        """Ensure an error is logged if given a bad message."""
+        with self.assertLogs(logger=self.clock.log, level='ERROR'):
+            self.clock._on_message(headers={'bleh': 2},
+                                   message={'weird': 'stuff', 'bro': 'chacha'})
+
+    def test_message_from_non_fncs_source(self):
+        """Ensure clock ignores messages not from the fncs_goss_bridge.
+        """
+        with self.assertLogs(logger=self.clock.log, level='DEBUG') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'not_fncs_goss_bridge.py',
+                                     'timestamp': 123, 'logMessage': 'eh'})
+
+        self.assertEqual(1, len(cm.records))
+        # noinspection PyUnresolvedReferences
+        self.assertEqual('Ignoring message from not_fncs_goss_bridge.py.',
+                         cm.records[0].message)
+
+    def test_message_does_not_match_regex(self):
+        with self.assertLogs(logger=self.clock.log, level='DEBUG') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'fncs_goss_bridge.py',
+                                     'timestamp': 123, 'logMessage': 'eh'})
+
+        self.assertEqual(1, len(cm.records))
+        # noinspection PyUnresolvedReferences
+        self.assertEqual('Ignoring message "eh."',
+                         cm.records[0].message)
+
+    def test_single_increment(self):
+        """Send in a valid message and check associated attributes."""
+        with self.assertLogs(logger=self.clock.log, level='DEBUG') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'fncs_goss_bridge.py',
+                                     'timestamp': 123,
+                                     'logMessage': 'incrementing to 42'})
+
+        self.assertEqual(1, len(cm.records))
+        sim_time = self.sim_start_ts + 42
+
+        self.assertEqual(self.clock.sim_time, sim_time)
+        self.assertEqual(self.clock.msg_time, 123)
+        self.assertEqual(self.clock.time_step, 42)
+
+        # noinspection PyUnresolvedReferences
+        self.assertEqual(
+            f'Updated sim_time to {sim_time} and msg_time to 123.',
+            cm.records[0].message)
 
 
 if __name__ == '__main__':

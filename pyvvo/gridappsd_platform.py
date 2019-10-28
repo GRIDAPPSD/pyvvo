@@ -643,6 +643,85 @@ class PlatformManager:
         # All done!
 
 
+class SimulationClock:
+    """Class for keeping track of a simulation's time as it progresses.
+    """
+
+    def __init__(self, gad: GridAPPSD, sim_id: str, sim_start_ts: int):
+        """
+
+        :param gad: Initialized gridappsd.GridAPPSD object.
+        :param sim_id: Simulation ID of the simulation to track.
+        :param sim_start_ts: Simulation start timestamp in seconds since
+            the epoch.
+        """
+        # Setup logging.
+        self.log = logging.getLogger(self.__class__.__name__)
+
+        # Simply set the simulation starting time as an attribute.
+        self.sim_start_ts = sim_start_ts
+
+        # Use attributes for tracking the simulation time and current
+        # time (as indicated by the most recent message).
+        self.sim_time = None
+        self.time_step = None
+        self.msg_time = None
+
+        # Compile a regular expression for extracting the time from the
+        # message.
+        self.regexp = re.compile('(?:incrementing to )([0-9]+)')
+
+        # Subscribe to the simulation log.
+        gad.subscribe(topic=topics.simulation_log_topic(sim_id),
+                      callback=self._on_message)
+
+        self.log.info('SimulationClock configured and initialized.')
+
+    # noinspection PyUnusedLocal
+    def _on_message(self, headers: dict, message: dict):
+        """Callback which will be called upon simulation log messages
+        being received.
+
+        :param headers: Message header information. This will not be
+            used.
+        :param message: Message information.
+        """
+        # Attempt to extract the fields we care about.
+        try:
+            source = message['source']
+            timestamp = message['timestamp']
+            log_msg = message['logMessage']
+        except KeyError:
+            self.log.error('Incoming message missing one or more of the '
+                           'following fields: source, timestamp, logMessage. '
+                           'Times have not been updated.')
+            return None
+
+        # We only want message from the fncs_goss_bridge.
+        if source != 'fncs_goss_bridge.py':
+            self.log.debug(f'Ignoring message from {source}.')
+            return None
+
+        # See if the log message is as expected.
+        match = self.regexp.match(log_msg)
+        if match is None:
+            # We don't care about this message.
+            self.log.debug(f'Ignoring message "{log_msg}."')
+            return None
+
+        # The regular expression has been designed such that group 1
+        # contains the time increment.
+        self.time_step = int(match.group(1))
+        self.sim_time = self.sim_start_ts + self.time_step
+
+        # Update message time.
+        self.msg_time = timestamp
+
+        # Log.
+        self.log.debug(f'Updated sim_time to {self.sim_time} and msg_time to '
+                       f'{self.msg_time}.')
+
+
 class Error(Exception):
     """Base class for exceptions in this module."""
     pass
