@@ -94,8 +94,13 @@ SWITCH_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'switch_meas_message_9500.json')
 INVERTER_MEAS_MSG_9500 = os.path.join(DATA_DIR,
                                       'inverter_meas_message_9500.json')
 
+MEAS_13_START = datetime(2013, 1, 14, 0, 0)
+MEAS_13_DURATION = 20
 MEASUREMENTS_13 = os.path.join(DATA_DIR, 'simulation_measurements_13.json')
 HEADER_13 = os.path.join(DATA_DIR, 'simulation_measurements_header_13.json')
+# The simulation log will be generated with the 13 bus model, but it
+# should look pretty similar for other model runs.
+SIMULATION_LOG = os.path.join(DATA_DIR, 'simulation_log.json')
 
 MODEL_INFO = os.path.join(DATA_DIR, 'query_model_info.json')
 
@@ -303,7 +308,7 @@ def get_non_id_cols(df):
     return non_id_cols, id_cols
 
 
-def generate_all_measurements_13():
+def generate_all_measurements_and_simulation_log_13():
     """Generate the files ALL_MEAS_13, MEASUREMENTS_13, and HEADER_13.
     Note that data for ALL_MEAS_13 comes from the time series database,
     while MEASUREMENTS_13 and HEADER_13 come straight from the platform.
@@ -313,12 +318,27 @@ def generate_all_measurements_13():
         _dict_to_json(data=header, fname=HEADER_13)
         _dict_to_json(data=message, fname=MEASUREMENTS_13)
 
+    # Initialize list for placing the simulation logs.
+    logs = []
+
+    # Define helper function for collecting our log messages.
+    def add_log_entry(header, message):
+        logs.append({'header': header, 'message': message})
+
     # Get a platform manager, start the simulation.
     platform = gridappsd_platform.PlatformManager()
-    starttime = datetime(2013, 1, 14, 0, 0)
+    # For now, we need a 2nd platform manager since it seems subscribing
+    # to the simulation logs interferes with the Simulation object under
+    # the hood.
+    platform2 = gridappsd_platform.PlatformManager()
+
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_13,
-                                     start_time=starttime,
-                                     duration=20, realtime=False)
+                                     start_time=MEAS_13_START,
+                                     duration=MEAS_13_DURATION, realtime=False)
+
+    # Subscribe to simulation logs.
+    platform2.gad.subscribe(topic=topics.simulation_log_topic(sim_id),
+                            callback=add_log_entry)
 
     # Subscribe to simulation output so we can write the header +
     # message to file. Note this is not particularly efficient as the
@@ -337,6 +357,8 @@ def generate_all_measurements_13():
     # Write to file.
     _dict_to_json(fname=ALL_MEAS_13,
                   data=data)
+
+    _dict_to_json(data=logs, fname=SIMULATION_LOG)
 
 
 def generate_energy_consumer_measurements_9500():
@@ -593,7 +615,7 @@ def generate_weather_simple():
 
 if __name__ == '__main__':
     # gen_expected_sparql_results()
-    # generate_all_measurements_13()
+    generate_all_measurements_and_simulation_log_13()
     # generate_energy_consumer_measurements_9500()
     generate_cap_reg_switch_inverter_meas_message_9500()
     # generate_model_info()
