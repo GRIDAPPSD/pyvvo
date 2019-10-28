@@ -1,11 +1,17 @@
 # Standard library imports
 import unittest
+from datetime import datetime
+import simplejson as json
+import os
+import random
 
-from pyvvo import app, equipment, glm
+from pyvvo import app, db, equipment, ga, glm, sparql, utils
 from tests.models import IEEE_9500
 import tests.data_files as _df
 
-import random
+# See if we have database inputs defined.
+DB_ENVIRON_PRESENT = db.db_env_defined()
+
 
 class UpdateInverterStateInGLMTestCase(unittest.TestCase):
     """Test _update_inverter_state_in_glm."""
@@ -118,6 +124,11 @@ class UpdateInverterStateInGLMTestCase(unittest.TestCase):
                                               inverters=inv_dict)
 
 
+def update_switch(switch):
+    """Helper for randomly updating a switch's state."""
+    switch.state = random.choice(switch.STATES)
+
+
 class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
     """Test _update_switch_state_in_glm"""
 
@@ -129,8 +140,6 @@ class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
         """Ensure the method runs without error when the switches are
         properly initialized with states.
         """
-        def update_switch(switch):
-            switch.state = random.choice(switch.STATES)
 
         # Initialize switches.
         switches = equipment.initialize_switches(self.switch_df)
@@ -228,6 +237,88 @@ class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
 
         with self.assertLogs(logger=app.LOG, level='ERROR'):
             app._update_switch_state_in_glm(mgr, switches)
+
+
+@unittest.skipIf(not utils.gld_installed(),
+                 reason='GridLAB-D is not installed.')
+@unittest.skipIf(not DB_ENVIRON_PRESENT,
+                 reason='Database environment variables are not present.')
+class AllGLMModificationsRunTestCase(unittest.TestCase):
+    """Test running the 9500 node model after making the modifications
+    made in app.py as well as ga.py.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        # Initialize inverters and switches.
+        inverter_df = _df.read_pickle(_df.INVERTERS_9500)
+        inverters = equipment.initialize_inverters(inverter_df)
+        inverter_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
+        inverter_mgr = equipment.InverterEquipmentManager(
+            eq_dict=inverters, eq_meas=inverter_meas,
+            eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL,
+            meas_mrid_col=sparql.INVERTER_MEAS_MEAS_MRID_COL)
+
+        switch_df = _df.read_pickle(_df.SWITCHES_9500)
+        switches = equipment.initialize_switches(switch_df)
+        switch_meas = _df.read_pickle(_df.SWITCH_MEAS_9500)
+        switch_mgr = equipment.EquipmentManager(
+            eq_dict=switches, eq_meas=switch_meas,
+            eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL,
+            meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL)
+
+        # Update inverters and switches with measurements.
+        with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
+            inverter_meas_msg = json.load(f)
+
+        inverter_mgr.update_state(msg=inverter_meas_msg, sim_dt=None)
+
+        with open(_df.SWITCH_MEAS_MSG_9500, 'r') as f:
+            switch_meas_msg = json.load(f)
+
+        switch_mgr.update_state(msg=switch_meas_msg, sim_dt=None)
+
+        # Initialize GLM Manager.
+        cls.glm_mgr = glm.GLMManager(IEEE_9500)
+
+        # Prep and update the manager.
+        app._prep_glm(cls.glm_mgr)
+        app._update_glm_inverters_switches(
+            glm_mgr=cls.glm_mgr, inverters=inverters, switches=switches)
+
+        cls.starttime = datetime(2013, 4, 1, 12, 0)
+        cls.stoptime = datetime(2013, 4, 1, 12, 1)
+        cls.out_file = 'tmp.glm'
+
+        # Prep the manager again via the GA's method.
+        ga.prep_glm_mgr(cls.glm_mgr, cls.starttime, cls.stoptime)
+
+        # Write file.
+        cls.glm_mgr.write_model(cls.out_file)
+
+    @classmethod
+    def tearDownClass(cls):
+        # Get a connection to the database.
+        db_conn = db.connect_loop()
+
+        # Truncate the tables.
+        db.truncate_table(db_conn=db_conn, table=ga.TRIPLEX_TABLE)
+        db.truncate_table(db_conn=db_conn, table=ga.SUBSTATION_TABLE)
+
+        try:
+            # noinspection PyUnresolvedReferences
+            os.remove(cls.out_file)
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.remove('gridlabd.xml')
+        except FileNotFoundError:
+            pass
+
+    def test_model_runs(self):
+        result = utils.run_gld(self.out_file)
+        self.assertEqual(0, result.returncode)
 
 
 if __name__ == '__main__':
