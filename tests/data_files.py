@@ -408,7 +408,7 @@ def generate_cap_reg_switch_inverter_meas_message_9500():
                     ]
 
     platform = gridappsd_platform.PlatformManager()
-    starttime = datetime(2013, 1, 14, 0, 0)
+    starttime = datetime(2013, 1, 14, 16, 0)
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
                                      start_time=starttime,
                                      duration=5, realtime=False)
