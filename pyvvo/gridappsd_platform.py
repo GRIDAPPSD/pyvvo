@@ -648,7 +648,7 @@ class SimulationClock:
     """
 
     def __init__(self, gad: GridAPPSD, sim_id: str, sim_start_ts: int):
-        """
+        """Initialize attributes, subscribe to the simulation log.
 
         :param gad: Initialized gridappsd.GridAPPSD object.
         :param sim_id: Simulation ID of the simulation to track.

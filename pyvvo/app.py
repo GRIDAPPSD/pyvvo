@@ -1,13 +1,14 @@
 """Main module for running the pyvvo application."""
 from pyvvo import sparql
 from pyvvo.glm import GLMManager
-from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter
-from pyvvo import equipment, ga, utils
-from gridappsd import topics
+from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter, \
+    SimulationClock
+from pyvvo import equipment, ga
 from datetime import datetime, timedelta
 import simplejson as json
 import time
 import logging
+import dateutil
 
 # Setup log.
 LOG = logging.getLogger(__name__)
@@ -34,11 +35,9 @@ def main(sim_id, sim_request):
     LOG.debug("Simulation start time and duration extracted from simulation "
               "request.")
 
-    # Convert times to datetime.
-    # TODO: Add information indicating this is UTC.
-    starttime = datetime.fromtimestamp(start_seconds)
-    stoptime = starttime + timedelta(seconds=duration)
-    LOG.debug("starttime: {}, stoptime: {}".format(starttime, stoptime))
+    # Initialize a simulation clock.
+    clock = SimulationClock(gad=platform.gad, sim_id=sim_id,
+                            sim_start_ts=start_seconds)
 
     # ####################################################################
     # # GET PREREQUISITE DATA
@@ -115,36 +114,52 @@ def main(sim_id, sim_request):
     model = platform.get_glm(model_id=feeder_mrid)
     glm_mgr = GLMManager(model=model, model_is_path=False)
 
-    # Tweak the model.
+    # Tweak the model (one time setup).
     _prep_glm(glm_mgr)
 
-    # Update the inverters and switches in the model.
-    _update_glm_inverters_switches(glm_mgr, inverter_objects,
-                                   switch_objects)
-
     # Run the genetic algorithm.
-    # TODO: Manage times in a better way.
-    ga_stop = (starttime
-               + timedelta(seconds=ga.CONFIG["ga"]["intervals"]["model_run"]))
-    ga_mgr = ga.GA(regulators=reg_objects, capacitors=cap_objects,
-                   starttime=starttime, stoptime=ga_stop)
-    ga_mgr.run(glm_mgr=glm_mgr)
+    # TODO: Manage loop exit, etc. Should exit when simulation is
+    #   complete.
+    model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
+    while True:
+        # Update the inverters and switches in the GridLAB-D model with
+        # the current states from the platform.
+        _update_glm_inverters_switches(glm_mgr, inverter_objects,
+                                       switch_objects)
 
-    # Wait for the genetic algorithm to complete.
-    ga_mgr.wait()
+        # Get the most recent simulation time from the clock. The
+        # platform operates in UTC.
+        starttime = datetime.fromtimestamp(clock.sim_time,
+                                           tz=dateutil.tz.tzutc())
 
-    # Extract equipment settings.
-    reg_forward = ga_mgr.regulators
-    cap_forward = ga_mgr.capacitors
+        # Compute stop time.
+        stoptime = starttime + timedelta(seconds=model_run_time)
 
-    # Get the commands.
-    reg_cmd = reg_mgr.build_equipment_commands(reg_forward)
-    cap_cmd = cap_mgr.build_equipment_commands(cap_forward)
+        LOG.info('Starting genetic algorithm to compute set points for '
+                 f'{starttime} through {stoptime}.')
 
-    # Send 'em!
-    platform.send_command(sim_id=sim_id, **reg_cmd)
-    platform.send_command(sim_id=sim_id, **cap_cmd)
-    LOG.info('Commands sent in.')
+        # Initialize manager for genetic algorithm.
+        ga_mgr = ga.GA(regulators=reg_objects, capacitors=cap_objects,
+                       starttime=starttime, stoptime=stoptime)
+
+        # Start the genetic algorithm.
+        ga_mgr.run(glm_mgr=glm_mgr)
+
+        # Wait for the genetic algorithm to complete.
+        ga_mgr.wait()
+
+        # Extract equipment settings.
+        reg_forward = ga_mgr.regulators
+        cap_forward = ga_mgr.capacitors
+
+        # Get the commands.
+        reg_cmd = reg_mgr.build_equipment_commands(reg_forward)
+        cap_cmd = cap_mgr.build_equipment_commands(cap_forward)
+
+        # Send 'em!
+        platform.send_command(sim_id=sim_id, **reg_cmd)
+        platform.send_command(sim_id=sim_id, **cap_cmd)
+        LOG.info('Commands sent in.')
 
 
 def _prep_glm(glm_mgr: GLMManager):
