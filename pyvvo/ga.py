@@ -1381,7 +1381,7 @@ def _logging_thread(logging_queue):
 
 
 def _progress_thread(input_queue, output_queue, log, num_processes,
-                     interval=5):
+                     interval=CONFIG['ga']['log_interval']):
     """Log size of input and output queues every interval seconds.
 
     :param input_queue: threading.Queue like object with a qsize()
@@ -1481,7 +1481,7 @@ class Population:
                                    'glm_mgr': self.glm_mgr})
 
             # Add this process to the list.
-            self.processes.append(p)
+            self._processes.append(p)
             # Start this process.
             p.start()
 
@@ -2160,7 +2160,7 @@ class Population:
         Check the all_processes_dead attribute to ensure everything's
         been killed.
         """
-        self.log.warning('Gracefully stopping genetic algorithm evaluation.')
+        self.log.info('Gracefully stopping genetic algorithm evaluation.')
 
         # Drain the input queue. This will prevent any further
         # individuals from being evaluated.
@@ -2201,6 +2201,28 @@ class Population:
         shutdown.
         """
         raise NotImplementedError
+
+    def wait_for_processes(self, timeout: Union[float, int]):
+        """Wait for the processes to terminate.
+
+        :param timeout: Time in seconds to wait for each individual
+            process.
+
+        :raises TimeoutError: if any process does not terminate within
+            the given timeout.
+
+        :returns: None
+        """
+        for p in self.processes:
+            p.join(timeout=timeout)
+
+            if p.exitcode is None:
+                # Process has not terminated.
+                raise TimeoutError('Process did not terminate within {} '
+                                   'seconds.'.format(timeout))
+
+        # All done.
+        return None
 
 
 class Error(Exception):

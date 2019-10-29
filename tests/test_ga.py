@@ -5,7 +5,7 @@ from datetime import datetime
 from copy import deepcopy
 import multiprocessing as mp
 import threading
-from time import sleep, time
+from time import sleep
 import itertools
 
 import tests.data_files as _df
@@ -1765,6 +1765,7 @@ class PopulationTestCase(unittest.TestCase):
     def test_map_chromosome_called(self):
         fresh_mgr = deepcopy(self.glm_mgr)
         with patch('pyvvo.ga.map_chromosome', wraps=ga.map_chromosome) as p:
+            # noinspection PyUnusedLocal
             pop_obj = ga.Population(regulators=self.regs,
                                     capacitors=self.caps,
                                     glm_mgr=fresh_mgr,
@@ -2516,6 +2517,28 @@ class PopulationTestCase(unittest.TestCase):
         # ensure processes have time to die.
         sleep(0.02)
         self.assertTrue(pop.all_processes_dead)
+
+    def test_wait_for_processes(self):
+        """Ensure that wait_for_processes is working as it should."""
+        pop = self.helper_create_pop_obj()
+
+        # Sleep since multiprocessing takes time.
+        sleep(0.01)
+
+        # Ensure all our processes are running and good to go.
+        self.assertTrue(pop.all_processes_alive)
+
+        # We should get a timeout error here since the processes are
+        # still running.
+        with self.assertRaisesRegex(TimeoutError, 'Process did not terminate'):
+            pop.wait_for_processes(timeout=0.01)
+
+        # Initiate a graceful shutdown and ensure there's not timeout.
+        pop.graceful_shutdown()
+
+        result = pop.wait_for_processes(timeout=0.01)
+
+        self.assertIsNone(result)
 
     def test_forceful_shutdown(self):
         self.assertRaises(NotImplementedError, self.pop_obj.forceful_shutdown)
