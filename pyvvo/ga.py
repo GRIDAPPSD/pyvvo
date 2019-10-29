@@ -12,6 +12,7 @@ import math
 import itertools
 import copy
 from functools import wraps
+from typing import Union
 
 # Third party:
 import numpy as np
@@ -2624,6 +2625,11 @@ class GA:
                                'for generation {} complete.'.format(g))
                 g += 1
 
+            # Shut down the population processes. Putting this in a
+            # _run_if_set call so that we don't incidentally call this
+            # method twice.
+            self._run_if_set(self.population.graceful_shutdown)
+
             # Sort the population.
             self._run_if_set(self.population.sort_population)
             self.log.debug('Final population sorting complete.')
@@ -2640,10 +2646,16 @@ class GA:
                            'individual.')
 
         except GAInterruptedError:
+            # Shut down the processes.
+            self.population.graceful_shutdown()
             # One of our many "_run_if_set" wrappers raised this,
             # indicating the algorithm was interrupted. Return.
             self.log.debug('Caught GAInterruptedError, returning.')
             return None
+
+        # Wait for the population processes to shut down.
+        self.population.wait_for_processes(
+            timeout=CONFIG['ga']['process_shutdown_timeout'])
 
         # Nothing to return here, as the objects themselves get updated.
         return None
