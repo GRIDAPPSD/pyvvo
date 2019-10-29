@@ -21,8 +21,9 @@
     "top_fraction": 0.1,
     "total_fraction": 0.5,
     "tournament_fraction": 0.2,
-    "log_interval": 5,
-    "processes": 6
+    "log_interval": 10,
+    "processes": 6,
+    "process_shutdown_timeout": 5
   },
   "limits": {
     "voltage_high": 1.05,
