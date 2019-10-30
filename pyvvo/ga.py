@@ -2176,8 +2176,9 @@ class Population:
             self.input_queue.put_nowait(None)
 
         # Log.
-        self.log.info('The input and output queues have been drained, and the '
-                      'termination signal has been sent to the processes.')
+        self.log.debug(
+            'The input and output queues have been drained, and the '
+            'termination signal has been sent to the processes.')
 
         # We're done here. Actually waiting for the processes to finish
         # should be done elsewhere - we don't want this method to wait.

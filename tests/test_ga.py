@@ -2499,7 +2499,7 @@ class PopulationTestCase(unittest.TestCase):
         # Shut things down. Sleep to allow the processes to extract the
         # individuals.
         sleep(0.01)
-        with self.assertLogs(logger=pop.log, level='WARNING'):
+        with self.assertLogs(logger=pop.log, level='INFO'):
             pop.graceful_shutdown()
 
         # The input queue should be empty.
