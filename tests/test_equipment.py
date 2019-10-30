@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 from random import randint, choice
 from copy import deepcopy
 import numpy as np
@@ -643,7 +643,13 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         self.assertIn(switch.state, equipment.SwitchSinglePhase.STATES)
 
     def test_update(self):
-        """Send in an update message and ensure state changed."""
+        """Send in an update message and ensure that state changed and
+        callbacks are called.
+        """
+        # Add a callback.
+        m = Mock()
+        self.switch_mgr.add_callback(m)
+
         # Start by ensuring all switches start with a status of None.
         equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
                               func=self.state_none)
@@ -656,6 +662,71 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         # valid.
         equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
                               func=self.state_valid)
+
+        # The callback should have been called.
+        m.assert_called_once()
+        m.assert_called_with(self.sim_dt)
+
+    def test_add_and_call_callbacks(self):
+        """Test add_callback and _call_callbacks."""
+        # Ensure callbacks start empty.
+        self.assertEqual(len(self.switch_mgr._callbacks), 0)
+
+        # Add a callback.
+        m = Mock()
+        self.switch_mgr.add_callback(m)
+
+        # Callbacks should have a length of 1.
+        self.assertEqual(len(self.switch_mgr._callbacks), 1)
+
+        # Call the callbacks.
+        self.switch_mgr._call_callbacks('bananas')
+
+        # Our mock should have been called once.
+        m.assert_called_once()
+        m.assert_called_with('bananas')
+
+        # Add another callback.
+        m2 = Mock()
+        self.switch_mgr.add_callback(m2)
+        self.assertEqual(len(self.switch_mgr._callbacks), 2)
+        self.switch_mgr._call_callbacks('oranges')
+
+        self.assertEqual(m.call_count, 2)
+        m2.assert_called_once()
+        m2.assert_called_with('oranges')
+
+    def test_callback_not_called(self):
+        """Ensure that for no state changes, callbacks are not called.
+        """
+        # Update the states.
+        self.switch_mgr.update_state(self.switch_meas_msg, sim_dt=self.sim_dt)
+
+        # Add a callback.
+        m = Mock()
+        self.switch_mgr.add_callback(m)
+
+        # Update the states again with the same message. So, no states
+        # should change.
+        self.switch_mgr.update_state(self.switch_meas_msg, sim_dt=self.sim_dt)
+
+        # The callback should not have been called.
+        self.assertEqual(0, m.call_count)
+
+    def test_callback_dies(self):
+        """Ensure our callbacks are held as weak references that die
+        when the method reference is deleted.
+        """
+        m = Mock()
+        self.switch_mgr.add_callback(m)
+        self.assertEqual(len(self.switch_mgr._callbacks), 1)
+
+        # Delete the object and force garbage collection.
+        del m
+        import gc
+        gc.collect()
+
+        self.assertEqual(len(self.switch_mgr._callbacks), 0)
 
 
 class InverterEquipmentManagerTestCase(unittest.TestCase):
@@ -723,7 +794,15 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
             current_state.append(inv.state)
             self.assertIsNone(inv.state_old)
 
+        # Add a callback.
+        m = Mock()
+        self.mgr.add_callback(m)
+
         self.mgr.update_state(msg=self.inv_meas_msg, sim_dt=self.sim_dt)
+
+        # Ensure callback is called.
+        m.assert_called_once()
+        m.assert_called_with(self.sim_dt)
 
         # Ensure that the current states match the former current states
         # after update. Python now ensures that looping over the same

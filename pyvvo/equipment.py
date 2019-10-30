@@ -6,6 +6,9 @@ from abc import ABC, abstractmethod
 import logging
 from collections import deque
 from threading import Lock
+from weakref import WeakSet
+from typing import Any, Callable
+import datetime
 
 # Third party:
 import pandas as pd
@@ -645,6 +648,9 @@ class EquipmentManager:
     This is meant to be used in conjunction with a SimOutRouter from
     gridappsd_platform.py, which will route relevant simulation output
     to the "update_state" method.
+
+    One can add callback functions via the "add_callback" method. These
+    will be called if any equipment changes state.
     """
 
     def __init__(self, eq_dict, eq_meas, meas_mrid_col, eq_mrid_col):
@@ -687,6 +693,10 @@ class EquipmentManager:
 
         # Create a map from measurement MRID to EquipmentSinglePhase.
         self.meas_eq_map = {}
+
+        # Create a WeakSet for holding callbacks.
+        # https://stackoverflow.com/a/14922132/11052174
+        self._callbacks = WeakSet()
 
         # Loop over the equipment dictionary.
         for eq_mrid, eq_or_dict in self.eq_dict.items():
@@ -731,6 +741,17 @@ class EquipmentManager:
                 # Map it.
                 self.meas_eq_map[meas[meas_mrid_col].values[0]] = eq_or_dict
 
+    def add_callback(self, callback: Callable[[datetime.datetime], Any]):
+        """Add a callback which will be called when equipment changes
+        state via the update_state method.
+
+        :param callback: Function to call when equipment changes state
+            via the update_state method. The callback should take a
+            single datetime.datetime parameter, which represents
+            simulation time when the state change occurred.
+        """
+        self._callbacks.add(callback)
+
     @utils.wait_for_lock
     def lookup_eq_by_mrid_and_phase(self, mrid, phase=None):
         """Helper function to look up equipment in the eq_dict.
@@ -764,6 +785,11 @@ class EquipmentManager:
             # Grab and return the phase entry.
             return eq[phase]
 
+    def _call_callbacks(self, sim_dt):
+        """Call all callbacks."""
+        for callback in self._callbacks:
+            callback(sim_dt)
+
     @utils.wait_for_lock
     def update_state(self, msg, sim_dt):
         """Given a message from a gridappsd_platform SimOutRouter,
@@ -774,10 +800,13 @@ class EquipmentManager:
         :param sim_dt: datetime.datetime object passed to this method
             via a SimOutRouter's "_on_message" method.
         """
-
         # Type checking:
         if not isinstance(msg, list):
             raise TypeError('msg must be a list!')
+
+        # Initialize flag for tracking if any piece of equipment
+        # changed state.
+        any_change = False
 
         # Iterate over the message and update equipment.
         for m in msg:
@@ -785,7 +814,15 @@ class EquipmentManager:
             meas_mrid = m['measurement_mrid']
             value = m['value']
 
-            self._update_state(meas_mrid=meas_mrid, state=value)
+            # Maybe update the state of this equipment. A True return
+            # indicates state of the equipment changed, a False
+            # indicates it did not.
+            if self._update_state(meas_mrid=meas_mrid, state=value):
+                any_change = True
+
+        # If any change of state occurred, inform the listeners.
+        if any_change:
+            self._call_callbacks(sim_dt=sim_dt)
 
     def _update_state(self, meas_mrid: str, state):
         """Helper for updating a piece of equipment's state, used by the
@@ -795,6 +832,9 @@ class EquipmentManager:
             meas_eq_map.
         :param state: New state corresponding to the given measurement
             MRID (and thus a piece of equipment).
+
+        :returns: True if equipment state was changed, False if it was
+            not.
         """
         # Update!
         try:
@@ -809,6 +849,9 @@ class EquipmentManager:
                 self.log.debug('Equipment {} state updated to: {}'.format(
                     str(self.meas_eq_map[meas_mrid]), state
                 ))
+                return True
+            else:
+                return False
 
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
@@ -924,6 +967,9 @@ class InverterEquipmentManager(EquipmentManager):
         rect = utils.get_complex(r=mag_angle[:, 0], phi=mag_angle[:, 1],
                                  degrees=True)
 
+        # Initialize flag for tracking if any change occurred.
+        any_change = False
+
         # Iterate over the message and update equipment.
         for idx, m in enumerate(msg):
             # Grab mrid, magnitude, and angle.
@@ -933,7 +979,12 @@ class InverterEquipmentManager(EquipmentManager):
             state = (rect[idx].real, rect[idx].imag)
 
             # Update the state.
-            self._update_state(meas_mrid=meas_mrid, state=state)
+            if self._update_state(meas_mrid=meas_mrid, state=state):
+                any_change = True
+
+        # Call callbacks if needed.
+        if any_change:
+            self._call_callbacks(sim_dt=sim_dt)
 
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
