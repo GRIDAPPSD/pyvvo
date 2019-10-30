@@ -211,8 +211,8 @@ class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
         app._update_switch_state_in_glm(glm_mgr=mgr, switches=switches)
 
         # Check the switches.
-        switch1 = mgr.find_object(obj_type='switch', obj_name='switch1')
-        switch2 = mgr.find_object(obj_type='switch', obj_name='switch2')
+        switch1 = mgr.find_object(obj_type='switch', obj_name='"swt_switch1"')
+        switch2 = mgr.find_object(obj_type='switch', obj_name='"swt_switch2"')
 
         self.assertEqual(switch1['phase_A_state'], 'CLOSED')
         self.assertEqual(switch1['phase_B_state'], 'OPEN')
