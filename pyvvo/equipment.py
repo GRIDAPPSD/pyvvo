@@ -97,6 +97,13 @@ class EquipmentSinglePhase(ABC):
 
     PHASES = ('A', 'B', 'C')
 
+    # Whether or not states need inverted when commands get constructed.
+    # See discussion here:
+    # https://github.com/GRIDAPPSD/gridappsd-forum/issues/43#issue-514878720
+    # For now, the only equipment I see which should have this set to
+    # True would be switches.
+    INVERT_STATES_FOR_COMMANDS = False
+
     def __init__(self, mrid, name, phase, controllable):
         # Check inputs and assign.
         if not isinstance(mrid, str):
@@ -207,6 +214,18 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     #                             val = "CLOSED"
     #                         else:
     #                             val = "OPEN"
+    # And lines 758:769:
+    # if conducting_equipment_type == "LinearShuntCompensator":
+    #     if property_name in ["shunt_"+phases,"voltage_"+phases]:
+    #         ...
+    #     else:
+    #         if val_str == "OPEN":
+    #             measurement["value"] = 0
+    #         else:
+    #             measurement["value"] = 1
+    #
+    # Also read discussion in the following issue:
+    # https://github.com/GRIDAPPSD/gridappsd-forum/issues/43#issue-514878720
     STATES = (0, 1)
 
     # Allowed control modes (case insensitive). Corresponds to CIM
@@ -560,6 +579,12 @@ class SwitchSinglePhase(EquipmentSinglePhase):
     GLM_STATES = {0: 'OPEN', 1: 'CLOSED'}
 
     STATE_CIM_PROPERTY = 'Switch.open'
+
+    # Position measurements: 0: open, 1: closed
+    # Commands: 0: close, 1: open
+    # See here:
+    # https://github.com/GRIDAPPSD/gridappsd-forum/issues/43#issue-514878720
+    INVERT_STATES_FOR_COMMANDS = True
 
     def __init__(self, name, mrid, phase, controllable, state=None):
         """See docstring for equipment.EquipmentSinglePhase for inputs.
@@ -920,6 +945,18 @@ class EquipmentManager:
                     state_rev = state_rev.item()
                 except AttributeError:
                     pass
+
+                # Invert states if necessary.
+                if eq_for.INVERT_STATES_FOR_COMMANDS:
+                    if eq_for.STATES == (0, 1):
+                        # Invert the states.
+                        state_for = int(not state_for)
+                        state_rev = int(not state_rev)
+                    else:
+                        raise ValueError(
+                            'Equipment has a "truthy" value for '
+                            'INVERT_STATE_FOR_COMMANDS, but does not have '
+                            'allowed states of (0, 1). What to do?')
 
                 # Append values to output.
                 out['object_ids'].append(eq_mrid)

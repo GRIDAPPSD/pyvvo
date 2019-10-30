@@ -729,6 +729,78 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         self.assertEqual(len(self.switch_mgr._callbacks), 0)
 
 
+class EquipmentManagerBuildEquipmentCommandsInvertTestCase(unittest.TestCase):
+    """Ensure build_equipment_commands acts appropriately depending on
+    the equipment's INVERT_STATES_FOR_COMMANDS attribute.
+    """
+    def helper(self, invert):
+        """Create equipment manager and equipment dictionaries."""
+        # Create dictionary with a single piece of equipment.
+        eq_dict = {
+            'mrid1': equipment.SwitchSinglePhase(
+                name='switch1', mrid='mrid1', phase='A', controllable=True,
+                state=1)
+        }
+
+        # Create DataFrame with measurement information.
+        eq_meas = pd.DataFrame([['mrid1', 'meas1']], columns=['eq', 'meas'])
+
+        # Create equipment manager.
+        mgr = equipment.EquipmentManager(
+            eq_dict=eq_dict, eq_meas=eq_meas, meas_mrid_col='meas',
+            eq_mrid_col='eq')
+
+        # Create forward dictionary of equipment with different state.
+        eq_dict_for = {
+            'mrid1': equipment.SwitchSinglePhase(
+                name='switch1', mrid='mrid1', phase='A', controllable=True,
+                state=0)
+        }
+
+        # Build commands.
+        cmd = mgr.build_equipment_commands(eq_dict_forward=eq_dict_for)
+
+        # Check object IDs and attributes.
+        self.assertEqual(1, len(cmd['object_ids']))
+        self.assertEqual(cmd['object_ids'][0], 'mrid1')
+        self.assertEqual(1, len(cmd['attributes']))
+        self.assertEqual(cmd['attributes'][0], 'Switch.open')
+
+        # Ensure forward and reverse values are of the correct length.
+        self.assertEqual(1, len(cmd['forward_values']))
+        self.assertEqual(1, len(cmd['reverse_values']))
+
+        # Check values based on invert.
+        if invert:
+            self.assertEqual(cmd['forward_values'][0], 1)
+            self.assertEqual(cmd['reverse_values'][0], 0)
+        else:
+            self.assertEqual(cmd['forward_values'][0], 0)
+            self.assertEqual(cmd['reverse_values'][0], 1)
+
+    def test_does_invert(self):
+        """Ensure states are inverted when they should be."""
+        self.helper(invert=True)
+
+    def test_does_not_invert(self):
+        """Ensure states are not inverted when they should not be."""
+        # Patch the switches INVERT_STATES_FOR_COMMANDS attribute and
+        # run the helper.
+        with patch(
+                'pyvvo.equipment.SwitchSinglePhase.INVERT_STATES_FOR_COMMANDS',
+                False):
+            self.helper(invert=False)
+
+    def test_error_raised_when_state_not_invertible(self):
+        """Ensure error raised when it should be."""
+        with patch(
+                'pyvvo.equipment.SwitchSinglePhase.STATES',
+                (0, 1, 2)):
+            with self.assertRaisesRegex(ValueError,
+                                        'Equipment has a "truthy" value for '):
+                self.helper(invert=True)
+
+
 class InverterEquipmentManagerTestCase(unittest.TestCase):
     """Test the InverterEquipmentManager."""
     @classmethod
@@ -979,6 +1051,9 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
     def test_controllable(self):
         self.assertEqual(self.inputs['controllable'], self.reg.controllable)
 
+    def test_invert_states_for_commands(self):
+        self.assertFalse(self.reg.INVERT_STATES_FOR_COMMANDS)
+
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
 
@@ -1146,6 +1221,9 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 
         self.assertEqual(cap.state, 1)
         self.assertEqual(cap.state_old, 0)
+
+    def test_invert_states_for_commands(self):
+        self.assertFalse(self.cap.INVERT_STATES_FOR_COMMANDS)
 
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
@@ -1334,6 +1412,9 @@ class SwitchSinglePhaseTestCase(unittest.TestCase):
             equipment.SwitchSinglePhase(name='sw', mrid='a', phase='C',
                                         controllable=False, state=3)
 
+    def test_invert_states_for_commands(self):
+        self.assertTrue(self.switch.INVERT_STATES_FOR_COMMANDS)
+
 
 class InitializeSwitchesTestCase(unittest.TestCase):
     """Test initialize_switches"""
@@ -1412,6 +1493,9 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
         inv_copy = deepcopy(self.inverter)
         with self.assertRaisesRegex(TypeError, 'state must be a two element'):
             inv_copy.state = [13.5, -22.7]
+
+    def test_invert_states_for_commands(self):
+        self.assertFalse(self.inverter.INVERT_STATES_FOR_COMMANDS)
 
 
 class InitializeInvertersTestCase(unittest.TestCase):
