@@ -550,25 +550,14 @@ class SwitchSinglePhase(EquipmentSinglePhase):
     statuses, so this class is very simple and not much different from
     EquipmentSinglePhase."""
 
-    # Allowed states. 1 for open, 0 for closed.
-    # Check out the switch diagram here:
-    # https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
-    # Note that for Switch objects the "open" parameter is a boolean.
-    # Also look here:
-    # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.10.0/services/fncsgossbridge/service/fncs_goss_bridge.py
-    # You can see at line 600, the following code:
-    # elif cim_attribute == "Switch.open":
-    #     if int(x.get("value")) == 1:
-    #         val = "OPEN"
-    #     else:
-    #         val = "CLOSED"
+    # Allowed states. 0 for open, 1 for closed.
     STATES = (0, 1)
 
     # Map states to GridLAB-D states. Does this belong here? Does this
     # class have any business knowing about GridLAB-D? Maybe not, but
     # there is precedent via the RegulatorSinglePhase class, which
     # does indeed care about GridLAB-D.
-    GLM_STATES = {0: 'CLOSED', 1: 'OPEN'}
+    GLM_STATES = {0: 'OPEN', 1: 'CLOSED'}
 
     STATE_CIM_PROPERTY = 'Switch.open'
 
