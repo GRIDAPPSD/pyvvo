@@ -194,20 +194,20 @@ class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
                 # Will toggle
                 'A': equipment.SwitchSinglePhase(
                     name='switch1', phase='A', mrid='mrid1',
-                    controllable=True, state=1),
+                    controllable=True, state=0),
                 # Will toggle
                 'B': equipment.SwitchSinglePhase(
                     name='switch1', phase='B', mrid='mrid1',
-                    controllable=True, state=0),
+                    controllable=True, state=1),
                 # Won't toggle.
                 'C': equipment.SwitchSinglePhase(
                     name='switch1', phase='C', mrid='mrid1',
-                    controllable=True, state=0)
+                    controllable=True, state=1)
             },
             # Will toggle
             'mrid2': equipment.SwitchSinglePhase(
                 name='switch2', phase='B', mrid='mrid2',
-                controllable=True, state=1)
+                controllable=True, state=0)
         }
 
         # Perform the update.
