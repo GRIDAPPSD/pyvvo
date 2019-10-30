@@ -685,11 +685,11 @@ class SimulationClockTestCase(unittest.TestCase):
 
     def setUp(self) -> None:
         # Initialize the SimulationClock with a Mock.
-        self.gad_mock = Mock()
+        self.gad_mock = Mock(spec=GridAPPSD)
         # Create a fresh clock for each test.
         self.clock = gridappsd_platform.SimulationClock(
             gad=self.gad_mock, sim_id=self.sim_id,
-            sim_start_ts=self.sim_start_ts)
+            sim_start_ts=self.sim_start_ts, log_interval=10)
 
     def test_init(self):
         """Test attributes after initialization."""
@@ -767,7 +767,8 @@ class SimulationClockTestCase(unittest.TestCase):
                                      'timestamp': 123,
                                      'logMessage': 'incrementing to 42'})
 
-        self.assertEqual(1, len(cm.records))
+        # We should get one debug log entry, and one info entry.
+        self.assertEqual(2, len(cm.records))
         sim_time = self.sim_start_ts + 42
 
         self.assertEqual(self.clock.sim_time, sim_time)
@@ -778,6 +779,45 @@ class SimulationClockTestCase(unittest.TestCase):
         self.assertEqual(
             f'Updated sim_time to {sim_time} and msg_time to 123.',
             cm.records[0].message)
+
+        # noinspection PyUnresolvedReferences
+        self.assertEqual(
+            f'Simulation time is {sim_time}.',
+            cm.records[1].message)
+
+    def test_logging_interval(self):
+        """Ensure we're getting our info logs correctly."""
+
+        # Increase time by 1/3 of the log_interval
+        i = self.clock.log_interval / 3
+        # Note level of INFO here.
+        with self.assertLogs(logger=self.clock.log, level='INFO') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'fncs_goss_bridge.py',
+                                     'timestamp': 123,
+                                     'logMessage': f'incrementing to {i}'})
+
+        # The first increment always logs.
+        self.assertEqual(1, len(cm.records))
+
+        # The next should not. Note level of DEBUG here.
+        with self.assertLogs(logger=self.clock.log, level='DEBUG') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'fncs_goss_bridge.py',
+                                     'timestamp': 123,
+                                     'logMessage': f'incrementing to {2*i}'})
+
+        self.assertEqual(1, len(cm.records))
+
+        # The next should. Note level of INFO here. Also note using
+        # 4* to avoid any rounding errors with using 3*.
+        with self.assertLogs(logger=self.clock.log, level='INFO') as cm:
+            self.clock._on_message(
+                headers={}, message={'source': 'fncs_goss_bridge.py',
+                                     'timestamp': 123,
+                                     'logMessage': f'incrementing to {4*i}'})
+
+        self.assertEqual(1, len(cm.records))
 
 
 if __name__ == '__main__':

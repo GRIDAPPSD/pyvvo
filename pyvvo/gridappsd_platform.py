@@ -666,25 +666,30 @@ class SimulationClock:
     """Class for keeping track of a simulation's time as it progresses.
     """
 
-    def __init__(self, gad: GridAPPSD, sim_id: str, sim_start_ts: int):
+    def __init__(self, gad: GridAPPSD, sim_id: str, sim_start_ts: int,
+                 log_interval=10):
         """Initialize attributes, subscribe to the simulation log.
 
         :param gad: Initialized gridappsd.GridAPPSD object.
         :param sim_id: Simulation ID of the simulation to track.
         :param sim_start_ts: Simulation start timestamp in seconds since
             the epoch.
+        :param log_interval: How many simulation seconds in between
+            logging the current simulation time.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
 
         # Simply set the simulation starting time as an attribute.
         self.sim_start_ts = sim_start_ts
+        self.log_interval = log_interval
 
         # Use attributes for tracking the simulation time and current
         # time (as indicated by the most recent message).
         self.sim_time = None
         self.time_step = None
         self.msg_time = None
+        self.last_log_time = None
 
         # Compile a regular expression for extracting the time from the
         # message.
@@ -736,9 +741,15 @@ class SimulationClock:
         # Update message time.
         self.msg_time = timestamp
 
-        # Log.
+        # Debug logging.
         self.log.debug(f'Updated sim_time to {self.sim_time} and msg_time to '
                        f'{self.msg_time}.')
+
+        # Info logging every self.log_interval seconds.
+        if (self.last_log_time is None) or \
+                ((self.sim_time - self.last_log_time) >= self.log_interval):
+            self.log.info(f'Simulation time is {self.sim_time}.')
+            self.last_log_time = self.sim_time
 
 
 class Error(Exception):
