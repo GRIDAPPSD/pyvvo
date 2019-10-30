@@ -528,7 +528,8 @@ class PlatformManager:
     def run_simulation(self, feeder_id, start_time, duration, realtime,
                        applications=None, random_zip=False,
                        houses=False, z_fraction=0, i_fraction=1,
-                       p_fraction=0, services=None):
+                       p_fraction=0, services=None,
+                       events=None):
         """Start a simulation and return the simulation ID.
 
         For now, this is hard-coded to the point where it'll likely only
@@ -550,12 +551,30 @@ class PlatformManager:
         :param services: List of dictionaries of services to configure.
             Check out
             https://gridappsd-sensor-simulator.readthedocs.io/en/sensor-service-configuration/.
+        :param events: List of events. Each element should be a
+            dictionary with the following fields:
+
+            "message": This should contain keys "forward_differences"
+                and "reverse_differences" as created by a gridappsd
+                DifferenceBuilder.
+
+            "event_type": All I know of is the string
+                "ScheduledCommandEvent"
+
+            "occuredDateTime": integer, seconds since the epoch when the
+                event will be applied (I suppose?).
+
+            "stopDateTime": same as above, but when the event will be
+                undone (I suppose?).
         """
         if applications is None:
             applications = []
 
         if services is None:
             services = []
+
+        if events is None:
+            events = []
 
         # Hard-code simulation request to start simulation. This was
         # obtained by copy + pasting from the terminal in the viz app.
@@ -588,7 +607,7 @@ class PlatformManager:
                     "p_fraction": str(p_fraction),
                     "randomize_zipload_fractions": random_zip,
                     "use_houses": houses}},
-            "test_config": {"events": [], "appId": feeder_id},
+            "test_config": {"events": events, "appId": ""},
             "service_configs": services
         }
 
