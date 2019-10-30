@@ -199,6 +199,14 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     STATE_CIM_PROPERTY = 'ShuntCompensator.sections'
 
     # Allowed states. 0 for open, 1 for closed.
+    # Evidence of this can be found here:
+    # https://github.com/GRIDAPPSD/GOSS-GridAPPS-D/blob/releases/2019.10.0/services/fncsgossbridge/service/fncs_goss_bridge.py
+    # Check lines 593:598:
+    #                    elif cim_attribute == "ShuntCompensator.sections":
+    #                         if int(x.get("value")) == 1:
+    #                             val = "CLOSED"
+    #                         else:
+    #                             val = "OPEN"
     STATES = (0, 1)
 
     # Allowed control modes (case insensitive). Corresponds to CIM
@@ -799,6 +807,7 @@ class EquipmentManager:
     def _call_callbacks(self, sim_dt):
         """Call all callbacks."""
         for callback in self._callbacks:
+            self.log.debug('Calling callback {}.'.format(callback))
             callback(sim_dt)
 
     @utils.wait_for_lock
