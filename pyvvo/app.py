@@ -117,10 +117,13 @@ def main(sim_id, sim_request):
     # Tweak the model (one time setup).
     _prep_glm(glm_mgr)
 
+    # Extract the duration for which GridLAB-D models will be run in the
+    # genetic algorithm.
+    model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
+
     # Run the genetic algorithm.
     # TODO: Manage loop exit, etc. Should exit when simulation is
     #   complete.
-    model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
     while True:
         # Update the inverters and switches in the GridLAB-D model with
         # the current states from the platform.
@@ -141,6 +144,11 @@ def main(sim_id, sim_request):
         # Initialize manager for genetic algorithm.
         ga_mgr = ga.GA(regulators=reg_objects, capacitors=cap_objects,
                        starttime=starttime, stoptime=stoptime)
+
+        # Create a GAStopper to ensure that the GA stops if a switch
+        # opens.
+        # noinspection PyUnusedLocal
+        ga_stopper = GAStopper(ga_obj=ga_mgr, eq_mgr=switch_mgr)
 
         # Start the genetic algorithm.
         ga_mgr.run(glm_mgr=glm_mgr)
@@ -323,6 +331,48 @@ def _update_switch_state_in_glm(glm_mgr: GLMManager, switches):
             LOG.error(m)
 
     LOG.info('All switches in the .glm have been updated with current states.')
+
+
+class GAStopper:
+    """Simple class for stopping the genetic algorithm when a piece of
+    equipment changes state.
+    """
+
+    def __init__(self, ga_obj: ga.GA, eq_mgr: equipment.EquipmentManager,
+                 eq_type: str):
+        """Register callback.
+
+        :param ga_obj: Initialized ga.GA object.
+        :param eq_mgr: Initialized equipment.EquipmentManager.
+        :param eq_type: String description of equipment type used for
+            logging. e.g. "switch"
+        """
+        # Setup logging.
+        self.log = logging.getLogger(self.__class__.__name__)
+
+        # Keep a reference to the ga_obj.
+        self.ga_obj = ga_obj
+
+        # Track our equipment type.
+        self.eq_type = eq_type
+
+        # Register callback.
+        eq_mgr.add_callback(self._stop)
+
+    def _stop(self, sim_dt):
+        """Callback method which will be hit by the
+
+        :param sim_dt:
+        :returns:
+        """
+        # Log.
+        self.log.info('Stopping the genetic algorithm because at least one '
+                      f'{self.eq_type} changed state at simulation time '
+                      f'{sim_dt}.')
+
+        # Stop the algorithm. Note this returns nearly immediately as
+        # the actual stopping occurs in a thread.
+        self.ga_obj.stop()
 
 
 if __name__ == '__main__':

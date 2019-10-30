@@ -1,9 +1,12 @@
 # Standard library imports
 import unittest
+from unittest.mock import MagicMock
 from datetime import datetime
 import simplejson as json
 import os
 import random
+import logging
+from datetime import datetime
 
 from pyvvo import app, db, equipment, ga, glm, sparql, utils
 from tests.models import IEEE_9500
@@ -319,6 +322,38 @@ class AllGLMModificationsRunTestCase(unittest.TestCase):
     def test_model_runs(self):
         result = utils.run_gld(self.out_file)
         self.assertEqual(0, result.returncode)
+
+
+class GAStopperTestCase(unittest.TestCase):
+    """Simple tests for the GAStopper class."""
+
+    def test_ga_stopper(self):
+        mock_ga = MagicMock(spec=ga.GA)
+        mock_eq = MagicMock(spec=equipment.EquipmentManager)
+
+        stopper = app.GAStopper(ga_obj=mock_ga, eq_mgr=mock_eq,
+                                eq_type='switch')
+
+        # Test simple attributes.
+        self.assertIsInstance(stopper.log, logging.Logger)
+        self.assertIs(stopper.ga_obj, mock_ga)
+        self.assertEqual(stopper.eq_type, 'switch')
+
+        # Test that the equipment manager was handled correctly.
+        self.assertEqual(len(mock_eq.method_calls), 1)
+        mock_eq.add_callback.assert_called_once()
+        mock_eq.add_callback.assert_called_with(stopper._stop)
+
+        # At this point, our mock_ga should not have had its stop method
+        # called.
+        self.assertEqual(mock_ga.stop.call_count, 0)
+
+        # Call _stop.
+        with self.assertLogs(logger=stopper.log, level='INFO'):
+            stopper._stop(sim_dt=datetime(2024, 7, 21, 22, 0, 0))
+            
+        # Now, our mock_ga should have had its stop method called.
+        mock_ga.stop.assert_called_once()
 
 
 if __name__ == '__main__':
