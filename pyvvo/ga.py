@@ -683,9 +683,9 @@ class Individual:
 
         # Do some final logging.
         if mod:
-            self.log.info("Individual {}'s chromosome has been modified "
-                          "to ensure all equipment states are in range."
-                          .format(self.uid))
+            self.log.debug("Individual {}'s chromosome has been modified "
+                           "to ensure all equipment states are in range."
+                           .format(self.uid))
 
         # Return the chromosome.
         return chromosome
@@ -2720,6 +2720,7 @@ class GA:
             self.log.warning('The "stop" method was called, but the genetic '
                              'algorithm is not running.')
         else:
+            self.log.info('Stopping the genetic algorithm.')
             # Flag that we need to stop.
             self._run_event.clear()
 
