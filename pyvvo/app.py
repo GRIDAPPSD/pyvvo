@@ -148,7 +148,8 @@ def main(sim_id, sim_request):
         # Create a GAStopper to ensure that the GA stops if a switch
         # opens.
         # noinspection PyUnusedLocal
-        ga_stopper = GAStopper(ga_obj=ga_mgr, eq_mgr=switch_mgr)
+        ga_stopper = GAStopper(ga_obj=ga_mgr, eq_mgr=switch_mgr,
+                               eq_type='switch')
 
         # Start the genetic algorithm.
         ga_mgr.run(glm_mgr=glm_mgr)
@@ -350,20 +351,26 @@ class GAStopper:
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
 
-        # Keep a reference to the ga_obj.
+        # Keep a reference to the ga_obj so we can call its stop()
+        # method later.
         self.ga_obj = ga_obj
 
         # Track our equipment type.
         self.eq_type = eq_type
 
-        # Register callback.
-        eq_mgr.add_callback(self._stop)
+        # Register callback. Note we had to add self since adding
+        # methods does not work...
+        # https://stackoverflow.com/a/21941670/11052174
+        eq_mgr.add_callback(self)
 
-    def _stop(self, sim_dt):
-        """Callback method which will be hit by the
+    def __call__(self, sim_dt: datetime):
+        """Callback method which will be hit by the EquipmentManager
+        when it calls its callbacks. Have to use __call__ since one
+        cannot add
 
-        :param sim_dt:
-        :returns:
+        :param sim_dt: Datetime representing current simulation time.
+        :returns: None, but rather calls the stop() method of the
+            ga.GA object.
         """
         # Log.
         self.log.info('Stopping the genetic algorithm because at least one '

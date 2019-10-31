@@ -342,18 +342,59 @@ class GAStopperTestCase(unittest.TestCase):
         # Test that the equipment manager was handled correctly.
         self.assertEqual(len(mock_eq.method_calls), 1)
         mock_eq.add_callback.assert_called_once()
-        mock_eq.add_callback.assert_called_with(stopper._stop)
+        mock_eq.add_callback.assert_called_with(stopper)
 
         # At this point, our mock_ga should not have had its stop method
         # called.
         self.assertEqual(mock_ga.stop.call_count, 0)
 
-        # Call _stop.
+        # Call the stopper.
         with self.assertLogs(logger=stopper.log, level='INFO'):
-            stopper._stop(sim_dt=datetime(2024, 7, 21, 22, 0, 0))
+            stopper(sim_dt=datetime(2024, 7, 21, 22, 0, 0))
             
         # Now, our mock_ga should have had its stop method called.
         mock_ga.stop.assert_called_once()
+
+    def test_integrated(self):
+        """Use an actual switch manager."""
+        switch_df = _df.read_pickle(_df.SWITCHES_9500)
+        switches = equipment.initialize_switches(switch_df)
+        switch_meas = _df.read_pickle(_df.SWITCH_MEAS_9500)
+        switch_mgr = equipment.EquipmentManager(
+            eq_dict=switches, eq_meas=switch_meas,
+            eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL,
+            meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL)
+
+        # Switch manager should have no callbacks.
+        self.assertEqual(0, len(switch_mgr._callbacks))
+
+        # Create a mock ga object.
+        mock_ga = MagicMock(spec=ga.GA)
+
+        # Create the stopper.
+        stopper = app.GAStopper(ga_obj=mock_ga, eq_mgr=switch_mgr,
+                                eq_type='switch')
+
+        # After creating the stopper, our switch manager should have a
+        # callback.
+        self.assertEqual(1, len(switch_mgr._callbacks))
+
+        # stop should not have been called yet.
+        self.assertEqual(mock_ga.stop.call_count, 0)
+
+        # Load the switch message.
+        with open(_df.SWITCH_MEAS_MSG_9500, 'r') as f:
+            msg = json.load(f)
+
+        # We need a datetime object.
+        dt = datetime(2019, 10, 31, 18, 23)
+
+        # When we call update state, our stopper callback should be hit,
+        # thus triggering a log message.
+        with self.assertLogs(logger=stopper.log):
+            switch_mgr.update_state(msg=msg, sim_dt=dt)
+
+        self.assertEqual(mock_ga.stop.call_count, 1)
 
 
 if __name__ == '__main__':
