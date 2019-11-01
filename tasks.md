@@ -2,35 +2,40 @@
 The intent of this file is to document outstanding tasks for PyVVO.
 This document is still in a draft state.
 
-## Monitor topology changes, update model, kill optimization
-### Summary
-When the system topology changes, PyVVO's internal model needs
-to be updated, and the optimization may need re-triggered.
+## ~~Monitor topology changes, update model, kill optimization~~
+This is effectively complete. One piece that did not get implemented but
+can be improved on later is waiting a certain amount of time to see if
+a switch "recloses" before killing the optimization. Currently, the 
+optimization simply gets stopped when a switch changes state.
 
-### Details
-The detection of topology changes can be done via an EquipmentManager
+### ~~Summary~~
+~~When the system topology changes, PyVVO's internal model needs
+to be updated, and the optimization may need re-triggered.~~
+
+### ~~Details~~
+~~The detection of topology changes can be done via an EquipmentManager
 that manages all switches in the system. Maybe the update_state method
 simply needs augmented to call some sort of callback when equipment
 changes. Since the individual EquipmentSinglePhase objects track their
-state and previous state, this should be pretty simple.
+state and previous state, this should be pretty simple.~~
 
-Once the EquipmentManager instance has reported a change, the "master"
+~~Once the EquipmentManager instance has reported a change, the "master"
 GLMManager should go through and update the switches in PyVVO's internal
-model of the system. 
+model of the system.~~ 
 
-The solution here might be to create a higher level class which takes
+~~The solution here might be to create a higher level class which takes
 in all the EquipmentManagers (e.g. one for regulators, one for
 capacitors, one for switches, etc.) and the "master" GLMManager and 
 keeps the model updated. This higher level class could also report 
 when equipment changes state for use in managing the running
-optimization.
+optimization.~~
 
-The final piece here is deciding when to kill the optimization and start
+~~The final piece here is deciding when to kill the optimization and start
 again. Some faults will be cleared quickly, so there's no sense in 
 immediately killing any running optimization. So really, this final
 piece is about tracking status changes over time, and if switches have
 not returned to their pre-event state, we need to re-trigger
-optimization.
+optimization.~~
 
 ## Command Tracking
 ### Summary
@@ -63,6 +68,9 @@ re-triggered. The genetic algorithm will need to be modified so that it
 only attempts to control equipment which is "operable"/"working."
 
 ## Inverters/General distributed generation (DG)
+NOTE: This is complete for inverters, but additional work is needed to
+handle generators.
+
 equipment.py needs to be extended so that it has a class for
 inverters/DG. Mainly, we need to be able to keep our internal model up
 to date with what's happening in the system with regards to P/Q output.
@@ -81,9 +89,16 @@ warn in the log and then place `None` in the correct spot in the output.
 Then, the corresponding EquipmentManager could interpret receiving
 `None` as presently inoperable equipment.
 
-## Flow Control for Genetic Algorithm (GA)
-Some of the other pieces here are inevitably going to involve stopping
+## ~~Flow Control for Genetic Algorithm (GA)~~
+~~Some of the other pieces here are inevitably going to involve stopping
 the GA. At present, the GA doesn't really have flow control. It'll need
 some methods of gracefully stopping - e.g. stop GridLAB-D models, 
 drop all related tables (maybe, unless we drop the table up front,
-making dropping tables in cleanup unnecessary), etc.
+making dropping tables in cleanup unnecessary), etc.~~
+
+## Compare GA model results with real system
+As a validation step, it would be useful to compare model outputs from
+the "baseline" individual in the genetic algorithm with the actual 
+system output. For starters, it would be simplest to look at total 
+feeder power and power factor. Eventually, it would be useful to 
+compare EnergyConsumer voltage and/or power.
