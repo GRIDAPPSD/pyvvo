@@ -1381,7 +1381,7 @@ def _logging_thread(logging_queue):
                               'evaluation.'.format(log_dict['uid']))
 
 
-def _progress_thread(input_queue, output_queue, log, num_processes,
+def _progress_thread(input_queue, output_queue, log, processes: list,
                      interval=CONFIG['ga']['log_interval']):
     """Log size of input and output queues every interval seconds.
 
@@ -1391,17 +1391,24 @@ def _progress_thread(input_queue, output_queue, log, num_processes,
     :param output_queue: Same as input_queue, but holds individuals
         which have already been evaluated.
     :param log: logging.Logger object to log to.
-    :param num_processes: Number of processes used for evaluation. This
-        represents approximately how many individuals are in progress
-        at any given time.
+    :param processes: List of processes that are running the evaluation.
+        Each one will be checked to see if it's alive.
     :param interval: Time (seconds) to wait between logging calls.
     """
     while True:
+        # Get Queue sizes.
         size_in = input_queue.qsize()
         size_out = output_queue.qsize()
+
+        # Count running processes.
+        alive = 0
+        for p in processes:
+            if p.is_alive():
+                alive += 1
+
         log.info('Approximately {} individuals have been evaluated, {} '
                  'are in the queue, and {} are currently being evaluated.'
-                 .format(size_out, size_in, num_processes))
+                 .format(size_out, size_in, alive))
 
         # If the input queue is empty, quit.
         if size_in == 0:
@@ -2035,7 +2042,7 @@ class Population:
                              kwargs={'input_queue': self.input_queue,
                                      'output_queue': self.output_queue,
                                      'log': self.log,
-                                     'num_processes': len(self.processes),
+                                     'processes': self.processes,
                                      'interval': self.log_interval})
         t.start()
 
@@ -2304,7 +2311,7 @@ def _drain_queue(q):
     """
     while True:
         try:
-            q.get_nowait()
+            q.get(block=True, timeout=0.1)
             try:
                 q.task_done()
             except AttributeError:
@@ -2647,19 +2654,23 @@ class GA:
                            'individual.')
 
         except GAInterruptedError:
-            # Shut down the processes.
-            self.population.graceful_shutdown()
             # One of our many "_run_if_set" wrappers raised this,
-            # indicating the algorithm was interrupted. Return.
+            # indicating the algorithm was interrupted.
+            #
+            # Assume that the algorithm was interrupted by the stop()
+            # method. In that case, we do not need to shut down the
+            # population processes.
             self.log.debug('Caught GAInterruptedError, returning.')
+            # Time to bounce.
             return None
+        else:
+            # Wait for the population processes to shut down.
+            self.population.wait_for_processes(
+                timeout=CONFIG['ga']['process_shutdown_timeout'])
 
-        # Wait for the population processes to shut down.
-        self.population.wait_for_processes(
-            timeout=CONFIG['ga']['process_shutdown_timeout'])
-
-        # Nothing to return here, as the objects themselves get updated.
-        return None
+            # Nothing to return here, as the objects themselves get
+            # updated.
+            return None
 
     def _run_if_set(self, func, *args, **kwargs):
         """Helper to run a function if self.run_event.is_set() returns

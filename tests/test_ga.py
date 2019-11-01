@@ -2505,13 +2505,9 @@ class PopulationTestCase(unittest.TestCase):
         # The input queue should be empty.
         self.assertTrue(pop.input_queue.empty())
 
-        # After waiting for all tasks in the input queue to be marked
-        # as complete, the output queue should have the same size as
-        # the number of processes.
+        # Wait for the tasks to marked complete in the input queue.
         with time_limit(1):
             pop.input_queue.join()
-
-        self.assertEqual(len(pop.processes), pop.output_queue.qsize())
 
         # At this point, all the processes should be dead. Sleep to
         # ensure processes have time to die.
