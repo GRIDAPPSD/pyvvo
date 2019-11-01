@@ -31,7 +31,7 @@ def main(sim_id, sim_request):
 
     # Extract dates from the simulation request.
     start_seconds = int(sim_request["simulation_config"]["start_time"])
-    duration = int(sim_request["simulation_config"]["duration"])
+    # duration = int(sim_request["simulation_config"]["duration"])
     LOG.debug("Simulation start time and duration extracted from simulation "
               "request.")
 
@@ -100,13 +100,16 @@ def main(sim_id, sim_request):
                           fn_mrid_list=fn_mrid_list)
 
     # Get EnergyConsumer (load) data.
+    # noinspection PyUnusedLocal
     load_nom_v = sparql_mgr.query_load_nominal_voltage()
     load_meas = sparql_mgr.query_load_measurements()
 
+    # noinspection PyUnusedLocal
     meas_id = load_meas.iloc[0]['id']
 
     # Get substation data.
     substation = sparql_mgr.query_substation_source()
+    # noinspection PyUnusedLocal
     substation_bus_meas = sparql_mgr.query_measurements_for_bus(
         bus_mrid=substation.iloc[0]['bus_mrid'])
 
@@ -383,17 +386,26 @@ class GAStopper:
 
 
 if __name__ == '__main__':
-    pass
     # Use crappy names to avoid scope name overshadowing.
-    # p = PlatformManager()
-    # s = datetime(2013, 1, 14, 0, 0)
-    # d = 1200
-    # sid = p.run_simulation(
-    #     feeder_id='_AAE94E4A-2465-6F5E-37B1-3E72183A4E44',
-    #     start_time=s, duration=d, realtime=True
-    # )
-    #
-    # # Do some crude sleeping to avoid timeouts later, since the platform
-    # # takes forever and a day to start a simulation.
-    # time.sleep(30)
-    # main(sim_id=sid, sim_request=p.last_sim_config)
+    pl = PlatformManager()
+    s = datetime(2013, 1, 14, 16, 0)
+    d = 1200
+    e_start = int(s.timestamp()) + 60
+    e_stop = e_start + 1000
+    events = [{"message": {"forward_differences": [
+        {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
+         "attribute": "Switch.open", "value": 1}], "reverse_differences": [
+        {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
+         "attribute": "Switch.open", "value": 0}]},
+        "event_type": "ScheduledCommandEvent",
+        "occuredDateTime": e_start, "stopDateTime": e_stop}]
+    sid = pl.run_simulation(
+        feeder_id='_AAE94E4A-2465-6F5E-37B1-3E72183A4E44',
+        start_time=s, duration=d, realtime=True,
+        events=events
+    )
+
+    # Do some crude sleeping to avoid timeouts later, since the platform
+    # takes forever and a day to start a simulation.
+    time.sleep(30)
+    main(sim_id=sid, sim_request=pl.last_sim_config)
