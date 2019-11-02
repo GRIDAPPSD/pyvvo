@@ -104,7 +104,7 @@ class EquipmentSinglePhase(ABC):
     # True would be switches.
     INVERT_STATES_FOR_COMMANDS = False
 
-    def __init__(self, mrid, name, phase, controllable):
+    def __init__(self, mrid, name, phase, controllable, operable=True):
         # Check inputs and assign.
         if not isinstance(mrid, str):
             raise TypeError('mrid must be a string.')
@@ -134,6 +134,12 @@ class EquipmentSinglePhase(ABC):
             raise TypeError('controllable must be a boolean.')
 
         self._controllable = controllable
+
+        # Is the equipment currently operable?
+        self.operable = operable
+
+        # If the equipment has been commanded, mark its expected state.
+        self.expected_state = None
 
     def __repr__(self):
         return "{}, {}, Phase {}".format(self.__class__.__name__,
@@ -236,7 +242,8 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
     MODES = ('voltage', 'activepower', 'reactivepower', 'currentflow',
              'admittance', 'timescheduled', 'temperature', 'powerfactor')
 
-    def __init__(self, name, mrid, phase, mode, controllable, state=None):
+    def __init__(self, name, mrid, phase, mode, controllable, state=None,
+                 operable=True):
         """Initialize single phase capacitor.
 
         :param mrid: MRID of this capacitor. In the CIM,
@@ -252,13 +259,17 @@ class CapacitorSinglePhase(EquipmentSinglePhase):
             command to this capacitor.
         :param state: Integer, must be in STATES attribute. 0 indicates
             open, 1 indicates closed.
+        :param operable: Whether the capacitor is operable (working).
+            I.e., a controllable capacitor could be temporarily not
+            responding to commands, which would mean operable should be
+            False.
         """
         # Get log.
         self.log = logging.getLogger(self.__class__.__name__)
 
         # Call super.
         super().__init__(mrid=mrid, name=name, phase=phase,
-                         controllable=controllable)
+                         controllable=controllable, operable=operable)
 
         # Check and assign mode.
         if (not isinstance(mode, str)) and (mode is not None):
@@ -327,7 +338,7 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
 
     def __init__(self, mrid, name, phase, controllable, tap_changer_mrid,
                  step_voltage_increment, control_mode, enabled, high_step,
-                 low_step, neutral_step, step):
+                 low_step, neutral_step, step, operable=True):
         """Take in parameters from the CIM. See Figure 7 here:
         https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
 
@@ -374,6 +385,9 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
             or accommodate for a continuous solution as input. The
             attribute shall be equal or greater than lowStep and equal
             or less than highStep."
+        :param operable: Whether or not the regulator is currently
+            accepting commands. A controllable regulator could get
+            "stuck," in which case operable should be False.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -383,7 +397,7 @@ class RegulatorSinglePhase(EquipmentSinglePhase):
         ################################################################
         # Start with calling the super.
         super().__init__(mrid=mrid, name=name, phase=phase,
-                         controllable=controllable)
+                         controllable=controllable, operable=operable)
 
         if not isinstance(tap_changer_mrid, str):
             raise TypeError('tap_changer_mrid must be a string.')
@@ -586,7 +600,8 @@ class SwitchSinglePhase(EquipmentSinglePhase):
     # https://github.com/GRIDAPPSD/gridappsd-forum/issues/43#issue-514878720
     INVERT_STATES_FOR_COMMANDS = True
 
-    def __init__(self, name, mrid, phase, controllable, state=None):
+    def __init__(self, name, mrid, phase, controllable, state=None,
+                 operable=True):
         """See docstring for equipment.EquipmentSinglePhase for inputs.
         """
         # Get log.
@@ -594,7 +609,7 @@ class SwitchSinglePhase(EquipmentSinglePhase):
 
         # Call parent constructor.
         super().__init__(name=name, mrid=mrid, phase=phase,
-                         controllable=controllable)
+                         controllable=controllable, operable=operable)
 
         # Set the state if it isn't None.
         if state is not None:
@@ -627,14 +642,14 @@ class InverterSinglePhase(EquipmentSinglePhase):
     # that S1 and S2 be upper-case here to work with the parent class.
     PHASES = ('A', 'B', 'C', 'S1', 'S2')
 
-    def __init__(self, mrid, name, phase, controllable, p, q):
+    def __init__(self, mrid, name, phase, controllable, p, q, operable=True):
         # TODO: Add more properties later (e.g. rated power, etc.).
         # Get log.
         self.log = logging.getLogger(self.__class__.__name__)
 
         # Call super.
         super().__init__(mrid=mrid, name=name, phase=phase,
-                         controllable=controllable)
+                         controllable=controllable, operable=operable)
 
         # Set the state.
         self.state = (p, q)
@@ -896,6 +911,9 @@ class EquipmentManager:
         This object's eq_dict is considered to have the current/old
         states.
 
+        IMPORTANT NOTE: Equipment in self.eq_dict will have their
+        expected_state attributes updated.
+
         NOTE: It isn't 100% clear if this is the best home for this
         method, but hey, that's okay.
 
@@ -912,10 +930,10 @@ class EquipmentManager:
         except for object states.
         """
         # Nested helper function.
-        def update(mgr, out, eq_for, eq_for_mrid):
+        def update(eq_for, eq_rev, out):
             # If this equipment isn't controllable, don't build a
             # command.
-            if not eq_for.controllable:
+            if not eq_rev.controllable:
                 return
 
             # Lookup the equipment object in self's eq_dict
@@ -946,6 +964,9 @@ class EquipmentManager:
                 except AttributeError:
                     pass
 
+                # Track expected state.
+                eq_rev.expected_state = state_for
+
                 # Invert states if necessary.
                 if eq_for.INVERT_STATES_FOR_COMMANDS:
                     if eq_for.STATES == (0, 1):
@@ -959,7 +980,7 @@ class EquipmentManager:
                             'allowed states of (0, 1). What to do?')
 
                 # Append values to output.
-                out['object_ids'].append(eq_mrid)
+                out['object_ids'].append(eq_rev.mrid)
                 out['attributes'].append(eq_for.STATE_CIM_PROPERTY)
                 out['forward_values'].append(state_for)
                 out['reverse_values'].append(state_rev)
@@ -968,19 +989,35 @@ class EquipmentManager:
         output = {"object_ids": [], "attributes": [], "forward_values": [],
                   "reverse_values": []}
 
-        # Loop over equipment.
-        for eq_mrid, eq_forward in eq_dict_forward.items():
-            if isinstance(eq_forward, EquipmentSinglePhase):
-                # Call helper.
-                update(mgr=self, out=output, eq_for=eq_forward,
-                       eq_for_mrid=eq_mrid)
-            elif isinstance(eq_forward, dict):
-                # Loop over the phases.
-                for eq_single in eq_forward.values():
-                    # Call helper.
-                    update(mgr=self, out=output, eq_for=eq_single,
-                           eq_for_mrid=eq_mrid)
+        # Loop over equipment and update output.
+        for mrid, forward in eq_dict_forward.items():
+            try:
+                reverse = self.eq_dict[mrid]
+            except KeyError:
+                m = 'The given eq_dict_forward is not matching up with '\
+                    'self.eq_dict! Ensure these eq_dicts came from the '\
+                    'same model, etc.'
+                raise ValueError(m) from None
 
+            if isinstance(forward, dict):
+                # Loop over phases.
+                for phase, eq_forward in forward.items():
+                    try:
+                        eq_reverse = self.eq_dict[mrid][phase]
+                    except KeyError:
+                        m = 'The given eq_dict_forward is not matching up '\
+                            'with self.eq_dict! Ensure these eq_dicts came '\
+                            'from the same model, etc.'
+                        raise ValueError(m) from None
+
+                    # Call our helper.
+                    update(eq_for=eq_forward, eq_rev=eq_reverse, out=output)
+
+            else:
+                # Call helper.
+                update(eq_for=forward, eq_rev=reverse, out=output)
+
+        # All done.
         return output
 
 

@@ -595,6 +595,14 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
             self.assertIsInstance(v, list)
             self.assertEqual(len(v), 9)
 
+        # Ensure all equipment has an expected state which is not None.
+        def expected_state_not_none(eq):
+            if eq.controllable:
+                self.assertIsNotNone(eq.expected_state)
+
+        equipment.loop_helper(eq_dict=self.cap_mgr.eq_dict,
+                              func=expected_state_not_none)
+
     def test_build_equipment_commands_mismatch(self):
         """Send mismatched cap dicts in."""
         cap = deepcopy(self.cap_dict)
@@ -974,7 +982,7 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
              'name': 'FEEDER_REG', 'neutral_step': 16, 'phase': 'A',
              'tap_changer_mrid': '_330E7EDE-2C70-8F72-B183-AA4BA3C5E221',
              'step': 18, 'step_voltage_increment': 0.625,
-             'controllable': True}
+             'controllable': True, 'operable': True}
 
         cls.reg = equipment.RegulatorSinglePhase(**cls.inputs)
 
@@ -1053,6 +1061,12 @@ class RegulatorSinglePhaseInitializationTestCase(unittest.TestCase):
 
     def test_invert_states_for_commands(self):
         self.assertFalse(self.reg.INVERT_STATES_FOR_COMMANDS)
+
+    def test_operable(self):
+        self.assertEqual(self.inputs['operable'], self.reg.operable)
+
+    def test_expected_state(self):
+        self.assertIsNone(self.reg.expected_state)
 
 
 class RegulatorSinglePhaseBadInputsTestCase(unittest.TestCase):
@@ -1224,6 +1238,12 @@ class CapacitorSinglePhaseTestCase(unittest.TestCase):
 
     def test_invert_states_for_commands(self):
         self.assertFalse(self.cap.INVERT_STATES_FOR_COMMANDS)
+
+    def test_operable(self):
+        self.assertTrue(self.cap.operable)
+
+    def test_expected_state(self):
+        self.assertIsNone(self.cap.expected_state)
 
 
 class CapacitorSinglePhaseBadInputsTestCase(unittest.TestCase):
@@ -1414,6 +1434,12 @@ class SwitchSinglePhaseTestCase(unittest.TestCase):
 
     def test_invert_states_for_commands(self):
         self.assertTrue(self.switch.INVERT_STATES_FOR_COMMANDS)
+
+    def test_operable(self):
+        self.assertTrue(self.switch.operable)
+
+    def test_expected_state(self):
+        self.assertIsNone(self.switch.expected_state)
 
 
 class InitializeSwitchesTestCase(unittest.TestCase):

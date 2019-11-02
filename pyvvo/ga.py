@@ -114,8 +114,8 @@ def map_chromosome(regulators, capacitors):
 
     def map_reg(reg_in, dict_out, idx_in):
         """Nested helper to map a regulator."""
-        # If the regulator is not controllable, DO NOT MAP.
-        if not reg_in.controllable:
+        # If the regulator cannot be controlled, DO NOT MAP.
+        if (not reg_in.controllable) or (not reg_in.operable):
             return dict_out, idx_in
 
         # Increment the counter.
@@ -151,7 +151,7 @@ def map_chromosome(regulators, capacitors):
     def map_cap(cap_in, dict_out, idx_in):
         """Nested helper to map a capacitor."""
         # DO NOT MAP if not controllable.
-        if not cap_in.controllable:
+        if (not cap_in.controllable) or (not cap_in.operable):
             return dict_out, idx_in
 
         # Increment the counter.
