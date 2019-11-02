@@ -419,13 +419,13 @@ def generate_cap_reg_switch_inverter_meas_message_9500():
     inverter_mrids = inverters['meas_mrid'].tolist()
 
     # Initialize fn_mrid_list for a SimOutRouter.
-    fn_mrid_list = [{'functions': _dict_to_json, 'mrids': cap_mrids,
+    fn_mrid_list = [{'function': _dict_to_json, 'mrids': cap_mrids,
                      'kwargs': {'fname': CAP_MEAS_MSG_9500}},
-                    {'functions': _dict_to_json, 'mrids': reg_mrids,
+                    {'function': _dict_to_json, 'mrids': reg_mrids,
                      'kwargs': {'fname': REG_MEAS_MSG_9500}},
-                    {'functions': _dict_to_json, 'mrids': switch_mrids,
+                    {'function': _dict_to_json, 'mrids': switch_mrids,
                      'kwargs': {'fname': SWITCH_MEAS_MSG_9500}},
-                    {'functions': _dict_to_json, 'mrids': inverter_mrids,
+                    {'function': _dict_to_json, 'mrids': inverter_mrids,
                      'kwargs': {'fname': INVERTER_MEAS_MSG_9500}}
                     ]
 
@@ -529,7 +529,7 @@ def generate_sensor_service_measurements_9500():
     # TODO: Remove this time.sleep when
     #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/24#issue-487936782
     #  has been addressed.
-    time.sleep(180)
+    time.sleep(60)
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):

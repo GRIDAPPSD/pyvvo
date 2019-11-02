@@ -14,6 +14,7 @@ import re
 from datetime import datetime
 import time
 from threading import Lock
+import weakref
 
 from pyvvo import utils
 from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
@@ -116,16 +117,16 @@ class SimOutRouter:
         :param platform_manager: Initialized PlatformManager object.
         :param sim_id: Simulation ID on which to listen to.
         :param fn_mrid_list: list of dictionaries of the form
-            {'functions': <function>, 'mrids': [<mrid1>, <mrid2>,...],
+            {'function': <function>, 'mrids': [<mrid1>, <mrid2>,...],
             'kwargs': {'dict': 'of keyword args',
                        'to': 'pass to function'}}
-            where 'functions' can either be a callable or list of
-            callables that will accept both a list of measurements as
-            a positional argument and 'sim_dt' (of type
-            datetime.datetime) as a keyword argument. The 'mrids' field
-            is a list of mrids to extract from the simulation output,
-            which will correspond to measurements. 'kwargs' is optional,
-            and consists of key word arguments to pass to the function.
+            where 'function' can either be a function or class method
+            that will accept both a list of measurements as a positional
+            argument and 'sim_dt' (of type datetime.datetime) as a
+            keyword argument. The 'mrids' field is a list of mrids to
+            extract from the simulation output, which will correspond to
+            measurements. 'kwargs' is optional, and consists of key word
+            arguments to pass to the function.
         """
         # Setup logging.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -137,10 +138,8 @@ class SimOutRouter:
         self.output_topic = \
             topics.simulation_output_topic(simulation_id=sim_id)
 
-        # Initialize lists for holding our mrids, functions, and kwargs.
-        self.mrids = []
-        self.functions = []
-        self.kwargs = []
+        # Initialize list for holding our mrids, functions, and kwargs.
+        self.mrid_fn_kw_list = []
 
         # Initialize a lock
         self._lock = Lock()
@@ -155,20 +154,47 @@ class SimOutRouter:
     @utils.wait_for_lock
     def add_funcs_and_mrids(self, fn_mrid_list):
         """Helper to add functions and MRIDs to the router.
+        Implementation detail: functions will be stored as weak
+        references.
 
         :param fn_mrid_list: See description in __init__.
         """
         # Combine the mrids into a list of lists, create a list of
-        # functions.
+        # functions/methods stored as weak references.
         for d in fn_mrid_list:
-            self.mrids.append(d['mrids'])
-            self.functions.append(d['functions'])
+            # Initialize new dictionary.
+            nd = {'mrids': (d['mrids'])}
 
             try:
-                self.kwargs.append(d['kwargs'])
+                # Attempt to use a WeakMethod. Will throw a type error
+                # if given a regular function.
+                fn = weakref.WeakMethod(d['function'])
+            except TypeError:
+                # Use a simple ref.
+                fn = weakref.ref(d['function'])
+
+            # Add reference to the dictionary.
+            nd['fn'] = fn
+
+            # Extract keyword arguments if present.
+            try:
+                kw = d['kwargs']
             except KeyError:
                 # Not given kwargs, so no worries.
-                self.kwargs.append({})
+                kw = {}
+
+            # Add kw args to the dictionary.
+            nd['kwargs'] = kw
+
+            # Add dictionary to the list.
+            self.mrid_fn_kw_list.append(nd)
+
+    def _prune(self):
+        """Ditch elements in self.mrid_fn_kw_list which no longer have
+        a strong reference to a function.
+        """
+        self.mrid_fn_kw_list = \
+            [d for d in self.mrid_fn_kw_list if d['fn']() is not None]
 
     @utils.wait_for_lock
     def _on_message(self, header, message):
@@ -187,36 +213,6 @@ class SimOutRouter:
         self.log.debug(
             'Simulation timestamp: {}'.format(sim_dt.strftime(DATE_FORMAT)))
 
-        # Filter the message.
-        result = self._filter_output_by_mrid(message=message)
-
-        # Iterate over the result, and call each corresponding
-        # function.
-        for idx, output in enumerate(result):
-            # If we have a list of functions:
-            try:
-                func_iter = iter(self.functions[idx])
-            except TypeError:
-                # We have a simple function, which isn't iterable. Call
-                # it.
-                self.functions[idx](output, sim_dt=sim_dt, **self.kwargs[idx])
-            else:
-                # Call each function.
-                for f in func_iter:
-                    f(output, sim_dt=sim_dt, **self.kwargs[idx])
-
-    def _filter_output_by_mrid(self, message):
-        """Given an output message from the simulator, return only the
-        measurements with mrid's that we care about.
-
-        :param message: dictionary, message from simulator subscription.
-        :returns: list of list of measurements from message which
-            correspond to the list of lists of mrids in self.mrids.
-        """
-        # Simple type check for message:
-        if not isinstance(message, dict):
-            raise TypeError('message must be a dictionary!')
-
         # Ensure we have measurements.
         try:
             measurements = message['message']['measurements']
@@ -227,29 +223,16 @@ class SimOutRouter:
         if (measurements is None) or (len(measurements) == 0):
             raise ValueError('There are no measurements in the message!')
 
-        # We'll return a list of lists of measurements which
-        # corresponds to self.mrids.
-        out = [[] for _ in self.mrids]
+        # Get rid of functions which have lost their strong references.
+        self._prune()
 
-        # Loop over self.mrids, which is a list of lists.
-        for idx, sub_list in enumerate(self.mrids):
-            # Loop over the sub_list and pull out the MRIDs from the
-            # message.
-            for mrid in sub_list:
-                try:
-                    # Simply put the relevant measurement dictionary in
-                    # the appropriate list.
-                    out[idx].append(measurements[mrid])
-                except KeyError as e:
-                    # Something's wrong.
-                    # TODO: This is where we might notice a measurement
-                    #   communication outage. How to handle?
-                    raise ValueError('Expected measurement MRID {} not present'
-                                     'in the measurements from the platform.'
-                                     .format(mrid)) from e
-
-        # All done, return.
-        return out
+        # Iterate over our list and call functions.
+        for d in self.mrid_fn_kw_list:
+            # Note the initial () is to extract the reference from the
+            # weak reference, and then the second (<stuff>) is to
+            # actually call the function.
+            d['fn']()([measurements[mrid] for mrid in d['mrids']],
+                      sim_dt=sim_dt, **d['kwargs'])
 
 
 class PlatformManager:

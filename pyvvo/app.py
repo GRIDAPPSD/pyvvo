@@ -88,10 +88,10 @@ def main(sim_id, sim_request):
 
     # Get list of dictionaries for routing output.
     fn_mrid_list = [
-        {'functions': reg_mgr.update_state, 'mrids': reg_meas_mrid},
-        {'functions': cap_mgr.update_state, 'mrids': cap_meas_mrid},
-        {'functions': switch_mgr.update_state, 'mrids': switch_meas_mrid},
-        {'functions': inverter_mgr.update_state, 'mrids': inverter_meas_mrid}
+        {'function': reg_mgr.update_state, 'mrids': reg_meas_mrid},
+        {'function': cap_mgr.update_state, 'mrids': cap_meas_mrid},
+        {'function': switch_mgr.update_state, 'mrids': switch_meas_mrid},
+        {'function': inverter_mgr.update_state, 'mrids': inverter_meas_mrid}
     ]
 
     # Create a SimOutRouter to listen to simulation outputs.

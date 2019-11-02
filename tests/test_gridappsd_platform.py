@@ -108,17 +108,6 @@ class GetPlatformEnvVarTestCase(unittest.TestCase):
         self.assertEqual('0', gridappsd_platform.get_platform_env_var())
 
 
-# Create some dummy functions for the SimOutRouter.
-mock_fn_1 = Mock(return_value='yay')
-mock_fn_2 = Mock(return_value=42)
-mock_fn_3 = Mock(return_value='bleh')
-
-# Create a dummy platform manager.
-mock_platform_manager = create_autospec(gridappsd_platform.PlatformManager)
-mock_platform_manager.gad = Mock()
-mock_platform_manager.gad.subscribe = Mock()
-
-
 class DummyClass:
     """Dummy class for testing the SimOutRouter."""
     def __init__(self):
@@ -132,6 +121,17 @@ class SimOutRouterTestCase(unittest.TestCase):
     def setUpClass(cls):
         """Load the file we'll be working with, initialize
         SimOutRouter."""
+        # Create a dummy platform manager.
+        cls.mock_platform_manager = create_autospec(
+            gridappsd_platform.PlatformManager)
+        cls.mock_platform_manager.gad = Mock()
+        cls.mock_platform_manager.gad.subscribe = Mock()
+
+        # Create some dummy functions for the SimOutRouter.
+        mock_fn_1 = Mock(return_value='yay')
+        mock_fn_2 = Mock(return_value=42)
+        mock_fn_3 = Mock(return_value='bleh')
+
         with open(_df.MEASUREMENTS_13, 'r') as f:
             cls.meas = json.load(f)
 
@@ -139,10 +139,10 @@ class SimOutRouterTestCase(unittest.TestCase):
             cls.header = json.load(f)
 
         # For convenience, get a reference to the measurements.
-        meas = cls.meas['message']['measurements']
+        cls.meas_only = cls.meas['message']['measurements']
 
         # Create list of list of mrids.
-        cls.all_mrids = list(meas.keys())
+        cls.all_mrids = list(cls.meas_only.keys())
 
         # Hard code some indices for grabbing measurements.
         # Note that within each sub-list the indices ARE sorted to
@@ -150,9 +150,8 @@ class SimOutRouterTestCase(unittest.TestCase):
         cls.indices = [[10, 112, 114], [16, 102], [0, 1, 42]]
 
         # Grab mrids.
-        cls.mrids = [[meas[cls.all_mrids[i]]['measurement_mrid'] for i in
-                      sub_i]
-                     for sub_i in cls.indices]
+        cls.mrids = [[cls.meas_only[cls.all_mrids[i]]['measurement_mrid']
+                      for i in sub_i] for sub_i in cls.indices]
 
         # Create dummy class.
         cls.dummy_class = DummyClass()
@@ -160,92 +159,51 @@ class SimOutRouterTestCase(unittest.TestCase):
                                             side_effect=print('mocked func.'))
 
         # Hard-code list input for the SimOutRouter.
-        cls.fn_mrid_list = [{'functions': mock_fn_1, 'mrids': cls.mrids[0]},
-                            {'functions': mock_fn_2, 'mrids': cls.mrids[1],
+        cls.fn_mrid_list = [{'function': mock_fn_1, 'mrids': cls.mrids[0]},
+                            {'function': mock_fn_2, 'mrids': cls.mrids[1],
                              'kwargs': {'param1': 'asdf'}},
-                            {'functions': [cls.dummy_class.my_func, mock_fn_3],
-                             'mrids': cls.mrids[2]}
+                            {'function': cls.dummy_class.my_func,
+                             'mrids': cls.mrids[2]},
+                            {'function': mock_fn_3, 'mrids': cls.mrids[2]}
                             ]
 
         cls.router = \
             gridappsd_platform.SimOutRouter(
-                platform_manager=mock_platform_manager, sim_id='1234',
+                platform_manager=cls.mock_platform_manager, sim_id='1234',
                 fn_mrid_list=cls.fn_mrid_list)
-
-    def test_filter_output_by_mrid_bad_message_type(self):
-        self.assertRaises(TypeError, self.router._filter_output_by_mrid,
-                          message='message', mrids=[])
-
-    def test_filter_output_by_mrid_expected_return(self):
-        # Gather expected return. This has gotten a little gnarly and
-        # unreadable, but so it goes sometimes. Gotta keep moving.
-        meas = self.meas['message']['measurements']
-        expected = [[meas[self.mrids[i][j]] for j in range(len(sub_j))]
-                    for i, sub_j in enumerate(self.indices)]
-
-        actual = self.router._filter_output_by_mrid(message=self.meas)
-
-        self.assertEqual(expected, actual)
-
-        # Ensure our list of mrids didn't change.
-        self.assertEqual(len(expected), len(self.router.mrids))
-
-    def test_filter_output_by_mrid_not_all_mrids_in_meas(self):
-        # Create list of mrids which is mostly bogus.
-        mrids = [['abcdefg'], ['hijklmnop'], ['qrstuv', self.mrids[0][0]]]
-        # Replace the mrids in self.router with our mostly bogus list.
-        with patch.object(self.router, attribute='mrids', new=mrids):
-            # Ensure we get a value error, use regex to ensure our
-            # arithmetic is correct.
-            with self.assertRaisesRegex(ValueError,
-                                        'Expected measurement MRID abcdefg'):
-                self.router._filter_output_by_mrid(message=self.meas)
 
     def test_subscribed(self):
         """Ensure that we've subscribed to the topic."""
-        mock_platform_manager.gad.subscribe.assert_called_once_with(
+        self.mock_platform_manager.gad.subscribe.assert_called_once_with(
             topic=self.router.output_topic, callback=self.router._on_message
         )
 
-    def test_on_message_calls_filter_output_by_mrid(self):
-        """Call on_message."""
-        with patch.object(self.router,
-                          attribute='_filter_output_by_mrid') as m:
-            _ = self.router._on_message(header=self.header,
-                                        message=self.meas)
-
-        # Ensure _filter_output_by_mrid was called.
-        m.assert_called_once_with(message=self.meas)
-
     def test_on_message_calls_methods(self):
         """Ensure that all our mock functions get called."""
-        # Patch _filter_output_by_mrid as we don't need that to
-        # actually be called.
-        with patch.object(self.router,
-                          attribute='_filter_output_by_mrid',
-                          return_value=[[0], [1], [2]]) as m2:
-            # Call the _on_message method.
-            _ = self.router._on_message(header=self.header,
-                                        message=self.meas)
+        with patch.object(self.router, '_prune', wraps=self.router._prune) \
+                as p:
+            self.router._on_message(header=self.header,
+                                    message=self.meas)
+
+        p.assert_called_once()
 
         # Grab the time.
         t = utils.simulation_output_timestamp_to_dt(
             int(self.meas['message']['timestamp']))
 
         # Ensure each method was called appropriately.
-        for idx, mock_func in enumerate(self.router.functions):
-            try:
-                # Simple function case.
-                if self.router.kwargs[idx] is not None:
-                    kwargs = self.router.kwargs[idx]
-                else:
-                    kwargs = {}
-                mock_func.assert_called_once_with(m2.return_value[idx],
-                                                  sim_dt=t, **kwargs)
-            except AttributeError:
-                # List of functions case.
-                for f in self.router.functions[idx]:
-                    f.assert_called_once_with(m2.return_value[idx], sim_dt=t)
+        for d in self.router.mrid_fn_kw_list:
+            # Extract the function from the weak reference.
+            mock_func = d['fn']()
+            # Extract kwargs.
+            kwargs = d['kwargs']
+            # Extract mrids.
+            mrids = d['mrids']
+
+            mrid_input = [self.meas_only[k] for k in mrids]
+
+            mock_func.assert_called_once_with(mrid_input, sim_dt=t,
+                                              **kwargs)
 
     def test_lock(self):
         """Ensure the lock (_lock property) is working as expected"""
@@ -281,6 +239,48 @@ class SimOutRouterTestCase(unittest.TestCase):
             acquired = self.router._lock.acquire(timeout=0.01)
             self.assertTrue(acquired)
             self.router._lock.release()
+
+    def test_prune(self):
+        """Ensure our pruning properly ditches dead references."""
+        m = MagicMock(spec=gridappsd_platform.PlatformManager)
+        m.gad = Mock()
+        m.gad.subscribe = Mock()
+
+        sim_id = '12345'
+        f1 = Mock()
+
+        class MyMock:
+            def fn(self, meas, sim_dt):
+                pass
+
+        my_mock = MyMock()
+
+        r = gridappsd_platform.SimOutRouter(
+            m, sim_id, [{'function': f1, 'mrids': ['a', 'b', 'c']},
+                        {'function': my_mock.fn, 'mrids': ['d', 'e', 'f']}])
+
+        self.assertEqual(len(r.mrid_fn_kw_list), 2)
+
+        # Initial pruning should do nothing.
+        r._prune()
+        self.assertEqual(len(r.mrid_fn_kw_list), 2)
+
+        # Delete f1 and garbage collect.
+        import gc
+        del f1
+        gc.collect()
+
+        # Calling prune should remove the f1 entry.
+        r._prune()
+        self.assertEqual(len(r.mrid_fn_kw_list), 1)
+
+        # Now delete the MyMock instance.
+        del my_mock
+        gc.collect()
+
+        # Calling prune should remove the second entry.
+        r._prune()
+        self.assertEqual(len(r.mrid_fn_kw_list), 0)
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
