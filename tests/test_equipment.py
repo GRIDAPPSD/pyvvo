@@ -50,21 +50,17 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
             )
 
     @staticmethod
-    def random_update(reg_dict_in):
-        """Helper to randomly update tap steps."""
-        # Randomly update steps.
-        forward_vals = []
-        for reg_single in reg_dict_in.values():
+    def random_update(reg_in, list_in):
+        """Helper to randomly update tap steps. Use this with the
+        loop_helper.
+        """
+        new_step = reg_in.state
 
-            new_step = reg_single.state
+        while new_step == reg_in.state:
+            new_step = randint(reg_in.low_step, reg_in.high_step)
 
-            while new_step == reg_single.state:
-                new_step = randint(reg_single.low_step, reg_single.high_step)
-
-            reg_single.state = new_step
-            forward_vals.append(new_step)
-
-        return forward_vals
+        reg_in.state = new_step
+        list_in.append(new_step)
 
     def test_reg_dict_attribute(self):
         self.assertIs(self.reg_dict, self.reg_mgr.eq_dict)
@@ -248,13 +244,22 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         #     equipment.initialize_regulators(
         #         _df.read_pickle(_df.REGULATORS_9500))
 
-        # Randomly update steps.
-        forward_vals = self.random_update(reg_dict_forward)
+        # Initialize list to hold regulator positions.
+        forward_vals = []
 
-        # Grab reverse values.
+        # Randomly update all regulators.
+        equipment.loop_helper(eq_dict=reg_dict_forward,
+                              func=self.random_update,
+                              list_in=forward_vals)
+
+        # Get reverse values.
         reverse_vals = []
-        for reg_single in self.reg_dict.values():
-            reverse_vals.append(reg_single.state)
+
+        def get_state(reg_in):
+            reverse_vals.append(reg_in.state)
+
+        # Get reverse values.
+        equipment.loop_helper(eq_dict=self.reg_dict, func=get_state)
 
         # Command the regulators.
         out = self.reg_mgr.build_equipment_commands(
@@ -320,7 +325,9 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         # Get a copy of the regulators and randomly change their states.
         reg_dict_copy = deepcopy(self.reg_dict)
-        self.random_update(reg_dict_copy)
+
+        equipment.loop_helper(eq_dict=reg_dict_copy, func=self.random_update,
+                              list_in=[])
 
         # Now cast the now randomized states to int32.
         equipment.loop_helper(eq_dict=reg_dict_copy, func=to_int32)
