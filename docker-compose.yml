@@ -15,7 +15,7 @@ services:
 #      - sleep
 #      - infinity
   db:
-    image: gridappsd/pyvvo-mysql:latest
+    image: gridappsd/pyvvo:mysql-latest
     volumes:
       - db_volume:/var/lib/mysql
     environment:
