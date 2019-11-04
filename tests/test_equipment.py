@@ -6,6 +6,8 @@ import numpy as np
 import pandas as pd
 import simplejson as json
 from datetime import datetime
+import threading
+import queue
 
 from pyvvo import equipment, utils
 
@@ -675,9 +677,33 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         equipment.loop_helper(eq_dict=self.switch_mgr.eq_dict,
                               func=self.state_none)
 
+        # The update_state_event should not be set.
+        self.assertFalse(self.switch_mgr.update_state_event.is_set())
+
+        # Before receiving an update message, last_time should be None.
+        self.assertIsNone(self.switch_mgr.last_time)
+
+        # Start up a thread which will flip a variable when the
+        # update_state_event is set.
+        event_queue = queue.Queue()
+
+        def toggle_state_event_set(q):
+            result = self.switch_mgr.update_state_event.wait(timeout=0.5)
+            if result:
+                q.put(True)
+            else:
+                q.put(False)
+
+        t = threading.Thread(target=toggle_state_event_set,
+                             args=(event_queue,))
+        t.start()
+
         # Now that we've ensure all switches start with None status,
         # update them all.
         self.switch_mgr.update_state(self.switch_meas_msg, sim_dt=self.sim_dt)
+
+        # Ensure the last_time attribute has been updated.
+        self.assertEqual(self.switch_mgr.last_time, self.sim_dt)
 
         # Loop again and ensure the states are now not None and are
         # valid.
@@ -687,6 +713,9 @@ class EquipmentManagerSwitchTestCase(unittest.TestCase):
         # The callback should have been called.
         m.assert_called_once()
         m.assert_called_with(self.sim_dt)
+
+        # Ensure our state_event_set got toggled.
+        self.assertTrue(event_queue.get(timeout=0.5))
 
     def test_add_and_call_callbacks(self):
         """Test add_callback and _call_callbacks."""

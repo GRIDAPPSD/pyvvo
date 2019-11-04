@@ -5,7 +5,7 @@ capacitors, or switches.
 from abc import ABC, abstractmethod
 import logging
 from collections import deque
-from threading import Lock
+from threading import Lock, Event
 from weakref import WeakSet
 from typing import Any, Callable
 import datetime
@@ -739,6 +739,12 @@ class EquipmentManager:
         # in.
         self.last_time = None
 
+        # Initialize an Event to be used with verify_command and
+        # update_state. It should start "cleared" so that wait calls
+        # will block.
+        self.update_state_event = Event()
+        self.update_state_event.clear()
+
         # Create a map from measurement MRID to EquipmentSinglePhase.
         self.meas_eq_map = {}
 
@@ -842,7 +848,8 @@ class EquipmentManager:
     @utils.wait_for_lock
     def update_state(self, msg, sim_dt):
         """Given a message from a gridappsd_platform SimOutRouter,
-        update equipment state.
+        update equipment state. The update_state_event will be toggled
+        as the last thing this method does.
 
         :param msg: list passed to this method via a SimOutRouter's
             "_on_message" method.
@@ -856,6 +863,9 @@ class EquipmentManager:
         # Initialize flag for tracking if any piece of equipment
         # changed state.
         any_change = False
+
+        # Track the last time.
+        self.last_time = sim_dt
 
         # Iterate over the message and update equipment.
         for m in msg:
@@ -872,6 +882,11 @@ class EquipmentManager:
         # If any change of state occurred, inform the listeners.
         if any_change:
             self._call_callbacks(sim_dt=sim_dt)
+
+        # Toggle the update_state_event indicating this method has
+        # completed.
+        self.update_state_event.set()
+        self.update_state_event.clear()
 
     def _update_state(self, meas_mrid: str, state):
         """Helper for updating a piece of equipment's state, used by the
