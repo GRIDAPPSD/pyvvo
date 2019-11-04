@@ -936,17 +936,6 @@ class EquipmentManager:
             if not eq_rev.controllable:
                 return
 
-            # Lookup the equipment object in self's eq_dict
-            # corresponding to this piece of equipment.
-            try:
-                eq_rev = mgr.eq_dict[eq_for_mrid]
-            except KeyError:
-                m = 'The given eq_dict_forward is not matching up with '\
-                    'self.eq_dict! Ensure these eq_dicts came from the '\
-                    'same model, etc.'
-
-                raise ValueError(m) from None
-
             # Only build commands if the states are different.
             if eq_for.state != eq_rev.state:
                 # We need to convert from numpy data types to regular
@@ -1012,10 +1001,11 @@ class EquipmentManager:
 
                     # Call our helper.
                     update(eq_for=eq_forward, eq_rev=eq_reverse, out=output)
-
-            else:
+            elif isinstance(forward, EquipmentSinglePhase):
                 # Call helper.
                 update(eq_for=forward, eq_rev=reverse, out=output)
+            else:
+                raise TypeError(f'Unexpected type: {forward}.')
 
         # All done.
         return output
