@@ -890,7 +890,6 @@ class EquipmentManager:
 
     def _toggle_update_state_event(self):
         """Simple helper to set and clear update_state_event."""
-        print('States toggled')
         self.update_state_event.set()
         self.update_state_event.clear()
 
@@ -1091,8 +1090,6 @@ class EquipmentManager:
             raise TimeoutError('The update_state method was never run to '
                                f'completion within {timeout} seconds of '
                                'calling verify_command.')
-
-        print('Cleared the wait call without error.')
 
         # Extract the most recent simulation time, and compute the
         # difference with the originally extracted time.
