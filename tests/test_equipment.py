@@ -8,6 +8,7 @@ import simplejson as json
 from datetime import datetime
 import threading
 import queue
+import time
 
 from pyvvo import equipment, utils
 
@@ -37,13 +38,14 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # Just create a bogus datetime.
         cls.sim_dt = datetime(2019, 9, 2, 17, 8)
 
+        cls.reg_df = _df.read_pickle(_df.REGULATORS_9500)
+
     # noinspection PyPep8Naming
     def setUp(self):
         # Gotta be careful with these mutable types... Get fresh
         # instances each time. It won't be that slow, I promise.
         self.reg_dict = \
-            equipment.initialize_regulators(
-                _df.read_pickle(_df.REGULATORS_9500))
+            equipment.initialize_regulators(self.reg_df)
         self.reg_mgr = \
             equipment.EquipmentManager(
                 eq_dict=self.reg_dict, eq_meas=self.reg_meas,
@@ -395,6 +397,154 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # Ensure that acquire and release were called.
         self.assertEqual('acquire', p_lock.method_calls[0][0])
         self.assertEqual('release', p_lock.method_calls[1][0])
+
+    def test_expected_not_equal_to_actual(self):
+        """Test helper function _expected_not_equal_to_actual."""
+        eq = Mock(spec=equipment.RegulatorSinglePhase)
+        eq.expected_state = 7
+        eq.state = None
+
+        # Ensure with a state of None we get a False return.
+        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+
+        # Flop 'em, and should still get None.
+        eq.expected_state = None
+        eq.state = 5
+
+        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+
+        # With different settings, we should get True.
+        eq.expected_state = 6
+
+        self.assertTrue(self.reg_mgr._expected_not_equal_to_actual(eq))
+
+        # With the same settings, we should get False.
+        eq.state = 6
+        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+
+    def test_wait_and_get_delta(self):
+        """Test _wait_and_get_delta."""
+        # Create times which are 60 seconds apart.
+        old_t = datetime(2019, 11, 4, 9, 0)
+        self.reg_mgr.last_time = datetime(2019, 11, 4, 9, 1)
+
+        # We should get a timeout error if the event isn't toggled.
+        with self.assertRaisesRegex(TimeoutError, 'The update_state method '):
+            self.reg_mgr._wait_and_get_delta(old_t=old_t, timeout=0.01)
+
+        # Now, spin up a thread to get the time delta.
+        def get_delta(mgr, dt, q):
+            delta = mgr._wait_and_get_delta(old_t=dt, timeout=1)
+            q.put(delta)
+
+        mq = queue.Queue()
+
+        t = threading.Thread(target=get_delta,
+                             args=(self.reg_mgr, old_t, mq))
+        t.start()
+
+        self.reg_mgr._toggle_update_state_event()
+
+        delta_out = mq.get(timeout=1)
+
+        # Hard code 60 second difference.
+        self.assertEqual(delta_out, 60)
+
+    def test_verify_command(self):
+        """Test the verify_command method."""
+        # We should get a ValueError if last_time is not set (which at
+        # this point, it shouldn't be).
+        with self.assertRaisesRegex(ValueError, 'verify_command has been cal'):
+            self.reg_mgr.verify_command(wait_duration=0.1, timeout=0.1)
+
+        # Grab the first piece of equipment and put into a dictionary.
+        mrid = list(self.reg_mgr.eq_dict.keys())[0]
+        eq_or_dict = self.reg_mgr.eq_dict[mrid]
+        if isinstance(eq_or_dict, dict):
+            phase = list(self.reg_mgr.eq_dict[mrid].keys())[0]
+            eq = self.reg_mgr.eq_dict[mrid][phase]
+            single_eq_dict = {mrid: {phase: eq}}
+        else:
+            eq = eq_or_dict
+            single_eq_dict = {mrid: eq_or_dict}
+
+        # Set the last_time, and get a time 60 seconds later.
+        dt = datetime(2019, 11, 4, 9, 15)
+        dt2 = datetime(2019, 11, 4, 9, 16)
+        self.reg_mgr.last_time = dt
+
+        # We should get a timeout error if the update_state_event never
+        # gets toggled.
+        with self.assertRaisesRegex(TimeoutError, 'The update_state method'):
+            self.reg_mgr.verify_command(wait_duration=0.01, timeout=0.01)
+
+        # If no equipment has a mismatch between their expected_state
+        # and their state (excluding Nones), we should get a None
+        # return.
+        mq = queue.Queue()
+
+        def put_result_in_queue(mgr, q, wait_duration, timeout):
+            result = mgr.verify_command(wait_duration=wait_duration,
+                                        timeout=timeout)
+            q.put(result)
+
+        t = threading.Thread(target=put_result_in_queue,
+                             args=(self.reg_mgr, mq, 60, 1))
+        t.start()
+
+        # Wait a tiny bit for the thread to kick off properly.
+        time.sleep(0.05)
+
+        # Update the last_time and toggle the event to simulate a
+        # message coming in.
+        self.reg_mgr.last_time = dt2
+        self.reg_mgr._toggle_update_state_event()
+
+        # Grab element out of the queue.
+        output = mq.get(timeout=1)
+
+        # No equipment has a mismatch between expected_state and state,
+        # so this result should be None.
+        self.assertIsNone(output)
+
+        # Reset the time.
+        self.reg_mgr.last_time = dt
+
+        # Tweak the expected_state for our equipment to ensure it's
+        # different from the state.
+        eq.expected_state = eq.state + 1
+
+        # Get a time which is thirty seconds after the first. Hard
+        # coding for the win.
+        dt3 = datetime(2019, 11, 4, 9, 15, 30)
+
+        # Fire up another thread to run verify_command again.
+        mq = queue.Queue()
+        t = threading.Thread(target=put_result_in_queue,
+                             args=(self.reg_mgr, mq, 60, 1))
+        t.start()
+        time.sleep(0.05)
+
+        # Update time and toggle event. However, note this time is
+        # less than the wait_duration.
+        self.reg_mgr.last_time = dt3
+        self.reg_mgr._toggle_update_state_event()
+
+        # We shouldn't have gotten a return value yet.
+        with self.assertRaises(queue.Empty):
+            mq.get(timeout=0.1)
+
+        # Update time and toggle event, but this time we should get a
+        # return.
+        time.sleep(0.05)
+        self.reg_mgr.last_time = dt2
+        self.reg_mgr._toggle_update_state_event()
+
+        # Extract output.
+        actual_dict = mq.get(timeout=1)
+
+        # Output should match our single_eq_dict.
+        self.assertDictEqual(single_eq_dict, actual_dict)
 
 
 class EquipmentManagerCapacitorTestCase(unittest.TestCase):

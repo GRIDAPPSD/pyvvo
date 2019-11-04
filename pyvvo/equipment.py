@@ -9,6 +9,7 @@ from threading import Lock, Event
 from weakref import WeakSet
 from typing import Any, Callable
 import datetime
+from typing import Union
 
 # Third party:
 import pandas as pd
@@ -885,6 +886,11 @@ class EquipmentManager:
 
         # Toggle the update_state_event indicating this method has
         # completed.
+        self._toggle_update_state_event()
+
+    def _toggle_update_state_event(self):
+        """Simple helper to set and clear update_state_event."""
+        print('States toggled')
         self.update_state_event.set()
         self.update_state_event.clear()
 
@@ -1024,6 +1030,88 @@ class EquipmentManager:
 
         # All done.
         return output
+
+    def verify_command(self, wait_duration: Union[int, float],
+                       timeout: Union[int, float] = 10) -> Union[dict, None]:
+        """Verify equipment changes its state to match expected_state.
+
+        :param wait_duration: How long to wait (seconds in simulation
+            time) before concluding that an equipment's expected_state
+            does not match its state.
+        :param timeout: How long to wait (seconds) between simulation
+            messages before raising a TimeOut error.
+
+        :raises TimeoutError: if we don't get a simulation message
+            within timeout seconds.
+
+        :returns: None if all equipment's state and expected_state
+            parameters match. Otherwise, a dictionary of the same form
+            as self.eq_dict will be returned.
+        """
+        # Extract the last simulation time.
+        old_t = self.last_time
+
+        if old_t is None:
+            raise ValueError('verify_command has been called before '
+                             'last_time has been set. Either manually set '
+                             'last_time, or try again after update_state '
+                             'has been called.')
+
+        # Loop until we've exceeded our wait duration.
+        while True:
+            # Wait for a message to come in, get the time delta with
+            # old_t.
+            delta = self._wait_and_get_delta(old_t=old_t, timeout=timeout)
+            # Loop over equipment, and check if the state matches the
+            # expected state.
+            inoperable = conditional_loop_helper(
+                eq_dict=self.eq_dict, func=self._expected_not_equal_to_actual)
+
+            # If the length of no_match is None, we're good to go.
+            if len(inoperable) == 0:
+                return None
+
+            # Break the loop if we've exceeded or met our wait_duration.
+            if delta >= wait_duration:
+                break
+
+        # If we're here, we have inoperable equipment.
+        # noinspection PyUnboundLocalVariable
+        return inoperable
+
+    def _wait_and_get_delta(self, old_t: datetime.datetime,
+                            timeout: Union[int, float]):
+        """Helper used by verify_command to wait until a new message
+        comes in and compute the time delta with old_t.
+        """
+        # Wait.
+        result = self.update_state_event.wait(timeout=timeout)
+
+        if not result:
+            raise TimeoutError('The update_state method was never run to '
+                               f'completion within {timeout} seconds of '
+                               'calling verify_command.')
+
+        print('Cleared the wait call without error.')
+
+        # Extract the most recent simulation time, and compute the
+        # difference with the originally extracted time.
+        new_t = self.last_time
+        delta = (new_t - old_t).total_seconds()
+
+        return delta
+
+    @staticmethod
+    def _expected_not_equal_to_actual(eq: EquipmentSinglePhase):
+        """Helper which returns True if a given piece of equipment's
+        expected_state does not match its state. Will return False if
+        the equipment's state or expected_state is None, as this check
+        is not applicable in that case.
+        """
+        if (eq.state is None) or (eq.expected_state is None):
+            return False
+        else:
+            return eq.expected_state != eq.state
 
 
 class InverterEquipmentManager(EquipmentManager):
@@ -1302,13 +1390,13 @@ def loop_helper(eq_dict, func, *args, **kwargs):
     I constantly find myself re-writing these annoying loops due to
     the poor design decision to allow the initialize_* functions to
     have either EquipmentSinglePhase objects or dictionaries as the
-    values for the top level keys of their respective returns. So, this
-    method hopefully mitigates that.
+    values for the top level values of their respective returns. So,
+    this method hopefully mitigates that.
 
     :param eq_dict: Dictionary from one of this modules initialize_*
         functions (e.g. initialize_regulators).
-    :param func: Function which takes two positional inputs: a single EquipmentSinglePhase
-        object as input.
+    :param func: Function which takes two positional inputs: a single
+        EquipmentSinglePhase object as input.
     """
     for eq_or_dict in eq_dict.values():
         if isinstance(eq_or_dict, dict):
@@ -1320,4 +1408,35 @@ def loop_helper(eq_dict, func, *args, **kwargs):
         else:
             raise TypeError('Value was not a dict or EquipmentSinglePhase.')
 
+
+def conditional_loop_helper(eq_dict, func, *args, **kwargs):
+    """Similar to the loop_helper, but will return a dictionary of
+    equipment for everywhere the func evaluates to a "truthy" value.
+    """
+    dict_out = {}
+
+    for mrid, eq_or_dict in eq_dict.items():
+        if isinstance(eq_or_dict, dict):
+            for phase, eq in eq_or_dict.items():
+                # Call function.
+                result = func(eq, *args, **kwargs)
+
+                # If result is "truthy," add to output.
+                if result:
+                    try:
+                        dict_out[mrid][phase] = eq
+                    except KeyError:
+                        dict_out[mrid] = {phase: eq}
+
+        elif isinstance(eq_or_dict, EquipmentSinglePhase):
+            # Call function.
+            result = func(eq_or_dict, *args, **kwargs)
+
+            # If result is "truthy," add to output.
+            if result:
+                dict_out[mrid] = eq_or_dict
+        else:
+            raise TypeError('Value was not a dict or EquipmentSinglePhase.')
+
+    return dict_out
 ########################################################################
