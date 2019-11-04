@@ -284,6 +284,17 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
             self.assertIsInstance(v, list)
             self.assertEqual(len(v), 18)
 
+        # All our regulators should have had their expected_state
+        # updated.
+        expected_state = []
+
+        def get_expected_state(reg_in):
+            expected_state.append(reg_in.expected_state)
+
+        equipment.loop_helper(eq_dict=self.reg_dict, func=get_expected_state)
+
+        self.assertListEqual(forward_vals, expected_state)
+
     def test_build_equipment_commands_mismatch(self):
         """Send mismatched reg dicts in."""
         reg_dict_forward = deepcopy(self.reg_dict)
@@ -546,41 +557,30 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         NOTE: This test is fragile as it currently relies on how the
         looping is performed in build_equipment_commands.
         """
-        cap_dict_forward = deepcopy(self.cap_dict)
-        # For some reason the new eq_dict won't pickle?
-        # cap_dict_forward = \
-        #     equipment.initialize_regulators(
-        #         _df.read_pickle(REGULATORS))
+        cap_dict_forward = deepcopy(self.cap_mgr.eq_dict)
 
-        def update_state(cap, forward):
+        forward_vals = []
+
+        def update_state(cap):
             """Nested helper function."""
-            new_state = choice(equipment.CapacitorSinglePhase.STATES)
-            cap.state = new_state
-            forward.append(new_state)
+            if cap.controllable:
+                new_state = choice(equipment.CapacitorSinglePhase.STATES)
+                cap.state = new_state
+                forward_vals.append(new_state)
 
         # Randomly update steps.
-        forward_vals = []
-        for cap_or_dict in cap_dict_forward.values():
-            if isinstance(cap_or_dict, equipment.EquipmentSinglePhase):
-                update_state(cap_or_dict, forward_vals)
-            elif isinstance(cap_or_dict, dict):
-                for phase, cap_obj in cap_or_dict.items():
-                    if cap_obj.controllable:
-                        update_state(cap_obj, forward_vals)
-            else:
-                raise ValueError('What has gone wrong?')
+        equipment.loop_helper(eq_dict=cap_dict_forward, func=update_state)
 
         # Grab reverse values.
         reverse_vals = []
-        for cap_or_dict in self.cap_dict.values():
-            if isinstance(cap_or_dict, equipment.EquipmentSinglePhase):
-                reverse_vals.append(cap_or_dict.state)
-            elif isinstance(cap_or_dict, dict):
-                for cap_obj in cap_or_dict.values():
-                    if cap_obj.controllable:
-                        reverse_vals.append(cap_obj.state)
 
-        # Just use the same dictionary to make a "do nothing" command.
+        def get_state(cap):
+            if cap.controllable:
+                reverse_vals.append(cap.state)
+
+        equipment.loop_helper(eq_dict=self.cap_mgr.eq_dict, func=get_state)
+
+        # Build equipment commands..
         out = self.cap_mgr.build_equipment_commands(
             eq_dict_forward=cap_dict_forward)
 
@@ -602,13 +602,19 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
             self.assertIsInstance(v, list)
             self.assertEqual(len(v), 9)
 
-        # Ensure all equipment has an expected state which is not None.
-        def expected_state_not_none(eq):
+        # Ensure our expected_state matches the state of our forward
+        # items.
+
+        expected_state = []
+
+        def get_expected_state(eq):
             if eq.controllable:
-                self.assertIsNotNone(eq.expected_state)
+                expected_state.append(eq.expected_state)
 
         equipment.loop_helper(eq_dict=self.cap_mgr.eq_dict,
-                              func=expected_state_not_none)
+                              func=get_expected_state)
+
+        self.assertListEqual(expected_state, forward_vals)
 
     def test_build_equipment_commands_mismatch(self):
         """Send mismatched cap dicts in."""
