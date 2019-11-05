@@ -1,5 +1,160 @@
 # PyVVO
-Data-driven volt-VAR optimization. TODO: Add more descriptions.
+PyVVO is a data-driven volt-var optimization application designed to
+be run inside the GridAPPS-D platform.
+
+## User Information and Set Up
+This section will describe the steps required to get PyVVO set up and 
+running.
+
+### Prerequisites
+Since the GridAPPS-D platform and PyVVO are all "Dockerized," the 
+prerequisite software requirements are light:
+1. Linux operating system (PyVVO has only been tested on Ubuntu 18.04).
+2. Docker. At present, I'm running `Docker version 19.03.4, build 9013bf583a`.
+3. Docker-Compose. At present, I'm running `docker-compose version 1.24.1, build 4667896b`.
+4. Git. At present, I'm running `git version 2.17.1`.
+
+### GridAPPS-D Platform Set Up and Configuration
+1. Clone the `gridappsdd-docker` repository, found [here](https://github.com/GRIDAPPSD/gridappsd-docker).
+2. Change directories into the repository. Assuming you cloned it into
+    `/home/<user>/git/gridappsd-docker`, simply execute `cd ~/git/gridappsd-docker`. 
+3. Check out the branch `pyvvo_config` via `git checkout pyvvo_config`.
+4. Run `git pull`.
+5. Start the platform. These directions assume version `v2019.10.0`. Simply
+    execute `./run.sh -t v2019.10.0`. You should see something like the
+    following:
+    
+    ```
+    Create the docker env file with the tag variables
+    
+    Downloading mysql data
+    
+    Getting blazegraph status
+    
+    Pulling updated containers
+    Pulling pyvvo-db   ... done
+    Pulling blazegraph ... done
+    Pulling redis      ... done
+    Pulling mysql      ... done
+    Pulling gridappsd  ... done
+    Pulling viz        ... done
+    Pulling pyvvo      ... done
+    Pulling proven     ... done
+    Pulling influxdb   ... done
+     
+    Starting the docker containers
+    
+    Creating network "gridappsd-docker_default" with the default driver
+    Creating gridappsd-docker_influxdb_1   ... done
+    Creating gridappsd-docker_mysql_1      ... done
+    Creating gridappsd-docker_blazegraph_1 ... done
+    Creating gridappsd-docker_redis_1      ... done
+    Creating gridappsd-docker_pyvvo-db_1   ... done
+    Creating gridappsd-docker_proven_1     ... done
+    Creating gridappsd-docker_gridappsd_1  ... done
+    Creating gridappsd-docker_pyvvo_1      ... done
+    Creating gridappsd-docker_viz_1        ... done
+     
+    Getting blazegraph status
+     
+    Checking blazegraph data
+     
+    Blazegrpah data available (1714162)
+     
+    Getting viz status
+     
+    Containers are running
+     
+    Connecting to the gridappsd container
+    docker exec -it gridappsd-docker_gridappsd_1 /bin/bash
+     
+    gridappsd@88a320b6dd3f:/gridappsd$ 
+    ```
+6. You are now "inside" the main gridappsd docker container. To finalize
+    startup, execute `./run-gridappsd.sh`. If all goes well, you should
+    see the following at the end of a wall of annoying java messages:
+    ```
+    Welcome to Apache Felix Gogo
+    
+    g! Updating configuration properties
+    Registering Authorization Handler: pnnl.goss.core.security.AuthorizeAll
+    {}
+    Creating consumer: 0
+    CREATING LOG DATA MGR MYSQL
+    {"id":"PyVVO","description":"PNNL volt/var optimization application","creator":"PNNL/Brandon-Thayer","inputs":[],"outputs":[],"options":["(simulationId)","\u0027(request)\u0027"],"execution_path":"python /pyvvo/pyvvo/pyvvo/run_pyvvo.py","type":"REMOTE","launch_on_startup":false,"prereqs":["gridappsd-sensor-simulator","gridappsd-voltage-violation","gridappsd-alarms"],"multiple_instances":true}
+    {"heartbeatTopic":"/queue/goss.gridappsd.remoteapp.heartbeat.PyVVO","startControlTopic":"/topic/goss.gridappsd.remoteapp.start.PyVVO","stopControlTopic":"/topic/goss.gridappsd.remoteapp.stop.PyVVO","errorTopic":"Error","applicationId":"PyVVO"}
+    
+    ```
+    If you do not see anything after `CREATING LOG DATA MGR MYSQL` something
+    is wrong with the configuration so that the GridAPPS-D platform cannot
+    find the application.
+    
+### Running the Application Through the GridAPPS-D GUI
+1. In your web browser, navigate to `http://localhost:8080/`.
+2. Click on the upper-left "hamburger menu" (three horizontal lines),
+    and then click on `Simulations`.
+3. In the `Power System Configuration` tab, change the `Line name` to 
+    `test9500new` via the drop-down menu.
+4. Click on the `Simluation Configuration` tab, and do the following:
+    1. Change `Start time` to desired simulation start time.
+    2. Change `Duration` to be longer than the default 120 seconds.
+    3. In the `Model creation configuration` area, change the line that
+        reads `"use_houses": false` to `"use_houses": true`.
+5. Click on the `Application Configuration` tab. In the
+    `Application name` drop-down menu, select `PyVVO`.
+6. Click on the `Test Configuration` tab. Add any desired events.
+7. Click `Submit` in the lower left of the pop-up window.
+8. After the visualization has loaded, you should see a one-line diagram
+    of the system. After the one-line is visible, it's time to set up 
+    plots. Click on the jagged-line icon to the right of the "play button,"
+    and do the following:
+    1. In the `Plot name` form, type in `feeder_reg1`
+    2. This should "un-grey" the `Component type` drop down. Select `Tap`
+        from this menu.
+    3. Now the `Component` drop down should be usable. The entry form at
+        the top can be used for filtering. Type in `feeder_reg1`. From
+        the drop-down, select `feeder_reg1a (A)`.
+    4. In the `Phases` drop down, select `A` and click `Add`.
+    5. Click `Add component`
+    6. Click on `Component`, filter by `feeder_reg1`, and select
+        `feeder_reg1b (B)`. Select phase `B` in the `Phases` drop down,
+        click `Add`, then click `Add component`.
+    7. Repeat for phase `C`.
+    8. Repeat all the steps above for all available regulators. At the
+        time of writing, they are:
+        1. feeder_reg2
+        2. feeder_reg3
+        3. vreg2
+        4. vreg3
+        5. vreg4
+    9. At present, the visualization does not support adding plots for 
+        capacitor states (open vs. closed). If those plots ever become
+        available, they'll be useful.
+    10. Add a plot to track feeder power by doing the following:
+        1. Use `power` for `Plot Name`
+        2. Select `Power` from `Component type` drop-down and then check
+            the `Magnitude` box.
+        3. Type in `hvmv_sub` in the `Component` drop-down and select
+            `hvmv_sub_hsb (A, B, C)`.
+        4. Click on all three phases in the `Phases` drop-down, click
+            `Add`, then click `Add component`.
+    11. We're done. Click `Done` in the lower left.
+9. Start the simulation by clicking on the "play button" in the upper right.
+         
+### Viewing PyVVO Logs As Simulation Proceeds
+As soon as you've started a simulation involving PyVVO, it's nice to 
+view the logs as they're emitted to see what PyVVO is up to. This is
+also where you'll see evidence that PyVVO has handled an event. To get
+the logs going, open up a new terminal, and do the following:
+1. Execute `docker container ls | grep pyvvo`.
+2. From that output, copy the container ID associated with `gridappsd/pyvvo:latest`.
+    The container ID is the 12 character alphanumeric string on the far
+    left, e.g. `d2c2ec59696b`.
+3. Execute `docker logs -f <container ID goes here>`
+4. Watch the logs roll in.
+
+### Configuring PyVVO
+TODO
 
 ## Developer Information and Set Up
 This section will describe what's needed to get set up to work on PyVVO.
