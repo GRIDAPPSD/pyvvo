@@ -178,6 +178,12 @@ the logs going, open up a new terminal, and do the following:
 3. Execute `docker logs -f <container ID goes here>`
 4. Watch the logs roll in.
 
+Note that a slightly more detailed version of the log can also be found
+within the PyVVO container at `/pyvvo/pyvvo/pyvvo.log`. As opposed to 
+the console log, the file version also contains module name, function
+name, and line number. This is configurable via `log_config.json`,
+though most users will find no reason to tweak log configuration.
+
 ### Configuring PyVVO
 PyVVO has three configuration files, all of which can be found in the 
 `pyvvo` directory of this repository:
