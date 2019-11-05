@@ -1129,10 +1129,10 @@ class _Evaluator:
                 GridLAB-D hasn't "settled" yet.
         """
         # Create the query.
-        q_low = "SELECT SUM(({nom_v} - {mag_col}) * {penalty}) as penalty" \
+        q_low = "SELECT SUM(({low_v} - {mag_col}) * {penalty}) as penalty" \
                 " FROM {table} WHERE ({mag_col} < {low_v} " \
                 "AND {time_col} > '{starttime}')".format(
-                    nom_v=TRIPLEX_NOMINAL_VOLTAGE, mag_col=TRIPLEX_PROPERTY_DB,
+                    mag_col=TRIPLEX_PROPERTY_DB,
                     penalty=CONFIG['costs']['voltage_violation_low'],
                     table=self.triplex_table, low_v=TRIPLEX_LOW_VOLTAGE,
                     starttime=self.starttime, time_col=TIME_COL
@@ -1149,10 +1149,10 @@ class _Evaluator:
             - The first time step is skipped as it's unreliable -
                 GridLAB-D hasn't "settled" yet.
         """
-        q_high = "SELECT SUM(({mag_col} - {nom_v}) * {penalty}) as penalty" \
+        q_high = "SELECT SUM(({mag_col} - {high_v}) * {penalty}) as penalty" \
                  " FROM {table} WHERE ({mag_col} > {high_v} " \
                  "AND {time_col} > '{starttime}')".format(
-                    nom_v=TRIPLEX_NOMINAL_VOLTAGE, mag_col=TRIPLEX_PROPERTY_DB,
+                    mag_col=TRIPLEX_PROPERTY_DB,
                     penalty=CONFIG['costs']['voltage_violation_high'],
                     table=self.triplex_table, high_v=TRIPLEX_HIGH_VOLTAGE,
                     starttime=self.starttime, time_col=TIME_COL

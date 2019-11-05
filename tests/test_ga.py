@@ -1176,7 +1176,7 @@ class EvaluatorTestCase(unittest.TestCase):
 
         # Do a fragile hard-coded assertion.
         self.assertEqual(p.call_args[1]['query'],
-                         ("SELECT SUM((240 - measured_voltage_12_mag) * 2) "
+                         ("SELECT SUM((228.0 - measured_voltage_12_mag) * 2) "
                           "as penalty FROM triplex_23 WHERE "
                           "(measured_voltage_12_mag < 228.0 AND "
                           "t > '2013-04-01 12:00:00')"))
@@ -1195,8 +1195,8 @@ class EvaluatorTestCase(unittest.TestCase):
         # Do a fragile hard-coded assertion.
         self.assertEqual(p.call_args[1]['query'],
                          (
-                             "SELECT SUM((measured_voltage_12_mag - 240) * 3) "
-                             "as penalty FROM triplex_23 WHERE "
+                             "SELECT SUM((measured_voltage_12_mag - 252.0) * "
+                             "3) as penalty FROM triplex_23 WHERE "
                              "(measured_voltage_12_mag > 252.0 AND "
                              "t > '2013-04-01 12:00:00')"))
 
