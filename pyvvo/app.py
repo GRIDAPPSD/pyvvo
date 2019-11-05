@@ -173,6 +173,48 @@ def main(sim_id, sim_request):
         platform.send_command(sim_id=sim_id, **cap_cmd)
         LOG.info('Commands sent in.')
 
+        # Verify that the equipment was properly updated. At present,
+        # the simulator emits messages every 3 simulation seconds. So,
+        # using a wait_duration of 12 will wait 3 time steps. Using a
+        # timeout of 5 essentially gives a 2 second grace period for
+        # all the processing in between simulation time steps.
+        # TODO: regulator and capacitor command verification should be
+        #   done concurrently, rather than in series like this.
+        # TODO: Attempt to command inoperable equipment to bring it
+        #   back into the fold.
+        inoperable_regs = _verify_commands(mgr=reg_mgr, eq_type='regulator',
+                                           wait_duration=12, timeout=5)
+        inoperable_caps = _verify_commands(mgr=cap_mgr, eq_type='capacitor',
+                                           wait_duration=12, timeout=5)
+
+
+def _verify_commands(mgr: equipment.EquipmentManager, eq_type: str,
+                     wait_duration=12, timeout=5):
+    """Helper to verify commands and log results."""
+    inoperable_eq = mgr.verify_command(wait_duration=wait_duration,
+                                       timeout=timeout)
+
+    if inoperable_eq is None:
+        LOG.info(f'Commands for {eq_type}(s) have been confirmed to have '
+                 'been successfully carried out in the platform.')
+    else:
+        state_str_list = []
+        equipment.loop_helper(
+            eq_dict=inoperable_eq, func=_add_state_string_to_list,
+            str_list=state_str_list)
+        full_str = '\n'.join(state_str_list)
+        LOG.warning(f'The following {eq_type}(s) did not respond to the '
+                    f'given commands!\n{full_str}')
+
+    return inoperable_eq
+
+
+def _add_state_string_to_list(eq: equipment.EquipmentSinglePhase,
+                              str_list: list):
+    state_str = (f'Name: {eq.name}, Actual State: {eq.state}, Expected State: '
+                 + f'{eq.expected_state}.')
+    str_list.append(state_str)
+
 
 def _prep_glm(glm_mgr: GLMManager):
     """Perform all necessary updates to the .glm before running the
