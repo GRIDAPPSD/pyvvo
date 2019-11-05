@@ -38,34 +38,41 @@ not returned to their pre-event state, we need to re-trigger
 optimization.~~
 
 ## Command Tracking
-### Summary
-One event that the application needs to handle is unresponsive
-equipment. E.g., you send a tap position command to a regulator but it
-doesn't change it's position.
+This is more than halfway complete - equipment commands that are sent 
+out are now always verified to have taken hold. If they don't, the 
+equipment is marked as inoperable. The remaining step would be to 
+discover when the equipment is back in service. At present, the only 
+feasible way to do this would be to repeatedly attempt to command it
+until it responds.
 
-### Details
-There are a few pieces to this puzzle. First is, of course, detection.
+### ~~Summary~~
+~~One event that the application needs to handle is unresponsive
+equipment. E.g., you send a tap position command to a regulator but it
+doesn't change it's position.~~
+
+### ~~Details~~
+~~There are a few pieces to this puzzle. First is, of course, detection.
 We need a mechanism for monitoring equipment that has recently had a 
 command sent out. This could involve augmenting the EquipmentManager to
 be the one that actually sends out commands related to its equipment,
 and then watches for the change. What I don't like about this is the 
-EquipmentManager then needs to be capable of querying the platform.
+EquipmentManager then needs to be capable of querying the platform.~~
 
-Perhaps a better approach would be to make some sort of class which has
+~~Perhaps a better approach would be to make some sort of class which has
 both a PlatformManager and an EquipmentManager as attributes, and
-ensures that those changes actually happen.
+ensures that those changes actually happen.~~
 
-After detection has occurred, we need to flag the equipment as out of 
+~~After detection has occurred, we need to flag the equipment as out of 
 service. This could be as simple as adding some sort of flag to
 EquipmentSinglePhase tracking if the object is currently operable or 
 not. The EquipmentSinglePhase class already has a "controllable"
 attribute, but I don't think we want to overload that one, as that 
 currently indicates whether or not the equipment has a controller, not
-whether or not the control is working.
+whether or not the control is working.~~
 
-After detection and flagging, the optimization needs to be halted and 
+~~After detection and flagging, the optimization needs to be halted and 
 re-triggered. The genetic algorithm will need to be modified so that it
-only attempts to control equipment which is "operable"/"working."
+only attempts to control equipment which is "operable"/"working."~~
 
 ## Inverters/General distributed generation (DG)
 NOTE: This is complete for inverters, but additional work is needed to
