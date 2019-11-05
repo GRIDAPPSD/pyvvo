@@ -15,12 +15,27 @@ prerequisite software requirements are light:
 4. Git. At present, I'm running `git version 2.17.1`.
 
 ### GridAPPS-D Platform Set Up and Configuration
-1. Clone the `gridappsdd-docker` repository, found [here](https://github.com/GRIDAPPSD/gridappsd-docker).
-2. Change directories into the repository. Assuming you cloned it into
-    `/home/<user>/git/gridappsd-docker`, simply execute `cd ~/git/gridappsd-docker`. 
-3. Check out the branch `pyvvo_config` via `git checkout pyvvo_config`.
-4. Run `git pull`.
-5. Start the platform. These directions assume version `v2019.10.0`. Simply
+These directions assume you performed the [Post-installation steps for Linux](https://docs.docker.com/install/linux/linux-postinstall/)
+when installing Docker.
+
+1. Open up a bash terminal. The following commands will all be run 
+    "within" this terminal/shell.
+2. Create `git` directory inside your home directory by executing
+    `mkdir ~/git`.
+3. Change directories into `~/git` via `cd ~/git`.
+4. Clone the `pyvvo` repository, which can be found [here](https://github.com/GRIDAPPSD/pyvvo).
+    I.e., execute `git clone https://github.com/GRIDAPPSD/pyvvo.git`
+5. Change directories into the repository via `cd ~/git/pyvvo`.
+6. Check out the `develop` branch via `git checkout develop`.
+7. Execute `git pull`.
+8. Change directories via `cd ~/git`.
+9. Clone the `gridappsdd-docker` repository, found [here](https://github.com/GRIDAPPSD/gridappsd-docker).
+    I.e., execute `git clone https://github.com/GRIDAPPSD/gridappsd-docker.git`
+10. Change directories into the repository via `cd ~/git/gridappsd-docker`. 
+11. Check out the branch `pyvvo_config` via `git checkout pyvvo_config`.
+12. Run `git pull`.
+13. Change directories back to `~/git` by executing `cd ~/git`.
+14. Start the platform. These directions assume version `v2019.10.0`. Simply
     execute `./run.sh -t v2019.10.0`. You should see something like the
     following:
     
@@ -70,7 +85,17 @@ prerequisite software requirements are light:
      
     gridappsd@88a320b6dd3f:/gridappsd$ 
     ```
-6. You are now "inside" the main gridappsd docker container. To finalize
+    Note that you may get an error message like so:
+    ```
+    Getting blazegraph status
+    Error contacting http://localhost:8889/bigdata/ (000)
+    Exiting 
+    ```
+    In that case, simply try executing the command again
+    (`./run.sh -t v2019.10.0`). In my experience, it seems to always work
+    after the second attempt.
+   
+15. You are now "inside" the main gridappsd docker container. To finalize
     startup, execute `./run-gridappsd.sh`. If all goes well, you should
     see the following at the end of a wall of annoying java messages:
     ```
@@ -154,6 +179,69 @@ the logs going, open up a new terminal, and do the following:
 4. Watch the logs roll in.
 
 ### Configuring PyVVO
+PyVVO has three configuration files, all of which can be found in the 
+`pyvvo` directory of this repository:
+- `log_config.json`
+- `platform_config.json`
+- `pyvvo_config.json`
+
+Most users will have no desire or need to tweak either `log_config.json`
+or `platform_config.json`, so these will not be discussed in much 
+detail. 
+
+#### log_config.json
+`log_config.json` is used to configure PyVVO's logging - the 
+level (e.g. `DEBUG` vs `INFO`), format, and file for the logs can be
+modified. Note that while there is a log file, log records are also
+emitted to stdout/stderr.
+
+#### platform_config.json
+`platform_config.json` is the application configuration file required by
+the GridAPPS-D platform. It defines the application name, prerequisite
+services, etc. A symlink to this file is created at /appconfig within
+the PyVVO Docker container.
+
+#### pyvvo_config.json
+`pyvvo_config.json` is the file users may want to tweak, as it has many
+parameters which can be tweaked which alter how PyVVO operates. At 
+present, this file is loaded at application startup, meaning that 
+changes **will not take affect until the next run of the application.**
+This could be modified in the future to allow for mid-run configuration.
+
+##### Modifying pyvvo_config.json
+In the initial setup you cloned the `pyvvo` repository for the sole 
+purpose of having `pyvvo_config.json` mapped into the PyVVO Docker 
+container via a volume. The bottom line is this:
+
+When you modify your local copy of the file at
+`~/git/pyvvo/pyvvo/pyvvo_config.json`, the change is instantly made 
+inside PyVVO's Docker container (while the platform is running, that is).
+
+So, simply use your favorite editor to tweak the file locally (i.e. on
+your host machine). Note that removing any entries or re-arranging
+things will break the application, as will **incorrect json syntax**.
+So, you'd be better off in the long run  using an editor that tells you
+when you goofed up the syntax.
+
+##### Description of Parameters in pyvvo_config.json
+Each sub-heading below will discuss top-level keys and their associated
+parameters.
+
+###### database
+Most users will never need to change any database fields.
+- triplex_table: Prefix for MySQL tables used to store information
+    related to triplex loads (e.g. voltage).
+- substation_table: Prefix for tables used to store head-of-feeder 
+    information (e.g. power magnitude and angle).
+- query_buffer_limit: Parameter used by GridLAB-D for MySQL submissions.
+    See [here](http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql)#query_buffer_limit)
+    for more details.
+- max_connections: Maximum number of allowed database connections. Be 
+    sure this is higher than the `ga/population_size` parameter.
+
+###### ga
+The genetic algorithm in PyVVO has many tweakable parameters that affect
+how the application behaves. 
 TODO
 
 ## Developer Information and Set Up
