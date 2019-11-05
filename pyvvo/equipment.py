@@ -1035,6 +1035,9 @@ class EquipmentManager:
     def verify_command(self, wait_duration: Union[int, float],
                        timeout: Union[int, float] = 10) -> Union[dict, None]:
         """Verify equipment changes its state to match expected_state.
+        If the state does not match the expected state after the given
+        wait_duration, the equipment's 'operable' parameter will be
+        set to False.
 
         :param wait_duration: How long to wait (seconds in simulation
             time) before concluding that an equipment's expected_state
@@ -1047,7 +1050,9 @@ class EquipmentManager:
 
         :returns: None if all equipment's state and expected_state
             parameters match. Otherwise, a dictionary of the same form
-            as self.eq_dict will be returned.
+            as self.eq_dict will be returned. All equipment in this
+            dictionary will have had their 'operable' parameter set to
+            False.
         """
         # Extract the last simulation time.
         old_t = self.last_time
@@ -1066,7 +1071,7 @@ class EquipmentManager:
             # Loop over equipment, and check if the state matches the
             # expected state.
             inoperable = conditional_loop_helper(
-                eq_dict=self.eq_dict, func=self._expected_not_equal_to_actual)
+                eq_dict=self.eq_dict, func=_expected_not_equal_to_actual)
 
             # If the length of no_match is None, we're good to go.
             if len(inoperable) == 0:
@@ -1076,7 +1081,12 @@ class EquipmentManager:
             if delta >= wait_duration:
                 break
 
-        # If we're here, we have inoperable equipment.
+        # If we're here, we have inoperable equipment. Set the
+        # inoperable equipment to have their 'operable' parameter be
+        # False.
+        loop_helper(eq_dict=inoperable, func=_set_operable_to_false)
+
+        # Return the dictionary of inoperable equipment.
         # noinspection PyUnboundLocalVariable
         return inoperable
 
@@ -1100,17 +1110,24 @@ class EquipmentManager:
 
         return delta
 
-    @staticmethod
-    def _expected_not_equal_to_actual(eq: EquipmentSinglePhase):
-        """Helper which returns True if a given piece of equipment's
-        expected_state does not match its state. Will return False if
-        the equipment's state or expected_state is None, as this check
-        is not applicable in that case.
-        """
-        if (eq.state is None) or (eq.expected_state is None):
-            return False
-        else:
-            return eq.expected_state != eq.state
+
+def _expected_not_equal_to_actual(eq: EquipmentSinglePhase):
+    """Helper which returns True if a given piece of equipment's
+    expected_state does not match its state. Will return False if
+    the equipment's state or expected_state is None, as this check
+    is not applicable in that case.
+    """
+    if (eq.state is None) or (eq.expected_state is None):
+        return False
+    else:
+        return eq.expected_state != eq.state
+
+
+def _set_operable_to_false(eq: EquipmentSinglePhase):
+    """Helper which sets a given piece of equipment's 'operable'
+    parameter to False.
+    """
+    eq.operable = False
 
 
 class InverterEquipmentManager(EquipmentManager):

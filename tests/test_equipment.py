@@ -409,22 +409,22 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         eq.state = None
 
         # Ensure with a state of None we get a False return.
-        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+        self.assertFalse(equipment._expected_not_equal_to_actual(eq))
 
         # Flop 'em, and should still get None.
         eq.expected_state = None
         eq.state = 5
 
-        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+        self.assertFalse(equipment._expected_not_equal_to_actual(eq))
 
         # With different settings, we should get True.
         eq.expected_state = 6
 
-        self.assertTrue(self.reg_mgr._expected_not_equal_to_actual(eq))
+        self.assertTrue(equipment._expected_not_equal_to_actual(eq))
 
         # With the same settings, we should get False.
         eq.state = 6
-        self.assertFalse(self.reg_mgr._expected_not_equal_to_actual(eq))
+        self.assertFalse(equipment._expected_not_equal_to_actual(eq))
 
     def test_wait_and_get_delta(self):
         """Test _wait_and_get_delta."""
@@ -549,6 +549,12 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         # Output should match our single_eq_dict.
         self.assertDictEqual(single_eq_dict, actual_dict)
+
+        # The equipment should be inoperable.
+        def is_inoperable(eq_in):
+            self.assertFalse(eq_in.operable)
+
+        equipment.loop_helper(eq_dict=actual_dict, func=is_inoperable)
 
 
 class EquipmentManagerCapacitorTestCase(unittest.TestCase):
