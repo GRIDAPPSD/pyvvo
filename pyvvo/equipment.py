@@ -872,12 +872,12 @@ class EquipmentManager:
         for m in msg:
             # Grab mrid and value.
             meas_mrid = m['measurement_mrid']
-            value = m['value']
+            state = self._get_state_from_msg(m)
 
             # Maybe update the state of this equipment. A True return
             # indicates state of the equipment changed, a False
             # indicates it did not.
-            if self._update_state(meas_mrid=meas_mrid, state=value):
+            if self._update_state(meas_mrid=meas_mrid, state=state):
                 any_change = True
 
         # If any change of state occurred, inform the listeners.
@@ -887,6 +887,20 @@ class EquipmentManager:
         # Toggle the update_state_event indicating this method has
         # completed.
         self._toggle_update_state_event()
+
+    @staticmethod
+    def _get_state_from_msg(msg: dict):
+        """Helper to extract state from a measurement message entry.
+        The purpose of this method is to make it easy to subclass this
+        class without needing to re-write update_state.
+
+        This default implementation extracts 'value' measurements -
+        e.g. regulator tap position, capacitor switch state, or switch
+        state.
+
+        :param msg: Dictionary with the field 'value'.
+        """
+        return msg['value']
 
     def _toggle_update_state_event(self):
         """Simple helper to set and clear update_state_event."""
@@ -1136,47 +1150,23 @@ class InverterEquipmentManager(EquipmentManager):
     commands will be different.
     """
 
-    @utils.wait_for_lock
-    def update_state(self, msg, sim_dt):
-        """Given a message from a gridappsd_platform SimOutRouter,
-        update equipment state.
+    @staticmethod
+    def _get_state_from_msg(msg: dict) -> tuple:
+        """In this case, we want P and Q. So, we'll extract the VA
+        measurement, and convert to rectangular form.
 
-        :param msg: list passed to this method via a SimOutRouter's
-            "_on_message" method.
-        :param sim_dt: datetime.datetime object passed to this method
-            via a SimOutRouter's "_on_message" method.
+        :param msg: Dictionary with the fields 'magnitude' and 'angle'.
+
+        :returns: Tuple of form (p, q) in Watts and vars, respectively
+            (assuming the platform continues emitting measurements in
+            SI units).
         """
-
-        # Type checking:
-        if not isinstance(msg, list):
-            raise TypeError('msg must be a list!')
-
-        # The following results in a "double loop" but will prevent us
-        # from calling get_complex for every measurement, and instead
-        # do operations in a vectorized manner.
-
-        mag_angle = np.array([[m['magnitude'], m['angle']] for m in msg])
-        rect = utils.get_complex(r=mag_angle[:, 0], phi=mag_angle[:, 1],
+        # Platform returns angles in degrees.
+        rect = utils.get_complex(r=msg['magnitude'], phi=msg['angle'],
                                  degrees=True)
 
-        # Initialize flag for tracking if any change occurred.
-        any_change = False
-
-        # Iterate over the message and update equipment.
-        for idx, m in enumerate(msg):
-            # Grab mrid, magnitude, and angle.
-            meas_mrid = m['measurement_mrid']
-
-            # Create the state.
-            state = (rect[idx].real, rect[idx].imag)
-
-            # Update the state.
-            if self._update_state(meas_mrid=meas_mrid, state=state):
-                any_change = True
-
-        # Call callbacks if needed.
-        if any_change:
-            self._call_callbacks(sim_dt=sim_dt)
+        # Return a tuple of values.
+        return rect.real, rect.imag
 
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
