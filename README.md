@@ -241,8 +241,155 @@ Most users will never need to change any database fields.
 
 ###### ga
 The genetic algorithm in PyVVO has many tweakable parameters that affect
-how the application behaves. 
-TODO
+how the application behaves. Most users will likely only ever tweak the 
+`population_size`, `generations`, `log_interval`, and `processes`.
+Under the `ga` key, there are the following items:
+- `probabilities`: object containing several probabilities related to 
+the operation of the genetic algorithm:
+    - `mutate_individual`: Probability that a "child" will have its
+    chromosome randomly mutated.
+    - `mutate_bit`: If an individual is undergoing mutation, probability
+    of random mutation for each bit in the chromosome.
+    - `crossover`: Given two parents, the probability crossover is 
+    performed. If crossover is not performed, the children will be
+    mutated versions of the parents.
+- `intervals`: object containing several intervals related to the
+operation of the genetic algorithm:
+    - `sample`: Interval (seconds) for which [GridLAB-D recorders](http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql))
+    sample their respective measurements. This parameter is directly 
+    used as the `interval` parameters for GridLAB-D MySQL recorders.
+    Note that a lower value of `sample` leads to a higher sampling
+    frequency, which can increase algorithm runtime by increasing 
+    input/output requirements. Additionally, this parameter has some
+    impact on the `costs` (discussed in that section). 
+    - `minimum_timestep`: [Minimum time step](http://gridlab-d.shoutwiki.com/wiki/Minimum_timestep)
+    used in GridLAB-D simulation. This should always be less than the
+    value of `sample`. Larger values of `minimum_timestep` can lead to
+    faster simulation runtime, but one must be careful that the setting
+    of this parameter does not mess up modeling of components which 
+    change over time. At this point in time, PyVVO's GridLAB-D
+    simulations do not have objects which change state over time (i.e.
+    regulators are in manual mode, inverters have a constant output,
+    etc.).
+    - `model_run`: Simulation duration (seconds) for the GridLAB-D 
+    models. The "stoptime" of the [GridLAB-D clock](http://gridlab-d.shoutwiki.com/wiki/Clock)
+    will be set in such a way to ensure simulation duration matches 
+    this parameter.
+- `population_size`: Number of "individuals" in the "population" for the
+genetic algorithm. A higher number will often result in better solutions,
+but at the cost of longer run-time. It is recommended that the population
+size be an integer multiple of the `processes` parameter.
+- `generations`: Number of "generations" to run for the genetic algorithm.
+A higher number will often result in better solutions, but at the cost of
+longer run-time. 
+- `top_fraction`: Used to determine how many of the top individuals to 
+carry over between generations via elitism. The number of individuals
+is computed as `ceil(population_size * top_fraction)`.
+- `total_fraction`: Used to determine how many total individuals to 
+carry over between generations. These individuals will all be eligible
+for crossover. The total number of individuals is computed as 
+`ceil(population_size * total_fraction)`.
+- `tournament_fraction`: Used to determine how many individuals compete
+in each tournament to be selected for crossover. The tournament size
+is computed as `ceil(population_size * tournament_fraction)`.
+- `log_interval`: How often to log genetic algorithm progress in seconds.
+- `processes`: Number of processes to use for the genetic algorithm. If
+PyVVO is running on the same machine as the platform, I would recommend
+setting this parameter to be number of processors/cores minus two. E.g.
+6 processes on an 8 core machine.
+- `process_shutdown_timeout`: How long to wait (in seconds) for each
+process to shut down after the genetic algorithm is complete before
+raising a TimeoutError.
+
+###### limits
+The `limits` indicate the value at which penalties are applied in the 
+genetic algorithm. The following parameters are available:
+- `voltage_high`: Voltage in per unit above which over-voltage
+violation penalties are incurred.  
+- `voltage_low`: Voltage in per unit below which under-voltage
+violation penalties are incurred.
+- `power_factor_lag`: The minimum lagging power factor, as measured at
+the head of the feeder, before power factor penalties are incurred.
+- `power_factor_lead`: The minimum leading power factor, as measured at
+the head of the feeder, before power factor penalties are incurred.
+
+###### costs
+The `costs` are tightly coupled with the `limits` as mentioned above.
+These `costs` are effectively weights in the objective function of the
+genetic algorithm. A user can tweak these parameters to dramatically
+alter the behavior of the application. For example, setting all `costs`
+parameters to zero *except* for `energy` will cause the application to
+purely minimize total energy consumption. Conversely, setting all 
+parameters to zero *except* for `voltage_violation_high` and 
+`voltage_violation_low` will cause the application to purely minimize
+voltage violations. 
+
+The following parameters are available:
+- `capacitor_switch`: Penalty incurred to change the state (open or close)
+on a single phase of a capacitor. E.g., closing all three phases on a 
+capacitor would incur a penalty of `3 * capacitor_switch`.
+- `regulator_tap`: Penalty incurred to change a single regulator tap
+on an individual phase by one position. E.g., changing phase B on a 
+regulator from position 5 to 7 would incur a penalty of
+`3 * regulator_tap`.
+- `energy`: Cost of energy. The total penalty will be computed as total
+energy that is consumed in the feeder for the duration of the simulation
+times the `energy` cost.
+- `voltage_violation_high`: This penalty is applied for each recorded
+value which is above the specified `voltage_high` parameter. At this
+point in time, PyVVO only looks at 120/240V customers for determining
+voltage violations. For an individual violation, the incurred penalty
+is computed as
+`(actual voltage - voltage_high) * voltage_violation_high` (if and 
+only if the actual voltage is above `voltage_high`). In this
+way, the worse the voltage violation, the higher the penalty. It's worth
+noting that the calculated penalty is sensitive to the `intervals/sample`
+parameter: a higher sample rate (lower value of `intervals/sample`),
+will lead to more samples being taken. Since the penalty is computed 
+for each sample, more samples leads to a higher penalty. However, this
+can be combated by simply reducing the value of `voltage_violation_high`
+rather than increasing `intervals/sample`. 
+- `voltage_violation_low`: See discussion for `voltage_violation_high`.
+In this case, the penalty is computed as 
+`(voltage_low - actual voltage) * voltage_violation_low`.
+- `power_factor_lag`: Power factor costs/penalties are associated purely
+with the head of the feeder, and power factor is computed as a single
+value for all three phases: i.e. power factor is not computed for
+each phase individually. This cost should be read as "penalty per 0.01
+deviation from the `power_factor_lag` parameter." Note this penalty is
+only applied to lagging power factors. For example, say that an
+individual power factor measurement (well, power factor is computed, but
+you get the idea) comes out to be 0.96 lagging and the
+`limits/power_factor_lag` parameter is set to be 0.98. If the
+`costs/power_factor_lag` parameter is set 
+to be 0.05, the penalty would be computed as:
+`(0.98 - 0.96) * 100 * 0.05`. Similar to the discussion provided for
+`voltage_violation_high`, the penalty is incurred for every recorded 
+measurement in the GridLAB-D simulation, so the value of
+`intervals/sample` can impact the total penalty. 
+- `power_factor_lead`: See `power_factor_lag`, but replace every instance
+of "lag" with "lead."
+
+###### load_model
+An important component of PyVVO's operation is its predictive load
+modeling. The parameters here can change how that load modeling is 
+performed.
+- `averaging_interval`: This should match the averaging interval in the
+historic data which PyVVO uses for creating its data-driven load models.
+For example, if the historic data is reported as a fifteen minute average,
+`averaging_interval` should be `"15Min"`. This string must be a valid
+"Date Offset" in Pandas. You can find a table [here](https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects).
+- `window_size_days`: How many days into the past PyVVO reaches when 
+obtaining historic data to perform load modeling. In our pending HICSS
+publication, we used two weeks, a.k.a. 14 days.
+- `filtering_interval_minutes`: How many minutes plus/minus the current
+simulation time (or rather, the time for which the models will be used)
+for which PyVVO will include historic data for. For example, if the load
+model is intended to be used for 08:00a.m. and
+`filtering_interval_minutes` is 60, PyVVO will use data ranging from 
+07:00a.m. to 09:00a.m. (plus/minus 60 minutes) when creating the load 
+model for 08:00a.m. 
+
 
 ## Developer Information and Set Up
 This section will describe what's needed to get set up to work on PyVVO.
