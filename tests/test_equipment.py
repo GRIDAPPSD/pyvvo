@@ -281,6 +281,10 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
         # Ensure reverse values match (also fragile).
         self.assertListEqual(reverse_vals, out['reverse_values'])
 
+        # Ensure the given MRID's all correspond to tap changers.
+        tap_mrids = self.reg_df['tap_changer_mrid']
+        self.assertTrue(tap_mrids.isin(out['object_ids']).values.all())
+
         # Ensure the lengths are equal to all our single phases.
         # I'm just going to hard-code the fact that the 9500 node model
         # has 6 3-phase regs.

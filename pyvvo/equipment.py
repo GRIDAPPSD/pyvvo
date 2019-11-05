@@ -950,7 +950,7 @@ class EquipmentManager:
         except for object states.
         """
         # Nested helper function.
-        def update(eq_for, eq_rev, out):
+        def update(eq_for, eq_rev, out, reg_mrid):
             # If this equipment isn't controllable, don't build a
             # command.
             if not eq_rev.controllable:
@@ -989,7 +989,7 @@ class EquipmentManager:
                             'allowed states of (0, 1). What to do?')
 
                 # Append values to output.
-                out['object_ids'].append(eq_rev.mrid)
+                out['object_ids'].append(reg_mrid)
                 out['attributes'].append(eq_for.STATE_CIM_PROPERTY)
                 out['forward_values'].append(state_for)
                 out['reverse_values'].append(state_rev)
@@ -1020,10 +1020,12 @@ class EquipmentManager:
                         raise ValueError(m) from None
 
                     # Call our helper.
-                    update(eq_for=eq_forward, eq_rev=eq_reverse, out=output)
+                    update(eq_for=eq_forward, eq_rev=eq_reverse, out=output,
+                           reg_mrid=mrid)
             elif isinstance(forward, EquipmentSinglePhase):
                 # Call helper.
-                update(eq_for=forward, eq_rev=reverse, out=output)
+                update(eq_for=forward, eq_rev=reverse, out=output,
+                       reg_mrid=mrid)
             else:
                 raise TypeError(f'Unexpected type: {forward}.')
 
