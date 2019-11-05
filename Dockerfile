@@ -52,5 +52,8 @@ RUN BUILD_DEPS="build-essential libssl-dev python3-dev" \
 ARG PYVVO_ARCHIVE
 ADD ${PYVVO_ARCHIVE} ${PYVVO}/pyvvo
 
+# Create a symlink to the application configuration.
+RUN ln -s /pyvvo/pyvvo/pyvvo/platform_config.json /appconfig
+
 # Work from code directory.
 WORKDIR ${PYVVO}/pyvvo
