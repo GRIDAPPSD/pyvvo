@@ -1017,27 +1017,9 @@ class EquipmentManagerBuildEquipmentCommandsInvertTestCase(unittest.TestCase):
                 self.helper(invert=True)
 
 
-class PQEquipmentManagerTestCase(unittest.TestCase):
-    """Test the PQEquipmentManager."""
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.inv_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
-        with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
-            cls.inv_meas_msg = json.load(f)
-
-        # Just create a bogus datetime.
-        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
-
-        cls.inv_df = _df.read_pickle(_df.INVERTERS_9500)
-
-    def setUp(self) -> None:
-        self.inv_dict = equipment.initialize_inverters(self.inv_df)
-
-        self.mgr = \
-            equipment.PQEquipmentManager(eq_dict=self.inv_dict,
-                                         eq_meas=self.inv_meas,
-                                         meas_mrid_col='meas_mrid',
-                                         eq_mrid_col='inverter_mrid')
+# noinspection PyUnresolvedReferences
+class MethodsForPQEquipmentManager:
+    """Class to inherit from."""
 
     def test_init(self):
         """Ensure initialization occurs without errors, and that we
@@ -1045,8 +1027,8 @@ class PQEquipmentManagerTestCase(unittest.TestCase):
         """
 
         self.assertIsInstance(self.mgr, equipment.EquipmentManager)
-        self.assertIs(self.inv_meas, self.mgr.eq_meas)
-        self.assertIs(self.inv_dict, self.mgr.eq_dict)
+        self.assertIs(self.eq_meas, self.mgr.eq_meas)
+        self.assertIs(self.eq_dict, self.mgr.eq_dict)
 
         # This is a bit of a kludge, but oh well. I want to ensure that
         # the initializer is not overridden, so we'll compare the doc
@@ -1077,7 +1059,7 @@ class PQEquipmentManagerTestCase(unittest.TestCase):
         m = Mock()
         self.mgr.add_callback(m)
 
-        update_count = self.mgr.update_state(msg=self.inv_meas_msg,
+        update_count = self.mgr.update_state(msg=self.eq_meas_msg,
                                              sim_dt=self.sim_dt)
 
         self.assertGreater(update_count, 0)
@@ -1107,7 +1089,7 @@ class PQEquipmentManagerTestCase(unittest.TestCase):
         self.assertTrue(any_changed)
 
         # Make sure our fancy looping didn't screw something up.
-        for m in self.inv_meas_msg:
+        for m in self.eq_meas_msg:
             rect = utils.get_complex(r=m['magnitude'], phi=m['angle'],
                                      degrees=True)
             # Swap to load convention.
@@ -1119,6 +1101,30 @@ class PQEquipmentManagerTestCase(unittest.TestCase):
             eq = self.mgr.meas_eq_map[m['measurement_mrid']]
 
             self.assertEqual(s, eq.state)
+
+
+class PQEquipmentManagerTestCase(unittest.TestCase,
+                                 MethodsForPQEquipmentManager):
+    """Test the PQEquipmentManager."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.eq_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
+        with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
+            cls.eq_meas_msg = json.load(f)
+
+        # Just create a bogus datetime.
+        cls.sim_dt = datetime(2019, 9, 2, 17, 8)
+
+        cls.eq_df = _df.read_pickle(_df.INVERTERS_9500)
+
+    def setUp(self) -> None:
+        self.eq_dict = equipment.initialize_inverters(self.eq_df)
+
+        self.mgr = \
+            equipment.PQEquipmentManager(eq_dict=self.eq_dict,
+                                         eq_meas=self.eq_meas,
+                                         meas_mrid_col='meas_mrid',
+                                         eq_mrid_col='inverter_mrid')
 
 
 class InitializeRegulatorsTestCase(unittest.TestCase):
