@@ -46,6 +46,9 @@ INVERTER_INPUTS = {'inverter_mrid': 'mrid',
                    'controllable': 'controllable',
                    'phases': 'phase',
                    'inverter_rated_s': 'rated_s'}
+
+SYNCH_MACH_INPUTS = ['mrid', 'name', 'rated_s', 'p', 'q', 'controllable']
+
 ########################################################################
 
 ########################################################################
@@ -1456,6 +1459,63 @@ def initialize_inverters(df):
 
             # Create an inverter object.
             out[kwargs['mrid']] = InverterSinglePhase(**kwargs)
+
+    # That's it!
+    return out
+
+
+def initialize_synchronous_machines(df):
+    """Helper to initialize synchronous machines given a DataFrame with
+    machine information. The DataFrame should come from
+    sparql.SPARQLManager.query_synchronous_machines.
+
+    Assumption: all machines are balanced three-phase as noted in the
+    `documentation
+    <https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation>`_
+    """
+    # For now, we're assuming all machines are controllable.
+    # TODO: It doesn't seem there are properties to tell us this, so I
+    #   guess update this when there are?
+    df['controllable'] = True
+
+    try:
+        df['phase']
+    except KeyError:
+        # Good.
+        pass
+    else:
+        raise ValueError('Given DataFrame has a phase column. At present, '
+                         'only three phase balanced machines are supported.')
+
+    # Initialize output.
+    out = {}
+
+    # Loop over the DataFrame rows.
+    for row in df.itertuples(index=False):
+        # Get the row as a dictionary. This is not actually a private
+        # attribute:
+        # https://docs.python.org/3/library/collections.html#collections.namedtuple
+        # noinspection PyProtectedMember
+        row_dict = row._asdict()
+
+        # Convert the dictionary into a keyword argument dict.
+        kwargs = {k: row_dict[k] for k in SYNCH_MACH_INPUTS}
+
+        # Need to divide p, q, and s by three.
+        kwargs['rated_s'] = kwargs['rated_s'] / 3
+        kwargs['p'] = kwargs['p'] / 3
+        kwargs['q'] = kwargs['q'] / 3
+
+        # Initialize dictionary.
+        out[kwargs['mrid']] = dict()
+
+        # Create an machine for phases A, B, and C.
+        for p in EquipmentSinglePhase.PHASES:
+            # Overwrite the phase.
+            kwargs['phase'] = p
+
+            # Create machine.
+            out[kwargs['mrid']][p] = SynchronousMachineSinglePhase(**kwargs)
 
     # That's it!
     return out

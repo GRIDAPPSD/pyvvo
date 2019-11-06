@@ -1103,9 +1103,9 @@ class MethodsForPQEquipmentManager:
             self.assertEqual(s, eq.state)
 
 
-class PQEquipmentManagerTestCase(unittest.TestCase,
-                                 MethodsForPQEquipmentManager):
-    """Test the PQEquipmentManager."""
+class PQEquipmentManagerInverterTestCase(unittest.TestCase,
+                                         MethodsForPQEquipmentManager):
+    """Test the PQEquipmentManager for inverters."""
     @classmethod
     def setUpClass(cls) -> None:
         cls.eq_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
@@ -1863,6 +1863,39 @@ class InitializeInvertersTestCase(unittest.TestCase):
                 raise ValueError('huh?')
 
         self.assertEqual(actual_3, expected_3)
+
+
+class InitializeSynchronousMachinesTestCase(unittest.TestCase):
+    """Test initialize_synchronous_machines."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.df = _df.read_pickle(_df.SYNCH_MACH_9500)
+        cls.machines = equipment.initialize_synchronous_machines(cls.df)
+
+    def test_length(self):
+        """9500 node has 4 generators, all of which are three phase."""
+        self.assertEqual(4, len(self.machines))
+
+    def test_dict_or_machines(self):
+        """Ensure all instances are dictionaries or machines."""
+        equipment.loop_helper(self.machines, self.assertIsInstance,
+                              equipment.SynchronousMachineSinglePhase)
+
+    def test_all_controllable(self):
+        """At this point in time, all inverters are controllable."""
+        def assert_controllable(machine):
+            self.assertTrue(machine.controllable)
+
+        equipment.loop_helper(self.machines, assert_controllable)
+
+    def test_three_phase(self):
+        """All should be three phase."""
+        for mrid, d in self.machines.items():
+            self.assertIsInstance(d, dict)
+            self.assertEqual(3, len(d))
+            keys = list(d.keys())
+            for p in ['A', 'B', 'C']:
+                self.assertIn(p, keys)
 
 
 if __name__ == '__main__':
