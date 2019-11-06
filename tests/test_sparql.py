@@ -502,7 +502,10 @@ class ExpectedResults9500TestCase(unittest.TestCase):
             # (cls.s.query_switches, _df.SWITCHES_9500),
             # (cls.s.query_switch_measurements, _df.SWITCH_MEAS_9500)
             (cls.s.query_inverters, _df.INVERTERS_9500),
-            (cls.s.query_inverter_measurements, _df.INVERTER_MEAS_9500)
+            (cls.s.query_inverter_measurements, _df.INVERTER_MEAS_9500),
+            (cls.s.query_synchronous_machines, _df.SYNCH_MACH_9500),
+            (cls.s.query_synchronous_machine_measurements,
+             _df.SYNCH_MACH_MEAS_9500)
         ]
 
     def test_all(self):
