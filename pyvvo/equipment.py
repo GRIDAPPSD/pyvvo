@@ -924,8 +924,9 @@ class EquipmentManager:
         # completed.
         self._toggle_update_state_event()
 
-        self.log.info(f'Changed modeled state of {count} equipment phases '
-                      'after receiving measurements from the platform.')
+        if count > 0:
+            self.log.info(f'Changed modeled state of {count} equipment phases '
+                          'after receiving measurements from the platform.')
 
         return count
 
