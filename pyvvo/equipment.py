@@ -122,7 +122,8 @@ class EquipmentSinglePhase(ABC):
         # Phase is case insensitive. Cast to upper.
         u_phase = phase.upper()
         if u_phase not in self.PHASES:
-            m = 'phase must be on of ' + utils.list_to_string(self.PHASES, ',')
+            m = 'phase must be one of ' + utils.list_to_string(self.PHASES,
+                                                               'or')
             raise ValueError(m)
 
         self._phase = u_phase
@@ -717,6 +718,14 @@ class InverterSinglePhase(PQEquipmentSinglePhase):
     # Inverters can additionally be on secondaries. It's important
     # that S1 and S2 be upper-case here to work with the parent class.
     PHASES = ('A', 'B', 'C', 'S1', 'S2')
+
+
+class SynchronousMachineSinglePhase(PQEquipmentSinglePhase):
+    """Single phase of a synchronous machine. For now, assumed to be
+    a generator.
+    """
+    # This is what the fncs_goss_bridge uses to command the generators.
+    STATE_CIM_PROPERTY = ("RotatingMachine.p", "RotatingMachine.q")
 
 
 class EquipmentManager:

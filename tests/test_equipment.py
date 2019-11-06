@@ -1755,6 +1755,64 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
         self.assertIsNone(inverter.expected_state)
 
 
+class SynchronousMachineSinglePhaseTestCase(unittest.TestCase):
+    """Test SynchronousMachineSinglePhase."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.p = 12.5
+        cls.q = 18
+        cls.s = 100
+        cls.machine = equipment.SynchronousMachineSinglePhase(
+            mrid='abcd', name='my_inv', phase='a', controllable=True, p=cls.p,
+            q=cls.q, rated_s=cls.s)
+
+    def test_state_expected(self):
+        self.assertEqual(self.machine.state, (self.p, self.q))
+
+    def test_p_expected(self):
+        self.assertEqual(self.machine.p, self.p)
+
+    def test_q_expected(self):
+        self.assertEqual(self.machine.q, self.q)
+
+    def test_valid_state_update(self):
+        inv_copy = deepcopy(self.machine)
+        inv_copy.state = (9, 3.1)
+        self.assertEqual(inv_copy.state, (9, 3.1))
+
+    def test_init_invalid_state(self):
+        with self.assertRaisesRegex(ValueError, 'The contents of the state'):
+            # noinspection PyUnusedLocal,PyTypeChecker
+            inv = equipment.SynchronousMachineSinglePhase(
+                mrid='blah', name='bleh', phase='C', controllable=False,
+                p=3.2, q='a', rated_s=10)
+
+    def test_set_invalid_state_bad_length(self):
+        mach_copy = deepcopy(self.machine)
+        with self.assertRaisesRegex(ValueError, 'state must be a two element'):
+            mach_copy.state = (3, 6, 9)
+
+    def test_set_invalid_state_non_tuple(self):
+        mach_copy = deepcopy(self.machine)
+        with self.assertRaisesRegex(TypeError, 'state must be a two element'):
+            mach_copy.state = [13.5, -22.7]
+
+    def test_invert_states_for_commands(self):
+        self.assertFalse(self.machine.INVERT_STATES_FOR_COMMANDS)
+
+    def test_setting_state_above_limit_warns(self):
+        machine = equipment.SynchronousMachineSinglePhase(
+            mrid='abcd', name='my_inv', phase='c', controllable=True,
+            p=self.p, q=self.q, rated_s=self.s)
+
+        with self.assertLogs(logger=machine.log, level='WARN'):
+            machine.state = (self.s, self.s)
+
+        self.assertEqual((self.p, self.q), machine.state_old)
+
+        self.assertIsNone(machine.expected_state)
+
+
 class InitializeInvertersTestCase(unittest.TestCase):
     """Test initialize_inverters."""
     @classmethod
