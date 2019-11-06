@@ -204,6 +204,14 @@ class SPARQLManager:
         self.log.info('Synchronous machine information obtained.')
         return result
 
+    def query_synchronous_machine_measurements(self):
+        """Get VA measurements associated with synchronous machines."""
+        result = self._query(self.SYNCH_MACH_MEAS_QUERY.format(
+            feeder_mrid=self.feeder_mrid), to_numeric=False
+        )
+        self.log.info('Synchronous machine measurement information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -802,6 +810,8 @@ class SPARQLManager:
          "ORDER BY ?inverter_mrid ?meas_type"
          )
 
+    # TODO: This makes no effort to determine if the machine is a
+    #   generator, and doesn't check any control parameters.
     SYNCH_MACH_QUERY = PREFIX + \
         """
         
@@ -825,6 +835,28 @@ class SPARQLManager:
         }}
         GROUP BY ?mrid ?name ?rated_s ?rated_u ?p ?q
         ORDER BY ?mrid
+        """
+
+    # Get VA measurements only.
+    SYNCH_MACH_MEAS_QUERY = PREFIX + \
+        """
+        SELECT ?mach_mrid ?meas_mrid ?phase ?meas_type
+        WHERE {{
+            VALUES ?feeder_mrid {{"{feeder_mrid}"}}
+            VALUES ?meas_type {{"VA"}}
+            ?s r:type c:Analog.
+            ?s c:Measurement.measurementType ?meas_type.
+            ?s c:IdentifiedObject.mRID ?meas_mrid.
+            ?s c:Measurement.PowerSystemResource ?eq.
+            ?s c:Measurement.Terminal ?trm.
+            ?s c:Measurement.phases ?phsraw.
+            {{bind(strafter(str(?phsraw),"PhaseCode.") as ?phase)}}.
+            ?eq c:IdentifiedObject.mRID ?mach_mrid.
+            ?eq r:type c:SynchronousMachine.
+            ?eq c:Equipment.EquipmentContainer ?fdr.
+            ?fdr c:IdentifiedObject.mRID ?feeder_mrid.
+        }}
+        ORDER BY ?mach_mrid ?meas_type
         """
 
 
