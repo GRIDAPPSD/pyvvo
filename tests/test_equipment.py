@@ -1127,6 +1127,29 @@ class PQEquipmentManagerInverterTestCase(unittest.TestCase,
                                          eq_mrid_col='inverter_mrid')
 
 
+class PQEquipmentManagerSynchronousMachineTestCase(
+        unittest.TestCase, MethodsForPQEquipmentManager):
+    """Test the PQEquipmentManager for synchronous machines."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.eq_meas = _df.read_pickle(_df.SYNCH_MACH_MEAS_9500)
+        with open(_df.SYNCH_MACH_MEAS_MSG_9500, 'r') as f:
+            cls.eq_meas_msg = json.load(f)
+
+        # Y2K
+        cls.sim_dt = datetime(2000, 1, 1, 0, 0)
+
+        cls.eq_df = _df.read_pickle(_df.SYNCH_MACH_9500)
+
+    def setUp(self) -> None:
+        self.eq_dict = equipment.initialize_synchronous_machines(self.eq_df)
+        self.mgr = \
+            equipment.PQEquipmentManager(eq_dict=self.eq_dict,
+                                         eq_meas=self.eq_meas,
+                                         meas_mrid_col='meas_mrid',
+                                         eq_mrid_col='mach_mrid')
+
+
 class InitializeRegulatorsTestCase(unittest.TestCase):
     """Test initialize_regulators"""
 
