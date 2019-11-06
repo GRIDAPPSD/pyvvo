@@ -71,17 +71,17 @@ class UpdateInverterStateInGLMTestCase(unittest.TestCase):
         inv_dict = {
             'mrid1': equipment.InverterSinglePhase(
                 mrid='mrid1', name=name_1_cim, phase='S2',
-                controllable=True, p=p1, q=q1),
+                controllable=True, p=p1, q=q1, rated_s=100),
             'mrid2': {
                 'A': equipment.InverterSinglePhase(
                     mrid='mrid2', name=name_2_cim, phase='A',
-                    controllable=True, p=p2, q=q2),
+                    controllable=True, p=p2, q=q2, rated_s=100),
                 'B': equipment.InverterSinglePhase(
                     mrid='mrid2', name=name_2_cim, phase='B',
-                    controllable=True, p=p2, q=q2),
+                    controllable=True, p=p2, q=q2, rated_s=100),
                 'C': equipment.InverterSinglePhase(
                     mrid='mrid2', name=name_2_cim, phase='C',
-                    controllable=True, p=p2, q=q2),
+                    controllable=True, p=p2, q=q2, rated_s=100),
             }
         }
 
@@ -117,7 +117,7 @@ class UpdateInverterStateInGLMTestCase(unittest.TestCase):
         inv_dict = {
             'mrid': equipment.InverterSinglePhase(
                 mrid='mrid', name='no_match', phase='s2', controllable=True,
-                p=12, q=3
+                p=12, q=3, rated_s=20
             )
         }
 

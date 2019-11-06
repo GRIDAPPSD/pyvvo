@@ -9,7 +9,7 @@ from threading import Lock, Event
 from weakref import WeakSet
 from typing import Any, Callable
 import datetime
-from typing import Union
+from typing import Union, List
 
 # Third party:
 import pandas as pd
@@ -41,10 +41,11 @@ CAP_INPUTS = ['name', 'mrid', 'phase', 'mode', 'controllable']
 # TODO: inverter_mrid or phase_mrid?
 INVERTER_INPUTS = {'inverter_mrid': 'mrid',
                    'inverter_name': 'name',
-                   'inverter_p': 'p',
-                   'inverter_q': 'q',
+                   'phase_p': 'p',
+                   'phase_q': 'q',
                    'controllable': 'controllable',
-                   'phases': 'phase'}
+                   'phases': 'phase',
+                   'inverter_rated_s': 'rated_s'}
 ########################################################################
 
 ########################################################################
@@ -629,21 +630,16 @@ class SwitchSinglePhase(EquipmentSinglePhase):
             raise TypeError('state must None or one of {}'.format(self.STATES))
 
 
-class InverterSinglePhase(EquipmentSinglePhase):
-    """Single phase inverter. This does not quite fit the mold since it
-    essentially has two states we care about: active and reactive power.
+# noinspection PyAbstractClass
+class PQEquipmentSinglePhase(EquipmentSinglePhase):
+    """ABSTRACT class for representing equipment whose state includes
+    active power (p) and reactive power (q), and the magnitude of the
+    apparent power must not exceed some rating.
     """
 
-    # Our other classes only have a single property... we'll have to see
-    # how to manage this.
-    STATE_CIM_PROPERTY = ("PowerElectronicsConnection.p",
-                          "PowerElectronicsConnection.q")
-
-    # Inverters can additionally be on secondaries. It's important
-    # that S1 and S2 be upper-case here to work with the parent class.
-    PHASES = ('A', 'B', 'C', 'S1', 'S2')
-
-    def __init__(self, mrid, name, phase, controllable, p, q, operable=True):
+    def __init__(self, mrid: str, name: str, phase: str, controllable: bool,
+                 p: Union[int, float], q: Union[int, float],
+                 rated_s: Union[int, float], operable: bool = True):
         # TODO: Add more properties later (e.g. rated power, etc.).
         # Get log.
         self.log = logging.getLogger(self.__class__.__name__)
@@ -652,11 +648,18 @@ class InverterSinglePhase(EquipmentSinglePhase):
         super().__init__(mrid=mrid, name=name, phase=phase,
                          controllable=controllable, operable=operable)
 
+        # Set rated_s.
+        self._rated_s = rated_s
+
         # Set the state.
         self.state = (p, q)
 
     def _check_state(self, value):
-        """States must be 2 item tuples of (p, q)."""
+        """States must be 2 item tuples of (p, q), and the magnitude of
+        the resulting apparent power (s) must not exceed the rated
+        apparent power magnitude.
+        """
+        # Start by ensuring the value is a valid tuple of two elements.
         if not isinstance(value, tuple):
             raise TypeError('state must be a two element tuple of (p, q).')
 
@@ -676,8 +679,18 @@ class InverterSinglePhase(EquipmentSinglePhase):
                 raise ValueError('Contents of the state tuple should be '
                                  'floats. float({}) != {}.'.format(v, f_v))
 
-        # TODO: Ensure inverter is capable of given state. I.e., ensure
-        #   |p + jq| < |rated s|
+        # Now ensure that |p + jq| <= |rated_s|
+        p = value[0]
+        q = value[1]
+        s_mag = (p**2 + q**2)**0.5
+        if s_mag > self.rated_s:
+            ex = (s_mag / self.rated_s) * 100 - 100
+            msg = (
+                f'Equipment {self.name}, phase {self.phase}, had its state '
+                f'updated to exceed its rated power by {ex:.2f}%! '
+                f'New P: {p:.2f}, New Q: {q:.2f}, New |S|: {s_mag:.2f}, '
+                f'Rated |S|: {self.rated_s:.2f}.')
+            self.log.warning(msg)
 
     @property
     def p(self):
@@ -688,6 +701,22 @@ class InverterSinglePhase(EquipmentSinglePhase):
     def q(self):
         """Current reactive power output in var."""
         return self.state[1]
+
+    @property
+    def rated_s(self):
+        return self._rated_s
+
+
+class InverterSinglePhase(PQEquipmentSinglePhase):
+    """Single phase inverter."""
+
+    # Two properties since the inverter cares about both P and Q.
+    STATE_CIM_PROPERTY = ("PowerElectronicsConnection.p",
+                          "PowerElectronicsConnection.q")
+
+    # Inverters can additionally be on secondaries. It's important
+    # that S1 and S2 be upper-case here to work with the parent class.
+    PHASES = ('A', 'B', 'C', 'S1', 'S2')
 
 
 class EquipmentManager:
@@ -847,7 +876,7 @@ class EquipmentManager:
             callback(sim_dt)
 
     @utils.wait_for_lock
-    def update_state(self, msg, sim_dt):
+    def update_state(self, msg: List[dict], sim_dt: datetime.datetime) -> int:
         """Given a message from a gridappsd_platform SimOutRouter,
         update equipment state. The update_state_event will be toggled
         as the last thing this method does.
@@ -856,6 +885,9 @@ class EquipmentManager:
             "_on_message" method.
         :param sim_dt: datetime.datetime object passed to this method
             via a SimOutRouter's "_on_message" method.
+
+        :returns: count - number of EquipmentSinglePhase objects whose
+            state was changed.
         """
         # Type checking:
         if not isinstance(msg, list):
@@ -868,6 +900,9 @@ class EquipmentManager:
         # Track the last time.
         self.last_time = sim_dt
 
+        # Count changes.
+        count = 0
+
         # Iterate over the message and update equipment.
         for m in msg:
             # Grab mrid and value.
@@ -879,6 +914,7 @@ class EquipmentManager:
             # indicates it did not.
             if self._update_state(meas_mrid=meas_mrid, state=state):
                 any_change = True
+                count += 1
 
         # If any change of state occurred, inform the listeners.
         if any_change:
@@ -888,8 +924,12 @@ class EquipmentManager:
         # completed.
         self._toggle_update_state_event()
 
-    @staticmethod
-    def _get_state_from_msg(msg: dict):
+        self.log.info(f'Changed modeled state of {count} equipment phases '
+                      'after receiving measurements from the platform.')
+
+        return count
+
+    def _get_state_from_msg(self, msg: dict):
         """Helper to extract state from a measurement message entry.
         The purpose of this method is to make it easy to subclass this
         class without needing to re-write update_state.
@@ -1150,8 +1190,7 @@ class InverterEquipmentManager(EquipmentManager):
     commands will be different.
     """
 
-    @staticmethod
-    def _get_state_from_msg(msg: dict) -> tuple:
+    def _get_state_from_msg(self, msg: dict) -> tuple:
         """In this case, we want P and Q. So, we'll extract the VA
         measurement, and convert to rectangular form.
 
@@ -1162,8 +1201,26 @@ class InverterEquipmentManager(EquipmentManager):
             SI units).
         """
         # Platform returns angles in degrees.
-        rect = utils.get_complex(r=msg['magnitude'], phi=msg['angle'],
+        mag = msg['magnitude']
+        ang = msg['angle']
+        rect = utils.get_complex(r=mag, phi=ang,
                                  degrees=True)
+
+        # If the absolute value of our angle is > 90 degrees, then
+        # the measurement is using the generator convention.
+        if abs(ang) > 90:
+            # Multiply by -1 to flip the current convention.
+            # S = VI*. Changing current convention subs in I'* = (-I)*.
+            # Then, we get S' = VI'* = V(-I)* = -VI* --> S' = -S
+            rect = -1 * rect
+        elif mag > 0:
+            # We expect all inverters to follow the generator
+            # convention.
+            mrid = msg['measurement_mrid']
+            self.log.warning(f'Measurement with MRID {mrid} reported a '
+                             'positive active power value, but we would '
+                             'expect it to follow the generator convention '
+                             'and be negative.')
 
         # Return a tuple of values.
         return rect.real, rect.imag
@@ -1352,10 +1409,8 @@ def initialize_inverters(df):
     # Initialize output.
     out = {}
 
-    # Loop over the DataFrame rows, only considering columns we care
-    # about.
-    # Extract only the columns we care about.
-    for row in df[list(INVERTER_INPUTS.keys())].itertuples(index=False):
+    # Loop over the DataFrame rows.
+    for row in df.itertuples(index=False):
         # Get the row as a dictionary. This is not actually a private
         # attribute:
         # https://docs.python.org/3/library/collections.html#collections.namedtuple
@@ -1369,6 +1424,11 @@ def initialize_inverters(df):
         if not isinstance(kwargs['phase'], str) and np.isnan(kwargs['phase']):
             # Initialize entry.
             out[kwargs['mrid']] = {}
+
+            # Need to divide p, q, and s by three.
+            kwargs['rated_s'] = kwargs['rated_s'] / 3
+            kwargs['p'] = row_dict['inverter_p'] / 3
+            kwargs['q'] = row_dict['inverter_q'] / 3
 
             # Create an inverter for phases A, B, and C.
             for p in EquipmentSinglePhase.PHASES:

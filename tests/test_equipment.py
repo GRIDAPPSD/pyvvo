@@ -218,10 +218,12 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
     def test_update_state_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'msg must be a list'):
+            # noinspection PyTypeChecker
             self.reg_mgr.update_state(msg='hello there', sim_dt=self.sim_dt)
 
     def test_update_state_bad_type_2(self):
         with self.assertRaisesRegex(TypeError, 'string indices must be'):
+            # noinspection PyTypeChecker
             self.reg_mgr.update_state(msg=['hello there'], sim_dt=self.sim_dt)
 
     def test_build_equipment_commands_no_op(self):
@@ -331,6 +333,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
             assert isinstance(eq.state, np.int32)
 
         # Update the regulators.
+        # noinspection PyTypeChecker
         self.reg_mgr.update_state(msg=msg, sim_dt='high noon')
 
         # Ensure the equipment actually has int64 states.
@@ -384,6 +387,7 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
             # Unfortunately we cannot patch the method here, because
             # that also patches the wrapping. So, call the method.
             with self.assertRaisesRegex(TypeError, 'msg must be a list'):
+                # noinspection PyTypeChecker
                 self.reg_mgr.update_state('abc', 'def')
 
         # Ensure that acquire and release were called.
@@ -706,10 +710,12 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
 
     def test_update_state_bad_type(self):
         with self.assertRaisesRegex(TypeError, 'msg must be a list'):
+            # noinspection PyTypeChecker
             self.cap_mgr.update_state(msg='hello there', sim_dt=self.sim_dt)
 
     def test_update_state_bad_type_2(self):
         with self.assertRaisesRegex(TypeError, 'string indices must'):
+            # noinspection PyTypeChecker
             self.cap_mgr.update_state(msg=['hello there'], sim_dt=self.sim_dt)
 
     def test_build_equipment_commands(self):
@@ -1019,26 +1025,13 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
             cls.inv_meas_msg = json.load(f)
 
-        # Override all the measurement magnitudes and angles so we can
-        # ensure they result in a change when the message is sent in
-        # as an update command.
-        n = len(cls.inv_meas_msg)
-        # Magnitude values between 1 and 1000.
-        cls.mag_values = (1000 - 1) * np.random.random(n) + 1
-        # Angle values between -90 and 90.
-        cls.angle_values = (90 + 90) * np.random.random(n) - 90
-
-        for mag, ang, m in zip(cls.mag_values, cls.angle_values,
-                               cls.inv_meas_msg):
-            m['magnitude'] = mag.item()
-            m['angle'] = ang.item()
-
         # Just create a bogus datetime.
         cls.sim_dt = datetime(2019, 9, 2, 17, 8)
 
+        cls.inv_df = _df.read_pickle(_df.INVERTERS_9500)
+
     def setUp(self) -> None:
-        self.inv_dict = equipment.initialize_inverters(
-            _df.read_pickle(_df.INVERTERS_9500))
+        self.inv_dict = equipment.initialize_inverters(self.inv_df)
 
         self.mgr = \
             equipment.InverterEquipmentManager(eq_dict=self.inv_dict,
@@ -1072,15 +1065,22 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         """Ensure update_state works."""
         # Start by ensuring all inverters do not have a previous state.
         current_state = []
-        for inv in self.mgr.meas_eq_map.values():
-            current_state.append(inv.state)
-            self.assertIsNone(inv.state_old)
+
+        def append_and_assert(eq_in):
+            self.assertIsNotNone(eq_in.state)
+            current_state.append(eq_in.state)
+            self.assertIsNone(eq_in.state_old)
+
+        equipment.loop_helper(eq_dict=self.mgr.eq_dict, func=append_and_assert)
 
         # Add a callback.
         m = Mock()
         self.mgr.add_callback(m)
 
-        self.mgr.update_state(msg=self.inv_meas_msg, sim_dt=self.sim_dt)
+        update_count = self.mgr.update_state(msg=self.inv_meas_msg,
+                                             sim_dt=self.sim_dt)
+
+        self.assertGreater(update_count, 0)
 
         # Ensure callback is called.
         m.assert_called_once()
@@ -1090,13 +1090,30 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         # after update. Python now ensures that looping over the same
         # dictionary twice will loop in the same order, so we'll count
         # on that fact here.
-        for s, inv in zip(current_state, self.mgr.meas_eq_map.values()):
-            self.assertEqual(s, inv.state_old)
+        counter = 0
+        any_changed = False
+
+        def assert_state_matches(eq_i):
+            nonlocal counter
+            nonlocal any_changed
+            if eq_i.state_old is not None:
+                any_changed = True
+                self.assertEqual(current_state[counter], eq_i.state_old)
+            counter += 1
+
+        equipment.loop_helper(eq_dict=self.mgr.eq_dict,
+                              func=assert_state_matches)
+
+        self.assertTrue(any_changed)
 
         # Make sure our fancy looping didn't screw something up.
         for m in self.inv_meas_msg:
             rect = utils.get_complex(r=m['magnitude'], phi=m['angle'],
                                      degrees=True)
+            # Swap to load convention.
+            if rect.real < 0:
+                rect *= -1
+
             s = (rect.real, rect.imag)
 
             eq = self.mgr.meas_eq_map[m['measurement_mrid']]
@@ -1685,11 +1702,10 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.p = 12.5
         cls.q = 18
-        cls.inverter = equipment.InverterSinglePhase(mrid='abcd',
-                                                     name='my_inv',
-                                                     phase='s2',
-                                                     controllable=True,
-                                                     p=cls.p, q=cls.q)
+        cls.s = 100
+        cls.inverter = equipment.InverterSinglePhase(
+            mrid='abcd', name='my_inv', phase='s2', controllable=True, p=cls.p,
+            q=cls.q, rated_s=cls.s)
 
     def test_state_expected(self):
         self.assertEqual(self.inverter.state, (self.p, self.q))
@@ -1707,10 +1723,10 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
 
     def test_init_invalid_state(self):
         with self.assertRaisesRegex(ValueError, 'The contents of the state'):
-            # noinspection PyUnusedLocal
+            # noinspection PyUnusedLocal,PyTypeChecker
             inv = equipment.InverterSinglePhase(mrid='blah', name='bleh',
                                                 phase='C', controllable=False,
-                                                p=3.2, q='a')
+                                                p=3.2, q='a', rated_s=10)
 
     def test_set_invalid_state_bad_length(self):
         inv_copy = deepcopy(self.inverter)
@@ -1724,6 +1740,19 @@ class InverterSinglePhaseTestCase(unittest.TestCase):
 
     def test_invert_states_for_commands(self):
         self.assertFalse(self.inverter.INVERT_STATES_FOR_COMMANDS)
+
+    def test_setting_state_above_limit_warns(self):
+        inverter = equipment.InverterSinglePhase(
+            mrid='abcd', name='my_inv', phase='s2', controllable=True,
+            p=self.p,
+            q=self.q, rated_s=self.s)
+
+        with self.assertLogs(logger=inverter.log, level='WARN'):
+            inverter.state = (self.s, self.s)
+
+        self.assertEqual((self.p, self.q), inverter.state_old)
+
+        self.assertIsNone(inverter.expected_state)
 
 
 class InitializeInvertersTestCase(unittest.TestCase):
