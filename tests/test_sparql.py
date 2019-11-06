@@ -400,6 +400,18 @@ class SPARQLManagerTestCase(unittest.TestCase):
             to_numeric=False
         )
 
+    def test_query_synchronous_machines_expected_shape(self):
+        """There should be 4 synchronous machines."""
+        result = self.sparql.query_synchronous_machines()
+        # 4 rows, 6 columns.
+        self.assertEqual(result.shape, (4, 6))
+
+    def test_query_synchronous_machines_calls_query(self):
+        self.mock_query(
+            function_string='query_synchronous_machines',
+            query='SYNCH_MACH_QUERY', to_numeric=True
+        )
+
 
 class ExpectedResults13TestCase(unittest.TestCase):
     """Check expected results for the 13 bus model."""

@@ -196,6 +196,14 @@ class SPARQLManager:
         self.log.info('Inverter measurement information obtained.')
         return result
 
+    def query_synchronous_machines(self):
+        """Get synchronous machines. For now, assume they're generators.
+        """
+        result = self._query(self.SYNCH_MACH_QUERY.format(
+            feeder_mrid=self.feeder_mrid), to_numeric=True)
+        self.log.info('Synchronous machine information obtained.')
+        return result
+
     ####################################################################
     # HELPER FUNCTIONS
     ####################################################################
@@ -793,6 +801,31 @@ class SPARQLManager:
          "}} "
          "ORDER BY ?inverter_mrid ?meas_type"
          )
+
+    SYNCH_MACH_QUERY = PREFIX + \
+        """
+        
+        SELECT ?mrid ?name ?rated_s ?rated_u ?p ?q
+        WHERE {{
+            VALUES ?feeder_mrid {{"{feeder_mrid}"}} 
+            ?s r:type c:SynchronousMachine.
+            ?s c:IdentifiedObject.name ?name.
+            ?s c:Equipment.EquipmentContainer ?fdr.
+            ?fdr c:IdentifiedObject.mRID ?feeder_mrid.
+            ?s c:SynchronousMachine.ratedS ?rated_s.
+            ?s c:SynchronousMachine.ratedU ?rated_u.
+            ?s c:SynchronousMachine.p ?p.
+            ?s c:SynchronousMachine.q ?q. 
+            bind(strafter(str(?s),"#") as ?mrid).
+            OPTIONAL {{
+                ?smp c:SynchronousMachinePhase.SynchronousMachine ?s.
+                ?smp c:SynchronousMachinePhase.phase ?phsraw.
+                bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs)
+            }}
+        }}
+        GROUP BY ?mrid ?name ?rated_s ?rated_u ?p ?q
+        ORDER BY ?mrid
+        """
 
 
 class Error(Exception):

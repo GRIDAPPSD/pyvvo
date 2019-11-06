@@ -86,6 +86,7 @@ SWITCH_MEAS_9500 = os.path.join(DATA_DIR, 'query_switch_meas_9500.csv')
 INVERTERS_9500 = os.path.join(DATA_DIR, 'query_inverters_9500.csv')
 INVERTER_MEAS_9500 = os.path.join(DATA_DIR,
                                   'query_inverter_measurements_9500.csv')
+SYNCH_MACH_9500 = os.path.join(DATA_DIR, 'query_synchronous_machines_9500.csv')
 
 # Misc json files.
 REG_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'reg_meas_message_9500.json')
@@ -230,7 +231,8 @@ def gen_expected_sparql_results():
         (s4.query_switches, SWITCHES_9500),
         (s4.query_switch_measurements, SWITCH_MEAS_9500),
         (s4.query_inverters, INVERTERS_9500),
-        (s4.query_inverter_measurements, INVERTER_MEAS_9500)
+        (s4.query_inverter_measurements, INVERTER_MEAS_9500),
+        (s4.query_synchronous_machines, SYNCH_MACH_9500)
     ]
 
     for a in [a1, a2, a3, a4]:
