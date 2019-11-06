@@ -96,6 +96,8 @@ CAP_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'cap_meas_message_9500.json')
 SWITCH_MEAS_MSG_9500 = os.path.join(DATA_DIR, 'switch_meas_message_9500.json')
 INVERTER_MEAS_MSG_9500 = os.path.join(DATA_DIR,
                                       'inverter_meas_message_9500.json')
+SYNCH_MACH_MEAS_MSG_9500 = os.path.join(DATA_DIR,
+                                        'synch_mach_meas_message_9500.json')
 
 MEAS_13_START = datetime(2013, 1, 14, 0, 0)
 MEAS_13_DURATION = 20
@@ -405,7 +407,7 @@ def _dict_to_json(data, fname, sim_dt=None):
         json.dump(data, f, indent=2)
 
 
-def generate_cap_reg_switch_inverter_meas_message_9500():
+def generate_cap_reg_switch_inverter_machine_meas_message_9500():
     """Generate cap_meas_message_9500.json, reg_meas_message_9500.json,
     switch_meas_message_9500.json, and inverter_meas_message_9500.json.
     """
@@ -422,6 +424,9 @@ def generate_cap_reg_switch_inverter_meas_message_9500():
     # Load up inverter data.
     inverters = pd.read_csv(INVERTER_MEAS_9500)
     inverter_mrids = inverters['meas_mrid'].tolist()
+    # Load up synchronous machine data.
+    synch_mach = pd.read_csv(SYNCH_MACH_MEAS_9500)
+    machine_mrids = synch_mach['meas_mrid'].tolist()
 
     # Initialize fn_mrid_list for a SimOutRouter.
     fn_mrid_list = [{'function': _dict_to_json, 'mrids': cap_mrids,
@@ -431,7 +436,9 @@ def generate_cap_reg_switch_inverter_meas_message_9500():
                     {'function': _dict_to_json, 'mrids': switch_mrids,
                      'kwargs': {'fname': SWITCH_MEAS_MSG_9500}},
                     {'function': _dict_to_json, 'mrids': inverter_mrids,
-                     'kwargs': {'fname': INVERTER_MEAS_MSG_9500}}
+                     'kwargs': {'fname': INVERTER_MEAS_MSG_9500}},
+                    {'function': _dict_to_json, 'mrids': machine_mrids,
+                     'kwargs': {'fname': SYNCH_MACH_MEAS_MSG_9500}}
                     ]
 
     platform = gridappsd_platform.PlatformManager()
@@ -622,7 +629,7 @@ if __name__ == '__main__':
     # gen_expected_sparql_results()
     generate_all_measurements_and_simulation_log_13()
     # generate_energy_consumer_measurements_9500()
-    generate_cap_reg_switch_inverter_meas_message_9500()
+    generate_cap_reg_switch_inverter_machine_meas_message_9500()
     # generate_model_info()
     # TODO: Run these after talking to Poorva.
     generate_sensor_service_measurements_9500()
