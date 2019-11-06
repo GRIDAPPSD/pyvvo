@@ -815,7 +815,7 @@ class SPARQLManager:
     SYNCH_MACH_QUERY = PREFIX + \
         """
         
-        SELECT ?mrid ?name ?rated_s ?rated_u ?p ?q
+        SELECT ?mrid ?name ?rated_s ?rated_u ?p ?q ?phase
         WHERE {{
             VALUES ?feeder_mrid {{"{feeder_mrid}"}} 
             ?s r:type c:SynchronousMachine.
@@ -830,10 +830,10 @@ class SPARQLManager:
             OPTIONAL {{
                 ?smp c:SynchronousMachinePhase.SynchronousMachine ?s.
                 ?smp c:SynchronousMachinePhase.phase ?phsraw.
-                bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phs)
+                bind(strafter(str(?phsraw),"SinglePhaseKind.") as ?phase)
             }}
         }}
-        GROUP BY ?mrid ?name ?rated_s ?rated_u ?p ?q
+        GROUP BY ?mrid ?name ?rated_s ?rated_u ?p ?q ?phase
         ORDER BY ?mrid
         """
 
