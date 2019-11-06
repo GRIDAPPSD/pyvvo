@@ -257,7 +257,7 @@ class AllGLMModificationsRunTestCase(unittest.TestCase):
         inverter_df = _df.read_pickle(_df.INVERTERS_9500)
         inverters = equipment.initialize_inverters(inverter_df)
         inverter_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
-        inverter_mgr = equipment.InverterEquipmentManager(
+        inverter_mgr = equipment.PQEquipmentManager(
             eq_dict=inverters, eq_meas=inverter_meas,
             eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL,
             meas_mrid_col=sparql.INVERTER_MEAS_MEAS_MRID_COL)

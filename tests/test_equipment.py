@@ -1017,8 +1017,8 @@ class EquipmentManagerBuildEquipmentCommandsInvertTestCase(unittest.TestCase):
                 self.helper(invert=True)
 
 
-class InverterEquipmentManagerTestCase(unittest.TestCase):
-    """Test the InverterEquipmentManager."""
+class PQEquipmentManagerTestCase(unittest.TestCase):
+    """Test the PQEquipmentManager."""
     @classmethod
     def setUpClass(cls) -> None:
         cls.inv_meas = _df.read_pickle(_df.INVERTER_MEAS_9500)
@@ -1034,10 +1034,10 @@ class InverterEquipmentManagerTestCase(unittest.TestCase):
         self.inv_dict = equipment.initialize_inverters(self.inv_df)
 
         self.mgr = \
-            equipment.InverterEquipmentManager(eq_dict=self.inv_dict,
-                                               eq_meas=self.inv_meas,
-                                               meas_mrid_col='meas_mrid',
-                                               eq_mrid_col='inverter_mrid')
+            equipment.PQEquipmentManager(eq_dict=self.inv_dict,
+                                         eq_meas=self.inv_meas,
+                                         meas_mrid_col='meas_mrid',
+                                         eq_mrid_col='inverter_mrid')
 
     def test_init(self):
         """Ensure initialization occurs without errors, and that we

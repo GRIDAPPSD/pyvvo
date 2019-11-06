@@ -1185,10 +1185,13 @@ def _set_operable_to_false(eq: EquipmentSinglePhase):
     eq.operable = False
 
 
-class InverterEquipmentManager(EquipmentManager):
-    """Unlike regulators, switches, and capacitors, inverters have a
-    two-piece state: p and q. So, state updates and building equipment
-    commands will be different.
+class PQEquipmentManager(EquipmentManager):
+    """Unlike regulators, switches, and capacitors, inverters and
+    synchronous machines have a two-piece state: p and q. So, state
+    updates and building equipment commands will be different.
+
+    This class is designed to work with EquipmentSinglePhase subclasses
+    that inherit from PQEquipmentSinglePhase.
     """
 
     def _get_state_from_msg(self, msg: dict) -> tuple:
@@ -1229,8 +1232,8 @@ class InverterEquipmentManager(EquipmentManager):
     @utils.wait_for_lock
     def build_equipment_commands(self, eq_dict_forward):
         raise NotImplementedError('build_equipment_commands for the '
-                                  'InverterEquipmentManager has not yet been '
-                                  'implemented. This will need to be'
+                                  'PQEquipmentManager has not yet been '
+                                  'implemented. This will need to be '
                                   'implemented when PyVVO wants to command '
                                   'inverters.')
 ########################################################################

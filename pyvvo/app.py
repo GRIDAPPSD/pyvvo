@@ -81,7 +81,7 @@ def main(sim_id, sim_request):
     inverter_meas_mrid = \
         list(inverter_meas[sparql.INVERTER_MEAS_MEAS_MRID_COL])
     inverter_objects = equipment.initialize_inverters(inverter_df)
-    inverter_mgr = equipment.InverterEquipmentManager(
+    inverter_mgr = equipment.PQEquipmentManager(
         eq_dict=inverter_objects, eq_meas=inverter_meas,
         meas_mrid_col=sparql.INVERTER_MEAS_MEAS_MRID_COL,
         eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL)
