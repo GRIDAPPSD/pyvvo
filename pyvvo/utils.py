@@ -276,35 +276,66 @@ def map_dataframe_columns(map, df, cols):
     return df
 
 
-def power_factor(s):
+def power_factor(s: np.ndarray) -> np.ndarray:
     """Given a numpy array of complex values, compute power factor.
+    If the power factor is lagging, a positive value will be returned.
+    If the power factor is leading, a negative value will be returned.
+
+    Reference:
+
+    Power System Analysis and Design, 5th Edition, by Glover, Sarma, and
+    Overbye
+
+    In Section 2.2, power factor is defined as
+    :math:`\\cos (\\delta - \\beta)` where :math:`\\delta - \\beta` is
+    the angle between the voltage and current. If
+    :math:`\\beta < \\delta`, then the power factor is lagging. If
+    :math:`\\beta > \\delta`, then the power factor is leading.
+    The power factor is positive by convention. If
+    :math:`|\\delta - \\beta| > \\pi/2`, then the reference direction
+    for the current may be reversed, resulting in a positive value of
+    :math:`\\cos (\\delta - \\beta)`.
+
+    In the case where the reference direction of current is reversed,
+    we'll simply rotate our complex number by 180 degrees.
+
+    Note that any 0-valued power factors will be converted to np.nan
+    and a warning will be logged.
 
     :param s: numpy.ndarray of complex values representing apparent
         power (VA).
 
     :returns: An array of power factor values. Value will be negative
-        if leading, positive if lagging.
+        if leading, positive if lagging. Any 0's will be changed to
+        np.nan.
     """
-    # Initialize array of NaNs. We'll then place the division in here
-    # over the top of it. This is to avoid division by zero errors
-    # (some other modules may change Numpy error handling to raise an
-    # error on division by zero rather than warning and creating a NaN.)
-    pf = np.empty(s.shape)
-    pf[:] = np.nan
+    # Extract the angle.
+    angle = np.angle(s, deg=False)
+    # Find where the magnitude of the angle is > 90 degrees
+    g_90 = np.abs(angle) > (np.pi / 2)
 
-    # Pre-compute the magnitude array.
-    s_abs = np.abs(s)
-    # Divide the magnitude of the active power by the apparent power
-    # magnitude.
-    # The use of abs here ensures this also works for power generation.
-    pf = np.divide(np.abs(s.real), s_abs, out=pf, where=(s_abs != 0))
+    if g_90.any():
+        # Change the current reference by multiplying s by -1.
+        # Recall that S = VI*. If we change the reference direction for
+        # the current, we're replacing I* with (-I)*, which is
+        # equivalent to multiplying S by -1.
+        neg_s = s[g_90] * -1
+        angle[g_90] = np.angle(neg_s)
 
-    if np.isnan(pf).any():
-        LOG.warning('Division by zero encountered in power_factor. There '
-                    'will be NaNs present.')
+    # Now compute the power factor, and change sign to meet our
+    # convention that positive is lagging, negative is leading.
+    # Note this conflicts with the "GSO" books convention
+    # that power factor is always positive.
+    pf = np.cos(angle) * np.sign(angle)
 
-    angle = np.angle(s)
-    return pf * np.sign(angle)
+    # Cast any zeros to NaNs.
+    zero_mask = pf == 0
+    if zero_mask.any():
+        LOG.warning('Zero power factor values found, casting to np.nan.')
+        pf[zero_mask] = np.nan
+
+    # And we're done.
+    return pf
 
 
 def get_complex(r, phi, degrees=True):

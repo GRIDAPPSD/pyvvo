@@ -269,7 +269,7 @@ class PowerFactorTestCase(unittest.TestCase):
         a = np.array([1+1j, 1-1j, -1+1j, -1-1j])
         actual = utils.power_factor(a)
         expected = np.array([0.7071067811865475, -0.7071067811865475,
-                             0.7071067811865475, -0.7071067811865475])
+                             -0.7071067811865475, +0.7071067811865475])
         np.testing.assert_allclose(actual, expected)
 
         # Ensure the output is not complex.
