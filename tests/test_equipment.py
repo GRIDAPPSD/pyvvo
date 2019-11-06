@@ -1889,13 +1889,24 @@ class InitializeSynchronousMachinesTestCase(unittest.TestCase):
         equipment.loop_helper(self.machines, assert_controllable)
 
     def test_three_phase(self):
-        """All should be three phase."""
+        """All should be three phase, and their p, q, and rated_s
+        values should be 1/3 what's in the DataFrame.
+        """
         for mrid, d in self.machines.items():
             self.assertIsInstance(d, dict)
             self.assertEqual(3, len(d))
+
+            sub_df = self.df[self.df['mrid'] == mrid]
+            self.assertEqual(1, sub_df.shape[0])
+
             keys = list(d.keys())
             for p in ['A', 'B', 'C']:
                 self.assertIn(p, keys)
+                eq = self.machines[mrid][p]
+                self.assertEqual(eq.p, sub_df['p'].values[0] / 3)
+                self.assertEqual(eq.q, sub_df['q'].values[0] / 3)
+                self.assertEqual(eq.rated_s,
+                                 sub_df['rated_s'].values[0] / 3)
 
 
 if __name__ == '__main__':
