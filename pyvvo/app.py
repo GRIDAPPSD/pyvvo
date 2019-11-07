@@ -136,6 +136,10 @@ def main(sim_id, sim_request):
     # genetic algorithm.
     model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
 
+    # Turn down inverter logging.
+    inverter_mgr.log.setLevel('WARNING')
+    LOG.info('InverterManager log level changed to WARNING to reduce output.')
+
     # Run the genetic algorithm.
     # TODO: Manage loop exit, etc. Should exit when simulation is
     #   complete.
