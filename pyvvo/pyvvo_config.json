@@ -16,13 +16,13 @@
       "minimum_timestep": 1,
       "model_run": 60
     },
-    "population_size": 28,
+    "population_size": 52,
     "generations": 3,
     "top_fraction": 0.1,
     "total_fraction": 0.5,
     "tournament_fraction": 0.2,
     "log_interval": 10,
-    "processes": 6,
+    "processes": 13,
     "process_shutdown_timeout": 5
   },
   "limits": {
