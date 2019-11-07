@@ -18,6 +18,7 @@ prerequisite software requirements are light:
 These directions assume you performed the [Post-installation steps for Linux](https://docs.docker.com/install/linux/linux-postinstall/)
 when installing Docker.
 
+#### Initial Setup
 1. Open up a bash terminal. The following commands will all be run 
     "within" this terminal/shell.
 2. Create `git` directory inside your home directory by executing
@@ -113,6 +114,31 @@ when installing Docker.
     If you do not see anything after `CREATING LOG DATA MGR MYSQL` something
     is wrong with the configuration so that the GridAPPS-D platform cannot
     find the application.
+
+#### Updating PyVVO
+When PyVVO gets updated, you'll want to pull down the updates in order
+to run the latest version. To do so, do the following:
+1. Assuming the platform is running, stop it by hitting `Ctrl + C` on
+your keyboard in the appropriate terminal window. Then, type in `exit`
+and hit enter.
+2. In any terminal, run:
+    ```
+    cd ~/git/gridappsd-docker
+    ./stop -c
+    ```
+    Then, follow the directions given by the platform to delete 
+    `gridappsdmysql` and `gridappsd` directories.
+3. Execute `docker pull gridappsd/pyvvo:latest` to get the latest 
+Docker image.
+4. In any terminal, run:
+    ``` 
+    cd ~/git/pyvvo
+   git checkout develop
+   git pull
+    ``` 
+5. You have now successfully updated everything PyVVO. Follow the steps
+in the previous section to get the platform running again with the 
+latest version of PyVVO.
 
 ### Run the Tests
 After you've followed the steps in the section above ("GridAPPS-D
@@ -424,7 +450,6 @@ model is intended to be used for 08:00a.m. and
 `filtering_interval_minutes` is 60, PyVVO will use data ranging from 
 07:00a.m. to 09:00a.m. (plus/minus 60 minutes) when creating the load 
 model for 08:00a.m. 
-
 
 ## Developer Information and Set Up
 This section will describe what's needed to get set up to work on PyVVO.
