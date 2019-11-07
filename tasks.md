@@ -74,18 +74,18 @@ whether or not the control is working.~~
 re-triggered. The genetic algorithm will need to be modified so that it
 only attempts to control equipment which is "operable"/"working."~~
 
-## Inverters/General distributed generation (DG)
-NOTE: This is complete for inverters, but additional work is needed to
-handle generators.
+## ~~Inverters/General distributed generation (DG)~~
+~~NOTE: This is complete for inverters, but additional work is needed to
+handle generators.~~
 
-equipment.py needs to be extended so that it has a class for
+~~equipment.py needs to be extended so that it has a class for
 inverters/DG. Mainly, we need to be able to keep our internal model up
-to date with what's happening in the system with regards to P/Q output.
+to date with what's happening in the system with regards to P/Q output.~~
 
-If done right, this should also be a good set up for future augmentation
+~~If done right, this should also be a good set up for future augmentation
 of PyVVO - specifically, the genetic algorithm (GA) should be able to
 manage DG set points, and later on we would want a solar forecast so
-that the GA uses expected upcoming weather rather than current weather. 
+that the GA uses expected upcoming weather rather than current weather.~~ 
 
 ## Communication Outage
 This can probably be handled similarly to command tracking/managing 
@@ -109,3 +109,6 @@ the "baseline" individual in the genetic algorithm with the actual
 system output. For starters, it would be simplest to look at total 
 feeder power and power factor. Eventually, it would be useful to 
 compare EnergyConsumer voltage and/or power.
+
+## Finish Load Modeling With Historic Data
+Title says it all.
