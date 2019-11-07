@@ -144,10 +144,10 @@ def main(sim_id, sim_request):
     # TODO: Manage loop exit, etc. Should exit when simulation is
     #   complete.
     while True:
-        # Update the inverters and switches in the GridLAB-D model with
-        # the current states from the platform.
-        _update_glm_inverters_switches(glm_mgr, inverter_objects,
-                                       switch_objects)
+        # Update the inverter, switches, and machines in the GridLAB-D
+        # model with the current states from the platform.
+        _update_glm_inverters_switches_machines(
+            glm_mgr, inverter_objects, switch_objects, machine_objects)
 
         # Get the most recent simulation time from the clock. The
         # platform operates in UTC.
@@ -251,9 +251,11 @@ def _prep_glm(glm_mgr: GLMManager):
     glm_mgr.convert_switch_status_to_three_phase(banked=False)
 
 
-def _update_glm_inverters_switches(glm_mgr: GLMManager, inverters, switches):
+def _update_glm_inverters_switches_machines(glm_mgr: GLMManager,
+                                            inverters, switches, machines):
     _update_inverter_state_in_glm(glm_mgr, inverters)
     _update_switch_state_in_glm(glm_mgr, switches)
+    _update_diesel_dg_state_in_glm(glm_mgr, machines)
 
 
 def _update_inverter_state_in_glm(glm_mgr: GLMManager, inverters):

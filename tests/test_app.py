@@ -353,24 +353,40 @@ class AllGLMModificationsRunTestCase(unittest.TestCase):
             eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL,
             meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL)
 
-        # Update inverters and switches with measurements.
+        machine_df = _df.read_pickle(_df.SYNCH_MACH_9500)
+        machines = equipment.initialize_synchronous_machines(machine_df)
+        machine_meas = _df.read_pickle(_df.SYNCH_MACH_MEAS_9500)
+        machine_mgr = equipment.PQEquipmentManager(
+            eq_dict=machines, eq_meas=machine_meas,
+            eq_mrid_col=sparql.SYNCH_MACH_MEAS_MACH_COL,
+            meas_mrid_col=sparql.SYNCH_MACH_MEAS_MEAS_COL
+        )
+        bogus_dt = datetime(2011, 8, 1, 12)
+
+        # Update inverters, switches, and machines with measurements.
         with open(_df.INVERTER_MEAS_MSG_9500, 'r') as f:
             inverter_meas_msg = json.load(f)
 
-        inverter_mgr.update_state(msg=inverter_meas_msg, sim_dt=None)
+        inverter_mgr.update_state(msg=inverter_meas_msg, sim_dt=bogus_dt)
 
         with open(_df.SWITCH_MEAS_MSG_9500, 'r') as f:
             switch_meas_msg = json.load(f)
 
-        switch_mgr.update_state(msg=switch_meas_msg, sim_dt=None)
+        switch_mgr.update_state(msg=switch_meas_msg, sim_dt=bogus_dt)
+
+        with open(_df.SYNCH_MACH_MEAS_MSG_9500, 'r') as f:
+            mach_meas_msg = json.load(f)
+
+        machine_mgr.update_state(msg=mach_meas_msg, sim_dt=bogus_dt)
 
         # Initialize GLM Manager.
         cls.glm_mgr = glm.GLMManager(IEEE_9500)
 
         # Prep and update the manager.
         app._prep_glm(cls.glm_mgr)
-        app._update_glm_inverters_switches(
-            glm_mgr=cls.glm_mgr, inverters=inverters, switches=switches)
+        app._update_glm_inverters_switches_machines(
+            glm_mgr=cls.glm_mgr, inverters=inverters, switches=switches,
+            machines=machines)
 
         cls.starttime = datetime(2013, 4, 1, 12, 0)
         cls.stoptime = datetime(2013, 4, 1, 12, 1)
