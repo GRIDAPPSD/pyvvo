@@ -243,11 +243,14 @@ class PlatformManager:
     sparql.py
     """
 
-    def __init__(self, timeout=60):
+    def __init__(self, timeout=60, stomp_log_level=logging.WARNING,
+                 goss_log_level=logging.WARNING):
         """Connect to the GridAPPS-D platform by initializing a
         gridappsd.GridAPPSD object.
 
         :param timeout: Timeout for GridAPPS-D API requests.
+        :param stomp_log_level: Log level for stomp.py.
+        :param goss_log_level: Log level for goss.py.
 
         :returns: Initialized PlatformManager object.
         """
@@ -258,7 +261,8 @@ class PlatformManager:
         self.timeout = timeout
 
         # Get GridAPPSD object.
-        self.gad = get_gad_object()
+        self.gad = get_gad_object(stomp_log_level=stomp_log_level,
+                                  goss_log_level=goss_log_level)
 
         self.log.info('Connected to GridAPPS-D platform.')
 
