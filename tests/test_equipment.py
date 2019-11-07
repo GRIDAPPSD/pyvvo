@@ -560,6 +560,19 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         equipment.loop_helper(eq_dict=actual_dict, func=is_inoperable)
 
+    def test_eq_count(self):
+        """Ensure our eq_count matches the number of equipment."""
+        c = 0
+
+        def count(eq):
+            nonlocal c
+            c += 1
+
+        equipment.loop_helper(eq_dict=self.reg_mgr.eq_dict,
+                              func=count)
+
+        self.assertEqual(c, self.reg_mgr.eq_count)
+
 
 class EquipmentManagerCapacitorTestCase(unittest.TestCase):
     """Test EquipmentManager with capacitor data."""

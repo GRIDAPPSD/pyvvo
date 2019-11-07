@@ -802,6 +802,9 @@ class EquipmentManager:
         # https://stackoverflow.com/a/14922132/11052174
         self._callbacks = WeakSet()
 
+        # Count total number of equipment being managed.
+        self._eq_count = 0
+
         # Loop over the equipment dictionary.
         for eq_mrid, eq_or_dict in self.eq_dict.items():
             # Extract the relevant measurements.
@@ -833,6 +836,7 @@ class EquipmentManager:
                                          '{}'.format(phase, eq_mrid))
 
                     # Map it.
+                    self._eq_count += 1
                     self.meas_eq_map[meas_phase[meas_mrid_col].values[0]] = eq
 
             elif isinstance(eq_or_dict, EquipmentSinglePhase):
@@ -843,7 +847,12 @@ class EquipmentManager:
                                       meas.shape[0], eq_mrid))
 
                 # Map it.
+                self._eq_count += 1
                 self.meas_eq_map[meas[meas_mrid_col].values[0]] = eq_or_dict
+
+    @property
+    def eq_count(self):
+        return self._eq_count
 
     def add_callback(self, callback: Callable[[datetime.datetime], Any]):
         """Add a callback which will be called when equipment changes
