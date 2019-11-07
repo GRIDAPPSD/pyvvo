@@ -395,6 +395,57 @@ def _update_switch_state_in_glm(glm_mgr: GLMManager, switches):
     LOG.info('All switches in the .glm have been updated with current states.')
 
 
+def _update_diesel_dg_state_in_glm(glm_mgr: GLMManager, machines: dict):
+    """Given current state of diesel generators, update their state in
+    the GridLAB-D model.
+
+    At present, equipment.initialize_synchronous_machines assumes all
+    generators are three-phase balanced, so we'll make that assumption
+    here as well.
+
+    :param glm_mgr:
+    :param machines:
+    :return:
+    """
+    # Loop over the machines.
+    for mach_dict in machines.values():
+        # Raise exception if our balanced three phase assumption is not
+        # met.
+        if not isinstance(mach_dict, dict):
+            raise ValueError('Found non-dict entry in machines, but this '
+                             'method assumes all entries will be dictionaries '
+                             'of phases.')
+
+        # Initialize dictionary for performing updates.
+        update_dict = {'object': 'diesel_dg'}
+
+        # Loop over the phases and extract their state.
+        for phase, s_mach in mach_dict.items():
+            # Create string representing the power output.
+            power_string = f'{s_mach.p:.4f}{s_mach.q:+.4f}j'
+
+            # Add it to the update dictionary.
+            update_dict[f'power_out_{phase.upper()}'] = power_string
+
+        # Get the CIM name of the object.
+        # noinspection PyUnboundLocalVariable
+        name = ga.cim_to_glm_name(prefix=ga.SYNCH_MACH_PREFIX,
+                                  cim_name=s_mach.name)
+        update_dict['name'] = name
+
+        # Update the object in the model.
+        try:
+            glm_mgr.modify_item(update_dict)
+        except KeyError:
+            # TODO: Should we raise an exception?
+            m = (f"The machine/diesel_dg {name} could not be found in the "
+                 "model and thus its state has not been updated.")
+            LOG.error(m)
+
+    LOG.info('All machines/disel_dgs in the .glm have been updated with '
+             'current states.')
+
+
 class GAStopper:
     """Simple class for stopping the genetic algorithm when a piece of
     equipment changes state.

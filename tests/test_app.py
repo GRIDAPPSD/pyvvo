@@ -242,6 +242,89 @@ class UpdateSwitchStateInGLMTestCase(unittest.TestCase):
             app._update_switch_state_in_glm(mgr, switches)
 
 
+class UpdateDieselDGStateInGLM(unittest.TestCase):
+    """Test _update_diesel_dg_state_in_glm."""
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.mach_df = _df.read_pickle(_df.SYNCH_MACH_9500)
+
+    def test_9500(self):
+        """Ensure method runs without error for the 9500 node model."""
+        machines = equipment.initialize_synchronous_machines(self.mach_df)
+
+        glm_mgr = glm.GLMManager(model=IEEE_9500, model_is_path=True)
+
+        # Update states in the mdoel and ensure we don't get errors.
+        with self.assertLogs(app.LOG, 'INFO') as cm:
+            app._update_diesel_dg_state_in_glm(glm_mgr=glm_mgr,
+                                               machines=machines)
+
+        # Ensure no errors were logged.
+        self.assertEqual(1, len(cm.output))
+
+    def test_expected_behavior(self):
+        """Create contrived example and ensure things are working."""
+        model = \
+            """
+            object diesel_dg {
+              name "dg_mach1";
+              power_out_A 333333.33-359828.53j;
+              power_out_B 333333.33-359828.53j;
+              power_out_C 333333.33-359828.53j;
+            }
+            """
+
+        mgr = glm.GLMManager(model=model, model_is_path=False)
+
+        mach1 = {
+            '1': {
+                'A': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='A', controllable=True,
+                    p=35.67891, q=-18.12341, rated_s=100000),
+                'B': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='B', controllable=True,
+                    p=32.67899, q=18.12344, rated_s=100000),
+                'C': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='B', controllable=True,
+                    p=-38.67891, q=18.12342, rated_s=100000), }
+        }
+
+        app._update_diesel_dg_state_in_glm(glm_mgr=mgr, machines=mach1)
+
+        mach_out = mgr.find_object(obj_type='diesel_dg', obj_name='"dg_mach1"')
+
+        self.assertEqual(mach_out['power_out_A'], '35.6789-18.1234j')
+        self.assertEqual(mach_out['power_out_B'], '32.6790+18.1234j')
+        self.assertEqual(mach_out['power_out_C'], '-38.6789+18.1234j')
+
+    def test_missing_gen(self):
+        """Ensure we get the proper logging for missing generator."""
+        model = \
+            """
+            object diesel_dg {
+                name "dg_mine";
+            }
+            """
+
+        mgr = glm.GLMManager(model=model, model_is_path=False)
+
+        mach1 = {
+            '1': {
+                'A': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='A', controllable=True,
+                    p=35.67891, q=-18.12341, rated_s=100000),
+                'B': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='B', controllable=True,
+                    p=32.67899, q=18.12344, rated_s=100000),
+                'C': equipment.SynchronousMachineSinglePhase(
+                    mrid='1', name='mach1', phase='B', controllable=True,
+                    p=-38.67891, q=18.12342, rated_s=100000), }
+        }
+
+        with self.assertLogs(logger=app.LOG, level='ERROR'):
+            app._update_diesel_dg_state_in_glm(glm_mgr=mgr, machines=mach1)
+
+
 @unittest.skipIf(not utils.gld_installed(),
                  reason='GridLAB-D is not installed.')
 @unittest.skipIf(not DB_ENVIRON_PRESENT,
