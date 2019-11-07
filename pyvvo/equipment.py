@@ -743,7 +743,8 @@ class EquipmentManager:
     will be called if any equipment changes state.
     """
 
-    def __init__(self, eq_dict, eq_meas, meas_mrid_col, eq_mrid_col):
+    def __init__(self, eq_dict, eq_meas, meas_mrid_col, eq_mrid_col,
+                 eq_type: Union[str, None] = None):
         """Initialize.
 
         :param eq_dict: Dictionary of EquipmentSinglePhase objects
@@ -757,11 +758,18 @@ class EquipmentManager:
             to measurement MRIDs in the eq_meas DataFrame.
         :param eq_mrid_col: String. Column in eq_meas corresponding to
             the equipment MRIDs in the eq_meas DataFrame.
+        :param eq_type: String representing equipment type, used for
+            logging. E.g. "Regulator" or "Inverter"
 
         The eq_dict and eq_meas must have the same number of elements.
         """
         # Logging.
-        self.log = logging.getLogger(self.__class__.__name__)
+        if eq_type is None:
+            log_name = self.__class__.__name__
+        else:
+            log_name = f'{eq_type}Manager'
+
+        self.log = logging.getLogger(log_name)
 
         # Simple type checking.
         if not isinstance(eq_dict, dict):

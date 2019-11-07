@@ -52,7 +52,7 @@ def main(sim_id, sim_request):
     reg_mgr = equipment.EquipmentManager(
         eq_dict=reg_objects, eq_meas=reg_meas,
         meas_mrid_col=sparql.REG_MEAS_MEAS_MRID_COL,
-        eq_mrid_col=sparql.REG_MEAS_REG_MRID_COL)
+        eq_mrid_col=sparql.REG_MEAS_REG_MRID_COL, eq_type='Regulator')
 
     # Get capacitor information.
     cap_df = sparql_mgr.query_capacitors()
@@ -62,7 +62,7 @@ def main(sim_id, sim_request):
     cap_mgr = equipment.EquipmentManager(
         eq_dict=cap_objects, eq_meas=cap_meas,
         meas_mrid_col=sparql.CAP_MEAS_MEAS_MRID_COL,
-        eq_mrid_col=sparql.CAP_MEAS_CAP_MRID_COL)
+        eq_mrid_col=sparql.CAP_MEAS_CAP_MRID_COL, eq_type='Capacitor')
 
     # Get switch information.
     switch_df = sparql_mgr.query_switches()
@@ -72,8 +72,7 @@ def main(sim_id, sim_request):
     switch_mgr = equipment.EquipmentManager(
         eq_dict=switch_objects, eq_meas=switch_meas,
         meas_mrid_col=sparql.SWITCH_MEAS_MEAS_MRID_COL,
-        eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL
-    )
+        eq_mrid_col=sparql.SWITCH_MEAS_SWITCH_MRID_COL, eq_type='Switch')
 
     # Get inverter information.
     inverter_df = sparql_mgr.query_inverters()
@@ -84,14 +83,27 @@ def main(sim_id, sim_request):
     inverter_mgr = equipment.PQEquipmentManager(
         eq_dict=inverter_objects, eq_meas=inverter_meas,
         meas_mrid_col=sparql.INVERTER_MEAS_MEAS_MRID_COL,
-        eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL)
+        eq_mrid_col=sparql.INVERTER_MEAS_INV_MRID_COL, eq_type='Inverter')
+
+    # Get synchronous machine information.
+    machine_df = sparql_mgr.query_synchronous_machines()
+    machine_meas = sparql_mgr.query_synchronous_machine_measurements()
+    machine_meas_mrid = \
+        list(machine_meas[sparql.SYNCH_MACH_MEAS_MEAS_COL])
+    machine_objects = equipment.initialize_synchronous_machines(machine_df)
+    machine_mgr = equipment.PQEquipmentManager(
+        eq_dict=machine_objects, eq_meas=machine_meas,
+        meas_mrid_col=sparql.SYNCH_MACH_MEAS_MEAS_COL,
+        eq_mrid_col=sparql.SYNCH_MACH_MEAS_MACH_COL,
+        eq_type='SynchronousMachine')
 
     # Get list of dictionaries for routing output.
     fn_mrid_list = [
         {'function': reg_mgr.update_state, 'mrids': reg_meas_mrid},
         {'function': cap_mgr.update_state, 'mrids': cap_meas_mrid},
         {'function': switch_mgr.update_state, 'mrids': switch_meas_mrid},
-        {'function': inverter_mgr.update_state, 'mrids': inverter_meas_mrid}
+        {'function': inverter_mgr.update_state, 'mrids': inverter_meas_mrid},
+        {'function': machine_mgr.update_state, 'mrids': machine_meas_mrid}
     ]
 
     # Create a SimOutRouter to listen to simulation outputs.
