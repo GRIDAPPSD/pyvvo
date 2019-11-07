@@ -444,7 +444,7 @@ def _update_diesel_dg_state_in_glm(glm_mgr: GLMManager, machines: dict):
                  "model and thus its state has not been updated.")
             LOG.error(m)
 
-    LOG.info('All machines/disel_dgs in the .glm have been updated with '
+    LOG.info('All machines/diesel_dgs in the .glm have been updated with '
              'current states.')
 
 
