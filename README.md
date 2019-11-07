@@ -222,6 +222,7 @@ it.
 9. Start the simulation by clicking on the "play button" in the upper right.
          
 ### Viewing PyVVO Logs As Simulation Proceeds
+#### Set Up
 As soon as you've started a simulation involving PyVVO, it's nice to 
 view the logs as they're emitted to see what PyVVO is up to. This is
 also where you'll see evidence that PyVVO has handled an event. To get
@@ -238,6 +239,139 @@ within the PyVVO container at `/pyvvo/pyvvo/pyvvo.log`. As opposed to
 the console log, the file version also contains module name, function
 name, and line number. This is configurable via `log_config.json`,
 though most users will find no reason to tweak log configuration.
+
+#### Expected Messages
+Over the course of a simulation, PyVVO emits a lot of logging
+information. This section attempts to describe most logging messages
+you'll see over the course of a run of the application.
+
+It's important to note that PyVVO is a multi-threaded application, and
+as such, log messages may come in mixed up order. I.e., in the middle of
+a sequence of genetic algorithm related messages, you may see a message
+related to a piece of equipment's state being updated, since PyVVO is
+listening to simulation output in different threads.
+
+##### Initialization Messages
+When PyVVO is first started, it pulls a lot of information from the 
+platform in order to configure itself. As such, you'll see a lot of 
+messages in the beginning related to this.
+- `[INFO] [PlatformManager]: Connected to GridAPPS-D platform.`: 
+Indicates PyVVO has successfully connected via the `gridappsd` package.
+- `[INFO] [SimulationClock]: SimulationClock configured and initialized.`
+Indicates PyVVO's clock has been initialized. It will log the most recent
+simulation time every `clock_log_interval` seconds. See the "Configuring
+PyVVO" section for details on how to change this interval.
+- `[INFO] [SPARQLManager] <Some equipment type> data obtained`: PyVVO
+emits this record for various types of equipment: regulators, capacitors,
+switches, inverters, synchronous machines, load nominal voltage, and 
+substation. This indicates PyVVO pulled data from blazegraph related to
+the feeder in question in order to configure itself.
+- `[INFO] [SPARQLManager]: <some equipment type> <some attribute> measurements obtained.`:
+This indicates PyVVO has done an additional query to map measurement MRIDs
+to equipment MRIDs.
+- `[INFO] [GLMManager]: GridLAB-D model parsed and mapped.`: PyVVO has 
+requested the base GridLAB-D model from the platform via the API, and 
+has parsed the model.
+- `[INFO] [GLMManager]: All solar objects removed from the model.`: PyVVO
+removes solar objects from the GridLAB-D model, and instead updates 
+inverter output directly via measurements from the platform.
+- `[INFO] [GLMManager]: All inverters have V_In and I_In set according to their rated power.`:
+This is related to the previous item: PyVVO gives inverters in its internal
+GridLAB-D model a DC source capable of injecting the inverters' rated
+apparent power.
+ - `[INFO] [GLMManager]: All switches have had their states converted to three phase notation.`:
+ The baseline model from the platform only gives one `status` field for 
+ all switch phases. PyVVO modifies the model so there's an individual
+ status for each switch phase.
+ 
+##### Running/Update Messages
+PyVVO is constantly monitoring the state of all important equipment:
+regulators, capacitors, switches, inverters, diesel generators, etc. 
+When a measurement message comes in indicating a change in equipment
+state, it's logged.
+- `[INFO] [<equipment type>Manager]: Changed modeled state of <some integer> equipment phases after receiving measurements from the platform.`:
+This message indicates PyVVO has changed its internal modeled state for
+equipment after a message from the platform comes in. You'll see this 
+for many different types of equipment. While PyVVO is still "starting up,"
+several of these messages will be logged as the equipment in the system
+does not match the nominal/baseline state of the equipment which PyVVO
+pulls from blazegraph. After the initialization stage, these messages
+will indicate some sort of change in the system, e.g. switches opening
+from a fault. 
+- `[WARNING] [InverterSinglePhase]: Equipment pv_1041, phase S2, had its state updated to exceed its rated power by 26.34%! New P: 1010.76, New Q: -0.14, New |S|: 1010.76, Rated |S|: 800.00.`:
+PyVVO warns if an inverter or generator's current state is exceeding the
+equipment's rated power. At present, these messages are annoying since 
+a handful of them show up now and again. This is due to a bug in the 
+platform. When [#48](https://github.com/GRIDAPPSD/gridappsd-forum/issues/48#issue-518622691)
+is resolved, hopefully these annoying messages go away.
+- `[INFO] [SimulationClock]: Simulation time is 1358179201.`:
+The SimulationClock periodically reports the approximate simulation time.
+- `[__main__]: InverterManager log level changed to WARNING to reduce output.`:
+Since the inverter states are being constantly updated, a lot of log 
+output is produced. Before PyVVO begins its optimization loop, it turns
+down the log level of the InverterManager to reduce this distracting 
+output.
+
+##### Optimization Flow Related Messages
+After initialization, PyVVO runs in an endless loop calculating optimal
+set points for capacitors and regulators (control of other devices will
+be included in future work). This section will describe messages related
+to the running of the optimization (which is a genetic algorithm, 
+abbreviated "GA"). 
+- `[__main__]: **********************************************...`:
+To give a visual break in the logs, a bunch of stars are logged right 
+before the genetic algorithm starts.
+- The following messages are emitted to indicate that PyVVO has updated
+its internal GridLAB-D model with the current state of various pieces
+of equipment before starting the genetic algorithm. Note that
+regulator/capacitor states are not included in these initial messages as
+during the course of the genetic algorithm PyVVO updates many different
+models with many different possible regulator and capacitor states,
+including the "current" state.
+    - `[INFO] [__main__]: All inverters in the .glm have been updated with the current inverter state.`
+    - `[INFO] [__main__]: All switches in the .glm have been updated with current states.`
+    - `[INFO] [__main__]: All machines/diesel_dgs in the .glm have been updated with current states.`
+- `[INFO] [__main__]: Starting genetic algorithm to compute set points for 2013-01-14 16:00:57+00:00 through 2013-01-14 16:01:57+00:00.`:
+For each run of the genetic algorithm, PyVVO let's you know for what approximate
+time period it is computing set points for.
+- `[INFO] [Population]: Approximately 0 individuals have been evaluated, 17 are in the queue, and 6 are currently being evaluated.`:
+While the genetic algorithm is running, PyVVO reports how many "individuals"
+in the "population" have been evaluated. When all individuals have been
+evaluated, a "generation" is complete. Due to the nature of Python queues,
+the numbers provided here may not be exact.
+- `[INFO] [GA]: After generation 1, best fitness: 6363.42 from individual 12`:
+After each generation of the genetic algorithm, PyVVO indicates the best
+"fitness" found. Seeing these fitness values reduce from generation to
+generation indicates the genetic algorithm is finding better solutions
+each generation (which is a good thing!).
+- You'll see the following messages at the end of a successful run 
+through of the genetic algorithm (not necessarily exactly in the
+following order):
+    - `[INFO] [Population]: Gracefully stopping genetic algorithm evaluation.`
+    - `[INFO] [GA]: Best overall fitness: 6147.98 from individual 44`
+    - `[INFO] [GA]: Total GA run time: 164.39`
+    - `[PlatformManager]: Preparing to send following command: {"command": "update",...`
+    - Repeat of the above, but for capacitors.
+    - `[__main__]: Regulator commands sent in.`
+    - `[__main__]: Capacitor commands sent in.`
+    - `[RegulatorManager]: Changed modeled state of 17 equipment phases after receiving measurements from the platform.`
+    - `[CapacitorManager]: Changed modeled state of 5 equipment phases after receiving measurements from the platform.`
+    - `[__main__]: Commands for regulator(s) have been confirmed to have been successfully carried out in the platform.`
+    - `[__main__]: Commands for capacitor(s) have been confirmed to have been successfully carried out in the platform.`
+- You'll see the following messages when PyVVO detects an important
+change in the system and decides the genetic algorithm should be halted
+and restarted with new equipment states.
+    - `[INFO] [GAStopper]: Stopping the genetic algorithm because at least one switch changed state at simulation time 2013-01-14 16:01:02+00:00.`
+    - `[INFO] [GA]: Stopping the genetic algorithm.`
+    - `[INFO] [Population]: Gracefully stopping genetic algorithm evaluation.`
+    - `[WARNING] [Population]: The length of the population does not match the expected population size. Perhaps evaluation was interrupted?`
+    - `[WARNING] [GA]: Did not run <bound method Population.natural_selection of <pyvvo.ga.Population object at 0x7f60be74e950>> because the run_event is not set.`
+- `[INFO] [PlatformManager]: send_command given empty lists, returning None.`:
+This message is emitted if either the genetic algorithm was interrupted, or,
+if PyVVO determined that the current regulator and capacitor set points are
+optimal, and thus no commands need to be sent into the platform.
+
+TODO: Finish this section up once all the events are working properly.
 
 ### Configuring PyVVO
 PyVVO has three configuration files, all of which can be found in the 
@@ -449,7 +583,12 @@ for which PyVVO will include historic data for. For example, if the load
 model is intended to be used for 08:00a.m. and
 `filtering_interval_minutes` is 60, PyVVO will use data ranging from 
 07:00a.m. to 09:00a.m. (plus/minus 60 minutes) when creating the load 
-model for 08:00a.m. 
+model for 08:00a.m.
+
+###### misc
+Miscellaneous levers you can pull are included here.
+- `clock_log_interval`: How often, in seconds, PyVVO's `SimulationClock`
+will emit the most recent simulation time.
 
 ## Developer Information and Set Up
 This section will describe what's needed to get set up to work on PyVVO.
