@@ -113,7 +113,36 @@ when installing Docker.
     If you do not see anything after `CREATING LOG DATA MGR MYSQL` something
     is wrong with the configuration so that the GridAPPS-D platform cannot
     find the application.
+
+### Run the Tests
+After you've followed the steps in the section above ("GridAPPS-D
+Platform Set Up and Configuration"), you can optionally execute all of
+PyVVO's tests. The procedure is quite simple:
+1. Execute `docker container ls | grep pyvvo:latest`, and copy the
+container ID. This is the 12 character alpha-numeric code on the far 
+left of hte output, e.g. `663128e9dff4`.
+2. Enter the container via `docker exec -it <container ID> bash`. You
+should see a prompt like `root@663128e9dff4:/pyvvo/pyvvo#`.
+3. Execute `python -m unittest discover tests`. The tests take a bit to
+run. After a WHOLE LOT of logging, you'll see something like the
+following:
+    ```
+    LOTS AND LOTS OF OUTPUT
+    ...
+    Ran 775 tests in 106.415s
     
+    FAILED (failures=4)
+    ```
+    Hopefully in the near future this will read `(failures=0)`. However,
+    there is some ongoing work related to historical data from the 
+    platform which is intentionally failing.
+    
+4. It would seem I have some bad tests which are keeping some processes
+alive, so you'll need to use `Ctrl + C` on your keyboard to kill the
+tests. You'll get a ton of Python output afterwards - don't worry about
+it. 
+5. Type in `exit` and hit enter to leave the container.
+
 ### Running the Application Through the GridAPPS-D GUI
 1. In your web browser, navigate to `http://localhost:8080/`.
 2. Click on the upper-left "hamburger menu" (three horizontal lines),
