@@ -53,10 +53,10 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
         )
 
         # Ensure we have the expected columns.
-        self.assertListEqual(
-            ['hasSimulationMessageType', 'measurement_mrid', 'angle',
-             'magnitude', 'simulation_id', 'value'],
-            parsed_data.columns.to_list()
+        self.assertSetEqual(
+            {'hasSimulationMessageType', 'measurement_mrid', 'simulation_id',
+             'angle', 'magnitude', 'value'},
+            set(parsed_data.columns.to_list())
         )
 
         # The NA signature should be identical for angle and magnitude.
