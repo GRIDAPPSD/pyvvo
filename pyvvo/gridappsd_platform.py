@@ -228,11 +228,26 @@ class SimOutRouter:
 
         # Iterate over our list and call functions.
         for d in self.mrid_fn_kw_list:
+            # Create list of measurements.
+            try:
+                meas_list = [measurements[mrid] for mrid in d['mrids']]
+            except KeyError:
+                # Build up the list without a comprehension and log the
+                # missing measurements.
+                meas_list = []
+                for mrid in d['mrids']:
+                    try:
+                        meas_list.append(measurements[mrid])
+                    except KeyError:
+                        self.log.warning(
+                            'Expected measurement with MRID '
+                            f'{mrid} is missing! Perhaps there is a '
+                            'communication outage.')
+
             # Note the initial () is to extract the reference from the
             # weak reference, and then the second (<stuff>) is to
             # actually call the function.
-            d['fn']()([measurements[mrid] for mrid in d['mrids']],
-                      sim_dt=sim_dt, **d['kwargs'])
+            d['fn']()(meas_list, sim_dt=sim_dt, **d['kwargs'])
 
 
 class PlatformManager:

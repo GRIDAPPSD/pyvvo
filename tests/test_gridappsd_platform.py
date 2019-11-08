@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock, Mock, create_autospec
 from datetime import datetime
 import logging
 import re
+from copy import deepcopy
 
 # PyVVO + GridAPPS-D
 from pyvvo import gridappsd_platform, utils
@@ -119,19 +120,6 @@ class SimOutRouterTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Load the file we'll be working with, initialize
-        SimOutRouter."""
-        # Create a dummy platform manager.
-        cls.mock_platform_manager = create_autospec(
-            gridappsd_platform.PlatformManager)
-        cls.mock_platform_manager.gad = Mock()
-        cls.mock_platform_manager.gad.subscribe = Mock()
-
-        # Create some dummy functions for the SimOutRouter.
-        mock_fn_1 = Mock(return_value='yay')
-        mock_fn_2 = Mock(return_value=42)
-        mock_fn_3 = Mock(return_value='bleh')
-
         with open(_df.MEASUREMENTS_13, 'r') as f:
             cls.meas = json.load(f)
 
@@ -153,24 +141,38 @@ class SimOutRouterTestCase(unittest.TestCase):
         cls.mrids = [[cls.meas_only[cls.all_mrids[i]]['measurement_mrid']
                       for i in sub_i] for sub_i in cls.indices]
 
+    def setUp(self) -> None:
+        """Load the file we'll be working with, initialize
+        SimOutRouter."""
+        # Create a dummy platform manager.
+        self.mock_platform_manager = create_autospec(
+            gridappsd_platform.PlatformManager)
+        self.mock_platform_manager.gad = Mock()
+        self.mock_platform_manager.gad.subscribe = Mock()
+
+        # Create some dummy functions for the SimOutRouter.
+        mock_fn_1 = Mock(return_value='yay')
+        mock_fn_2 = Mock(return_value=42)
+        mock_fn_3 = Mock(return_value='bleh')
+
         # Create dummy class.
-        cls.dummy_class = DummyClass()
-        cls.dummy_class.my_func = MagicMock(return_value=3,
+        self.dummy_class = DummyClass()
+        self.dummy_class.my_func = MagicMock(return_value=3,
                                             side_effect=print('mocked func.'))
 
         # Hard-code list input for the SimOutRouter.
-        cls.fn_mrid_list = [{'function': mock_fn_1, 'mrids': cls.mrids[0]},
-                            {'function': mock_fn_2, 'mrids': cls.mrids[1],
+        self.fn_mrid_list = [{'function': mock_fn_1, 'mrids': self.mrids[0]},
+                            {'function': mock_fn_2, 'mrids': self.mrids[1],
                              'kwargs': {'param1': 'asdf'}},
-                            {'function': cls.dummy_class.my_func,
-                             'mrids': cls.mrids[2]},
-                            {'function': mock_fn_3, 'mrids': cls.mrids[2]}
+                            {'function': self.dummy_class.my_func,
+                             'mrids': self.mrids[2]},
+                            {'function': mock_fn_3, 'mrids': self.mrids[2]}
                             ]
 
-        cls.router = \
+        self.router = \
             gridappsd_platform.SimOutRouter(
-                platform_manager=cls.mock_platform_manager, sim_id='1234',
-                fn_mrid_list=cls.fn_mrid_list)
+                platform_manager=self.mock_platform_manager, sim_id='1234',
+                fn_mrid_list=self.fn_mrid_list)
 
     def test_subscribed(self):
         """Ensure that we've subscribed to the topic."""
@@ -281,6 +283,27 @@ class SimOutRouterTestCase(unittest.TestCase):
         # Calling prune should remove the second entry.
         r._prune()
         self.assertEqual(len(r.mrid_fn_kw_list), 0)
+
+    def test_logs_if_missing_measurement(self):
+        # Get a copy of the measurements.
+        meas_copy = deepcopy(self.meas)
+
+        # Delete a couple entries we care about.
+        idx1 = self.indices[0][0]
+        idx2 = self.indices[1][1]
+
+        key1 = self.all_mrids[idx1]
+        key2 = self.all_mrids[idx2]
+
+        del meas_copy['message']['measurements'][key1]
+        del meas_copy['message']['measurements'][key2]
+
+        # Ensure we get a warning.
+        with self.assertLogs(logger=self.router.log, level='WARNING') as cm:
+            self.router._on_message(header=self.header, message=meas_copy)
+
+        # We deleted two entries, and should thus get two warnings.
+        self.assertEqual(len(cm.output), 2)
 
 
 @unittest.skipUnless(PLATFORM_RUNNING, reason=NO_CONNECTION)
