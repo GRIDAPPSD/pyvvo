@@ -138,13 +138,17 @@ def main(sim_id, sim_request):
     model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
 
     # Turn down inverter logging.
-    inverter_mgr.log.setLevel('WARNING')
-    LOG.info('InverterManager log level changed to WARNING to reduce output.')
+    log_level = 'WARNING'
+    inverter_mgr.log.setLevel(log_level)
+    LOG.info(
+        f'InverterManager log level changed to {log_level} to reduce output.')
 
     # Run the genetic algorithm.
     # TODO: Manage loop exit, etc. Should exit when simulation is
     #   complete.
+    iterations = 0
     while True:
+        LOG.info('*'*200)
         # Update the inverter, switches, and machines in the GridLAB-D
         # model with the current states from the platform.
         _update_glm_inverters_switches_machines(
@@ -186,9 +190,13 @@ def main(sim_id, sim_request):
         cap_cmd = cap_mgr.build_equipment_commands(cap_forward)
 
         # Send 'em!
-        platform.send_command(sim_id=sim_id, **reg_cmd)
-        platform.send_command(sim_id=sim_id, **cap_cmd)
-        LOG.info('Commands sent in.')
+        reg_msg = platform.send_command(sim_id=sim_id, **reg_cmd)
+        if reg_msg is not None:
+            LOG.info('Regulator commands sent in.')
+
+        cap_msg = platform.send_command(sim_id=sim_id, **cap_cmd)
+        if cap_msg is not None:
+            LOG.info('Capacitor commands sent in.')
 
         # Verify that the equipment was properly updated. At present,
         # the simulator emits messages every 3 simulation seconds. So,
@@ -199,10 +207,19 @@ def main(sim_id, sim_request):
         #   done concurrently, rather than in series like this.
         # TODO: Attempt to command inoperable equipment to bring it
         #   back into the fold.
-        inoperable_regs = _verify_commands(mgr=reg_mgr, eq_type='regulator',
-                                           wait_duration=12, timeout=5)
-        inoperable_caps = _verify_commands(mgr=cap_mgr, eq_type='capacitor',
-                                           wait_duration=12, timeout=5)
+        if reg_msg is not None:
+            inoperable_regs = _verify_commands(
+                mgr=reg_mgr, eq_type='regulator', wait_duration=12, timeout=5)
+
+        if cap_msg is not None:
+            inoperable_caps = _verify_commands(
+                mgr=cap_mgr, eq_type='capacitor', wait_duration=12, timeout=5)
+
+        iterations += 1
+
+        if (iterations % 5) == 0:
+            LOG.warning("I'm tired! I've ran the genetic algorithm "
+                        f"{iterations} times! When does it end?")
 
 
 def _verify_commands(mgr: equipment.EquipmentManager, eq_type: str,
