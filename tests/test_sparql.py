@@ -137,7 +137,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         )
 
         # Ensure a warning is logged.
-        with self.assertLogs(self.sparql.log, level='WARN'):
+        with self.assertLogs(self.sparql.log, level='DEBUG'):
             actual = self.sparql._bindings_to_dataframe(bindings,
                                                         to_numeric=False)
 

@@ -312,7 +312,7 @@ class SPARQLManager:
                 del s
 
             m = "DataFrame from '{}' has NaN value(s)!".format(fn_name)
-            self.log.warning(m)
+            self.log.debug(m)
 
         return output
 
