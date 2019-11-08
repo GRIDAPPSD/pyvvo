@@ -44,5 +44,8 @@
     "averaging_interval": "15Min",
     "window_size_days": 14,
     "filtering_interval_minutes": 60
+  },
+  "misc": {
+    "clock_log_interval": 60
   }
 }

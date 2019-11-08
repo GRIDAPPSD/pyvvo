@@ -36,8 +36,9 @@ def main(sim_id, sim_request):
               "request.")
 
     # Initialize a simulation clock.
-    clock = SimulationClock(gad=platform.gad, sim_id=sim_id,
-                            sim_start_ts=start_seconds)
+    clock = SimulationClock(
+        gad=platform.gad, sim_id=sim_id, sim_start_ts=start_seconds,
+        log_interval=ga.CONFIG['misc']['clock_log_interval'])
 
     # ####################################################################
     # # GET PREREQUISITE DATA
