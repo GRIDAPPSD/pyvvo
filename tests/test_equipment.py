@@ -166,8 +166,12 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
 
         # At the time of writing, the debug line is the last one in the
         # function, so ensuring it gets hit is adequate.
-        with self.assertLogs(level='DEBUG'):
+        with self.assertLogs(logger=self.reg_mgr.log, level='DEBUG'):
             self.reg_mgr.update_state(self.reg_meas_msg, sim_dt=self.sim_dt)
+
+    def test_update_state_warns_if_not_enough_meas(self):
+        with self.assertLogs(logger=self.reg_mgr.log, level='WARNING'):
+            self.reg_mgr.update_state([], sim_dt=self.sim_dt)
 
     def test_update_state_changes_taps(self):
         """Ensure our taps changed appropriately. We'll hard-code

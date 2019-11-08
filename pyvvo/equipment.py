@@ -922,6 +922,12 @@ class EquipmentManager:
         if not isinstance(msg, list):
             raise TypeError('msg must be a list!')
 
+        # Log if we're missing measurements.
+        if len(msg) != self.eq_count:
+            self.log.warning(f'Tracking {self.eq_count} equipment phases, '
+                             f'but only received {len(msg)} measurements! '
+                             'Perhaps there is a communication outage.')
+
         # Initialize flag for tracking if any piece of equipment
         # changed state.
         any_change = False
