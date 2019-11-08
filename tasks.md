@@ -88,13 +88,16 @@ manage DG set points, and later on we would want a solar forecast so
 that the GA uses expected upcoming weather rather than current weather.~~ 
 
 ## Communication Outage
-This can probably be handled similarly to command tracking/managing 
+This is partly done. The SimOutRouter and EquipmentManager are now 
+both logging warnings for missing measurements.
+
+~~This can probably be handled similarly to command tracking/managing 
 stuck equipment, but the detection is different. Presently, the 
 SimOutRouter's `_filter_output_by_mrid` method throws an error if there
 is a missing measurement. Maybe instead of throwing an error it could 
 warn in the log and then place `None` in the correct spot in the output.
 Then, the corresponding EquipmentManager could interpret receiving
-`None` as presently inoperable equipment.
+`None` as presently inoperable equipment.~~
 
 ## ~~Flow Control for Genetic Algorithm (GA)~~
 ~~Some of the other pieces here are inevitably going to involve stopping
@@ -112,3 +115,6 @@ compare EnergyConsumer voltage and/or power.
 
 ## Finish Load Modeling With Historic Data
 Title says it all.
+
+## Create Expected Behavior Section
+Note what sort of logs we'll see for various events, etc.
