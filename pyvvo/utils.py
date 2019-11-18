@@ -9,6 +9,7 @@ import os
 from functools import wraps
 import numpy as np
 import pandas as pd
+import queue
 try:
     import simplejson as json
 except AttributeError:
@@ -467,3 +468,41 @@ def wait_for_lock(method):
         return result
 
     return wrapper
+
+
+def dump_queue(q, i):
+    """Helper to empty a queue into a list.
+
+    :param q: A queue.Queue like object (e.g.
+        multiprocessing.JoinableQueue)
+    :param i: A list object, for which items from q will be appended to.
+
+    :returns: i. While this isn't necessary, it's explicit.
+    """
+    while True:
+        try:
+            i.append(q.get_nowait())
+        except queue.Empty:
+            return i
+
+
+def drain_queue(q):
+    """Helper to simply clear out a queue. The items in the queue will
+    be discarded. If the queue is joinable (has a task_done() method),
+    it will be called for each get_nowait() call.
+
+    :param q: A queue.Queue lik object (e.g.
+        multiprocessing.JoinableQueue)
+
+    :returns: None
+    """
+    while True:
+        try:
+            q.get(block=True, timeout=0.1)
+            try:
+                q.task_done()
+            except AttributeError:
+                pass
+
+        except queue.Empty:
+            break

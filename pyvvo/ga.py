@@ -2077,7 +2077,8 @@ class Population:
         """Simple helper used by evaluate_population to put the contents
         of the output_queue into the population list. This is put into a
         helper function so it can be wrapped by wait_for_lock."""
-        self._population = _dump_queue(q=self.output_queue, i=self._population)
+        self._population = utils.dump_queue(q=self.output_queue,
+                                            i=self._population)
 
     def natural_selection(self):
         """Trim the population via both elitism and tournaments."""
@@ -2173,11 +2174,11 @@ class Population:
 
         # Drain the input queue. This will prevent any further
         # individuals from being evaluated.
-        _drain_queue(self.input_queue)
+        utils.drain_queue(self.input_queue)
 
         # Drain the output queue. This will prevent extra work from
         # being done later.
-        _drain_queue(self.output_queue)
+        utils.drain_queue(self.output_queue)
 
         # Send in the shutdown signal to all the processes.
         for _ in range(len(self.processes)):
@@ -2282,44 +2283,6 @@ def _tournament(population, tournament_size, n):
 
     # Return the correct number and ordering of challenger_indices.
     return [challenger_indices[sort_idx[i]] for i in range(n)]
-
-
-def _dump_queue(q, i):
-    """Helper to empty a queue into a list.
-
-    :param q: A queue.Queue like object (e.g.
-        multiprocessing.JoinableQueue)
-    :param i: A list object, for which items from q will be appended to.
-
-    :returns: i. While this isn't necessary, it's explicit.
-    """
-    while True:
-        try:
-            i.append(q.get_nowait())
-        except queue.Empty:
-            return i
-
-
-def _drain_queue(q):
-    """Helper to simply clear out a queue. The items in the queue will
-    be discarded. If the queue is joinable (has a task_done() method),
-    it will be called for each get_nowait() call.
-
-    :param q: A queue.Queue lik object (e.g.
-        multiprocessing.JoinableQueue)
-
-    :returns: None
-    """
-    while True:
-        try:
-            q.get(block=True, timeout=0.1)
-            try:
-                q.task_done()
-            except AttributeError:
-                pass
-
-        except queue.Empty:
-            break
 
 
 def _update_equipment_with_individual(ind, regs, caps):

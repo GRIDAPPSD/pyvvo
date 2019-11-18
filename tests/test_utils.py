@@ -9,6 +9,7 @@ from time import sleep
 import pandas as pd
 import os
 import numpy as np
+import multiprocessing as mp
 
 # Handle pathing.
 from tests.models import MODEL_DIR
@@ -395,6 +396,79 @@ class WaitForLockTestCase(unittest.TestCase):
         self.uses_lock._lock.release()
         s = self.uses_lock.method()
         self.assertEqual('hello', s)
+
+
+class DrainQueueTestCase(unittest.TestCase):
+    """Test drain_queue."""
+
+    def test_drain_makes_empty_joinable(self):
+
+        q = mp.JoinableQueue()
+
+        for n in range(4, 7):
+            q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+        self.assertFalse(q.empty())
+
+        utils.drain_queue(q)
+
+        sleep(0.01)
+
+        self.assertTrue(q.empty())
+
+        # Ensure all tasks were marked as done.
+        with utils.time_limit(1):
+            q.join()
+
+    def test_drain_makes_empty_not_joinable(self):
+        q = mp.Queue()
+
+        for n in range(4, 7):
+            q.put(n)
+
+        # Need to sleep so that empty won't return False while the
+        # background thread dumps stuff into the queue.
+        sleep(0.01)
+        self.assertFalse(q.empty())
+
+        utils.drain_queue(q)
+
+        sleep(0.01)
+
+        self.assertTrue(q.empty())
+
+
+class DumpQueueTestCase(unittest.TestCase):
+    """Test dump_queue"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.i_orig = [1, 2, 3]
+
+    def setUp(self):
+        self.i = [*self.i_orig]
+        self.q = mp.Queue()
+
+        for n in range(4, 7):
+            self.q.put(n)
+
+    def test_correct(self):
+        # Need to sleep due to the small delay for the background thread
+        # which stuff things into the queue.
+        sleep(0.01)
+        self.assertFalse(self.q.empty())
+
+        i2 = utils.dump_queue(q=self.q, i=self.i)
+
+        self.assertIs(i2, self.i)
+        self.assertListEqual([1, 2, 3, 4, 5, 6], self.i)
+
+        sleep(0.01)
+
+        self.assertTrue(self.q.empty())
 
 
 if __name__ == '__main__':
