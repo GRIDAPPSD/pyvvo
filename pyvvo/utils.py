@@ -395,7 +395,7 @@ class FunctionTimeoutError(Error):
 
 
 @contextmanager
-def time_limit(seconds: int):
+def time_limit(seconds: int, msg: str = None):
     """Context manager to run code with a timeout.
 
     Source: https://stackoverflow.com/a/601168/11052174
@@ -409,14 +409,18 @@ def time_limit(seconds: int):
 
     :param seconds: Integer number of seconds allowed before a
         FunctionTimeoutError is raised.
+    :param msg: Message to provide if a FunctionTimeoutError is
+        raised.
 
     :raises FunctionTimeoutError: Raised if code doesn't complete within
         seconds.
     """
+    if msg is None:
+        msg = "Timed out!"
 
     # noinspection PyUnusedLocal
     def signal_handler(signum, frame):
-        raise FunctionTimeoutError("Timed out!")
+        raise FunctionTimeoutError(msg)
 
     signal.signal(signal.SIGALRM, signal_handler)
     signal.alarm(seconds)

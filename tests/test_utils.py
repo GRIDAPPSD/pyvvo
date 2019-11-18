@@ -349,8 +349,13 @@ class TimeLimitTestCase(unittest.TestCase):
     """Test the time_limit context manager."""
 
     def test_times_out(self):
-        with self.assertRaises(utils.FunctionTimeoutError):
+        with self.assertRaisesRegex(utils.FunctionTimeoutError, "Timed out!"):
             with utils.time_limit(1):
+                sleep(1.1)
+
+    def test_times_out_with_msg(self):
+        with self.assertRaisesRegex(utils.FunctionTimeoutError, 'my message'):
+            with utils.time_limit(1, 'my message'):
                 sleep(1.1)
 
     def test_no_timeout(self):
