@@ -521,13 +521,62 @@ if __name__ == '__main__':
     d = 1200
     e_start = int(s.timestamp()) + 60
     e_stop = e_start + 1000
-    events = [{"message": {"forward_differences": [
-        {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
-         "attribute": "Switch.open", "value": 1}], "reverse_differences": [
-        {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
-         "attribute": "Switch.open", "value": 0}]},
-        "event_type": "ScheduledCommandEvent",
-        "occuredDateTime": e_start, "stopDateTime": e_stop}]
+    # events = [{"message": {"forward_differences": [
+    #     {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
+    #      "attribute": "Switch.open", "value": 1}], "reverse_differences": [
+    #     {"object": "_1B6A5DFD-9ADA-404A-83DF-C9AC89D9323C",
+    #      "attribute": "Switch.open", "value": 0}]},
+    #     "event_type": "ScheduledCommandEvent",
+    #     "occuredDateTime": e_start, "stopDateTime": e_stop}]
+
+    # Reg lockout + comm outage
+    events = [
+        {
+            "message": {
+                "forward_differences": [
+                    {
+                        "object": "_CE091BBD-77FD-4E8D-8815-EEF79D540108",
+                        "attribute": "TapChanger.step",
+                        "value": 10
+                    }
+                ],
+                "reverse_differences": [
+                    {
+                        "object": "_CE091BBD-77FD-4E8D-8815-EEF79D540108",
+                        "attribute": "TapChanger.step",
+                        "value": 5
+                    }
+                ]
+            },
+            "event_type": "ScheduledCommandEvent",
+            "occuredDateTime": e_start,
+            "stopDateTime": e_stop
+        },
+        {
+            "allOutputOutage": False,
+            "allInputOutage": False,
+            "tag": "mc45mjk2",
+            "inputList": [
+                {
+                    "name": "vreg3_a",
+                    "type": "Regulator",
+                    "mRID": [
+                        "_CE091BBD-77FD-4E8D-8815-EEF79D540108"
+                    ],
+                    "attribute": "TapChanger.step",
+                    "phases": [
+                        {
+                            "phaseLabel": "A",
+                            "phaseIndex": 0
+                        }
+                    ]
+                }
+            ],
+            "outputList": [],
+            "event_type": "CommOutage",
+            "occuredDateTime": e_start,
+            "stopDateTime": e_stop
+        }]
     sid = pl.run_simulation(
         feeder_id='_AAE94E4A-2465-6F5E-37B1-3E72183A4E44',
         start_time=s, duration=d, realtime=True,
@@ -536,5 +585,5 @@ if __name__ == '__main__':
 
     # Do some crude sleeping to avoid timeouts later, since the platform
     # takes forever and a day to start a simulation.
-    time.sleep(30)
+    time.sleep(25)
     main(sim_id=sid, sim_request=pl.last_sim_config)
