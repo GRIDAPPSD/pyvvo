@@ -7,6 +7,7 @@ from datetime import timedelta
 import time
 import multiprocessing as mp
 import threading
+import queue
 
 # Third party:
 import numpy as np
@@ -33,6 +34,158 @@ FIT_NOMINAL_VOLTAGE = 240
 
 # Get the configuration. TODO: We may want to load this dynamically.
 CONFIG = utils.read_config()
+
+
+class QueueFeeder:
+
+    def __init__(self, load_measurements: pd.DataFrame, simulation_id: str,
+                 data_queue: mp.Queue, starttime, endtime,
+                 initial_n: int, subsequent_n: int, meas_per_load: int = 4,
+                 ):
+
+        """Class to continuously feed a queue with historic load data
+        from the platform. After initialization, attach a thread to
+        the object's "run" method.
+
+        :param load_measurements: DataFrame as would come from
+            sparql.SPARQLManager.query_load_measurements()
+        :param simulation_id:
+        :param data_queue: Multiprocessing queue to put data into.
+        :param initial_n: Initial number of
+        :param subsequent_n:
+        :param meas_per_load: Number of measurements per load. Will always
+            be 4 for triplex loads (one VA and one PNV measurement per
+            phase).
+        """
+        # Ensure we have the correct number of measurements per load.
+        if (load_measurements.groupby('eqid').size() != meas_per_load).all():
+            raise ValueError(f'Given DataFrame does not have {meas_per_load} '
+                             'measurements per load!')
+
+        # Initialize logger.
+        self.log = logging.getLogger(self.__class__.__name__)
+
+        # Simply set some attributes equal to inputs.
+        self.simulation_id = simulation_id
+        self.q = data_queue
+        self.initial_n = initial_n
+        self.subsequent_n = subsequent_n
+        self.meas_per_load = meas_per_load
+
+        # Our queue will change by initial_n - subsequent_n before any
+        # more work is done.
+        self.q_threshold = self.initial_n - subsequent_n
+
+        # Initialize a signal queue for flagging each time _load_queue
+        # is called. This is really to make testing/debugging easier.
+        self.signal_queue = queue.Queue()
+        self.load_count = 0
+
+        # Initialize a platform manager.
+        self.mgr = PlatformManager()
+
+        # Sort data by energy consumer ID so we can use iloc to slice up
+        # the DataFrame
+        self.df = load_measurements.sort_values(by='eqid')
+
+        # Rename 'id' to 'measurement_mrid' to make merging easier.
+        self.df.rename(columns={'id': 'measurement_mrid'}, inplace=True)
+
+        # We only care about 'measurement_mrid' and 'eqid' columns at
+        # this point, so only hang on to those.
+        self.df = self.df[['measurement_mrid', 'eqid']]
+
+        # Number of measurements to query initially.
+        self.initial_meas = self.initial_n * self.meas_per_load
+
+        if self.initial_meas > self.df.shape[0]:
+            self.log.warning(
+                'The number of measurements to query for initially, '
+                f'{self.initial_meas}, is > the total number of measurements, '
+                f'{self.df.shape[0]}. All measurements will be extracted at '
+                'once.')
+            self.initial_meas = self.df.shape[0]
+            self.subsequent_meas = 0
+        else:
+            # Number of measurements to query subsequently.
+            self.subsequent_meas = self.subsequent_n * self.meas_per_load
+
+    def run(self, timeout=15):
+        # Initialize indices.
+        s = 0
+        e = self.initial_meas
+
+        # Load up the queue initially.
+        self._load_queue(self.df.iloc[s:e]['measurement_mrid'].tolist())
+
+        # Compute the remaining measurements to query for.
+        remaining = self.df.shape[0] - self.initial_meas
+
+        # Nothing more to do. Job complete.
+        if remaining == 0:
+            return None
+
+        # Determine how many loop iterations we need to run to fill get
+        # through all the measurements.
+        n = int(np.ceil(remaining / self.subsequent_meas))
+        for i in range(n):
+            # Update our indices for this iteration.
+            s = e
+            e = s + self.subsequent_meas
+
+            # Wait until the queue size has reduced adequately.
+            t = 0
+            while (self.q.qsize() > self.q_threshold) and (t < timeout):
+                time.sleep(0.1)
+                t += 0.1
+
+            # Raise a timeout error if necessary.
+            if t >= timeout:
+                raise TimeoutError('The queue did not reduce in size '
+                                   f'within {timeout} seconds.')
+
+            # Extract measurement MRIDs and load up the queue.
+            # Note that Pandas will not throw an error here if we
+            # exceed the index, so it'll naturally go to the end
+            # without the need to try/except IndexError.
+            self._load_queue(self.df.iloc[s:e]['measurement_mrid'].tolist())
+
+    def _load_queue(self, meas_mrids):
+        # Update the counter
+        self.load_count += 1
+
+        # Query platform.
+        data = self.mgr.get_simulation_output(
+            simulation_id=self.simulation_id,
+            query_measurement='gridappsd-sensor-simulator',
+            measurement_mrid=meas_mrids)
+
+        # Drop the instance_id, hasSimulationMessageType, and simulation_id
+        # columns.
+        data.drop(columns=['instance_id', 'hasSimulationMessageType',
+                           'simulation_id'], inplace=True)
+
+        # In order to make the merging work, reset the index. This will
+        # give us a "time" column.
+        data.reset_index(inplace=True)
+
+        # Merge with our original DataFrame to map the measurements to
+        # equipment. For whatever reason, Pandas won't keep my time index,
+        # even after trying to use the "left_index" flag.
+        merged = data.merge(right=self.df, how='left', on='measurement_mrid')
+
+        # Re-index by time.
+        merged.set_index(keys='time', drop=True, inplace=True)
+
+        # Group by equipment ID and start filling up the queue.
+        grouped = merged.groupby(by='eqid')
+
+        # Put each group in the queue.
+        for _, group in grouped:
+            self.q.put(group)
+
+        # Flag that we've put data into the queue.
+        self.signal_queue.put(self.load_count)
 
 
 class LoadModelManager:

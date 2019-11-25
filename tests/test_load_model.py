@@ -2,11 +2,16 @@ import unittest
 from unittest.mock import patch, MagicMock
 from copy import deepcopy
 import time
+import multiprocessing as mp
+import threading
+import queue
 
 from tests import data_files as _df
 from tests import models
 from pyvvo.glm import GLMManager
-from pyvvo import load_model, timeseries, zip
+from pyvvo import load_model, timeseries, zip, gridappsd_platform, sparql, \
+    utils
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -433,6 +438,88 @@ class GetDataAndFitTestCase(unittest.TestCase):
         p_ffl.assert_called_with(load_data=10, **d2)
 
         self.assertEqual(result, 17)
+
+
+class QueueFeederTestCase(unittest.TestCase):
+    """Test queue_feeder method."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        # TODO: Switch back to files later.
+        # cls.load_meas = _df.read_pickle(_df.LOAD_MEAS_9500)
+        s_mgr = sparql.SPARQLManager(_df.FEEDER_MRID_9500)
+        cls.load_meas = s_mgr.query_load_measurements()
+
+    def _check_dataframe(self, df):
+        # TODO: Finish this method.
+        pass
+        # # We're expecting 4 measurements and thus four
+        # self.assertEqual(4, df.shape[0])
+        # self.assertSetEqual(set(df.cols),
+        #                     {'magnitude', 'angle', 'measurement_mrid', 'eqid'})
+
+    def test_stuff(self):
+        # Triplex loads have 4 measurements per load.
+        meas_per_load = 4
+        # Let's set things up to grab 1/5 of the loads up front.
+        initial_n = int(self.load_meas.shape[0] / meas_per_load / 5)
+        # Grab 90% of the initial size each time.
+        subsequent_n = int(initial_n * 0.9)
+
+        # Initialize queue.
+        q = mp.Queue()
+
+        # TODO: hard-coding simulation ID...
+        kwargs = {'load_measurements': self.load_meas,
+                  'data_queue': q, 'simulation_id': '823529156',
+                  'starttime': None, 'endtime': None,
+                  'initial_n': initial_n, 'subsequent_n': subsequent_n,
+                  'meas_per_load': meas_per_load}
+
+        feeder = load_model.QueueFeeder(**kwargs)
+
+        # TODO: mock calls to platform.
+        t = threading.Thread(target=feeder.run)
+        t.start()
+
+        # Check our queue size after we receive the signal.
+        self.assertEqual(1, feeder.signal_queue.get(timeout=10))
+        self.assertEqual(initial_n, q.qsize())
+
+        # Loader function should be called once.
+        self.assertEqual(feeder.load_count, 1)
+
+        # Pull number of objects equal to the threshold.
+        get_count = 0
+        for n in range(subsequent_n):
+            self.assertEqual(initial_n - n, q.qsize())
+            self.assertEqual(feeder.load_count, 1)
+            self._check_dataframe(q.get(timeout=0.1))
+            get_count += 1
+
+        # After a bit, our queue size should go right back up.
+        self.assertEqual(initial_n - subsequent_n, q.qsize())
+        self.assertEqual(feeder.signal_queue.get(timeout=10), 2)
+
+        # Pull objects out of the queue until we've gone through all of
+        # them. Note that at this point we've extracted subsequent_n
+        # items from the queue.
+        for i in range(int(self.load_meas.shape[0] / meas_per_load)
+                       - subsequent_n):
+            self._check_dataframe(q.get(timeout=15))
+            get_count += 1
+
+        # Sanity check to ensure I didn't do anything dumb.
+        self.assertEqual(get_count, self.load_meas.shape[0] / meas_per_load)
+
+        # Ensure the call count is as expected.
+        self.assertEqual(
+            1 + np.ceil((self.load_meas.shape[0] / meas_per_load - initial_n)
+                        / subsequent_n),
+            feeder.load_count
+        )
+
+        pass
 
 
 if __name__ == '__main__':
