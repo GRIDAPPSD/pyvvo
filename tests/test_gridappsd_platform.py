@@ -563,11 +563,6 @@ class PlatformManagerTestCase(unittest.TestCase):
             self.platform._query_simulation_output(simulation_id='1234',
                                                    endtime='2019-07-21')
 
-    def test__query_simulation_output_bad_meas_mrid_type(self):
-        with self.assertRaisesRegex(TypeError, 'measurement_mrid must be a '):
-            self.platform._query_simulation_output(simulation_id='1234',
-                                                   measurement_mrid=[1, 2, 3])
-
     def test__query_simulation_output_bad_query_meas_value(self):
         with self.assertRaisesRegex(ValueError, "query_measurement must be '"):
             self.platform._query_simulation_output(simulation_id='1234',

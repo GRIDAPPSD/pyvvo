@@ -15,6 +15,7 @@ from datetime import datetime
 import time
 from threading import Lock
 import weakref
+from typing import List, Union
 
 from pyvvo import utils
 from pyvvo.utils import platform_header_timestamp_to_dt as platform_dt
@@ -440,7 +441,8 @@ class PlatformManager:
     def _query_simulation_output(self, simulation_id,
                                  query_measurement='simulation',
                                  starttime=None, endtime=None,
-                                 measurement_mrid=None):
+                                 measurement_mrid:
+                                 Union[List[str], str, None] = None):
         """Get simulation/sensor service output from the platform.
         https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#timeseries-api
 
@@ -479,9 +481,9 @@ class PlatformManager:
         if (endtime is not None) and not isinstance(endtime, datetime):
             raise TypeError('endtime must be datetime.datetime.')
 
-        if (measurement_mrid is not None) and \
-                not isinstance(measurement_mrid, str):
-            raise TypeError('measurement_mrid must be a string.')
+        # if (measurement_mrid is not None) and \
+        #         not isinstance(measurement_mrid, str):
+        #     raise TypeError('measurement_mrid must be a string.')
 
         # Initialize the filter dictionary.
         filter_dict = {'simulation_id': simulation_id}
@@ -512,7 +514,9 @@ class PlatformManager:
 
     def get_simulation_output(self, simulation_id,
                               query_measurement='simulation', starttime=None,
-                              endtime=None, measurement_mrid=None):
+                              endtime=None,
+                              measurement_mrid:
+                              Union[List[str], str, None] = None):
         """Simple wrapper to call _query_simulation_output and then
             parse and return the results. See the docstring of
             _query_simulation_output for details on inputs.
