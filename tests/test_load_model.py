@@ -468,6 +468,9 @@ class QueueFeederTestCase(unittest.TestCase):
         self.assertIn('magnitude', df.columns)
         self.assertIn('angle', df.columns)
 
+        # No NaNs allowed.
+        self.assertFalse(df.isna().any().any())
+
     def test_stuff(self):
         # Triplex loads have 4 measurements per load.
         meas_per_load = 4
@@ -481,7 +484,7 @@ class QueueFeederTestCase(unittest.TestCase):
 
         # TODO: hard-coding simulation ID...
         kwargs = {'load_measurements': self.load_meas,
-                  'data_queue': q, 'simulation_id': '823529156',
+                  'data_queue': q, 'simulation_id': '1285593388',
                   'starttime': None, 'endtime': None,
                   'initial_n': initial_n, 'subsequent_n': subsequent_n,
                   'meas_per_load': meas_per_load}

@@ -97,13 +97,7 @@ class QueueFeeder:
 
         # Sort data by energy consumer ID so we can use iloc to slice up
         # the DataFrame
-        self.df = load_measurements.sort_values(by='eqid')
-
-        # Rename 'id' to 'measurement_mrid' to make merging easier.
-        self.df.rename(columns={'id': 'measurement_mrid'}, inplace=True)
-
-        # Hang on to the columns we care about.
-        self.df = self.df[['measurement_mrid', 'eqid', 'type']]
+        self.df = load_measurements.copy(deep=True).sort_values(by='eqid')
 
         # Number of measurements to query initially.
         self.initial_meas = self.initial_n * self.meas_per_load
@@ -129,7 +123,7 @@ class QueueFeeder:
         e = self.initial_meas
 
         # Load up the queue initially.
-        self._load_queue(self.df.iloc[s:e]['measurement_mrid'].tolist())
+        self._load_queue(self.df.iloc[s:e])
 
         # Compute the remaining measurements to query for.
         remaining = self.df.shape[0] - self.initial_meas
@@ -161,12 +155,12 @@ class QueueFeeder:
             # Note that Pandas will not throw an error here if we
             # exceed the index, so it'll naturally go to the end
             # without the need to try/except IndexError.
-            self._load_queue(self.df.iloc[s:e]['measurement_mrid'].tolist())
+            self._load_queue(self.df.iloc[s:e])
 
         # Flag completion.
         self.done = True
 
-    def _load_queue(self, meas_mrids):
+    def _load_queue(self, df_in):
         # Update the counter
         self.load_count += 1
 
@@ -174,21 +168,12 @@ class QueueFeeder:
         data = self.mgr.get_simulation_output(
             simulation_id=self.simulation_id,
             query_measurement='gridappsd-sensor-simulator',
-            measurement_mrid=meas_mrids, index_by_time=False,
+            measurement_mrid=df_in['id'].tolist(), index_by_time=False,
             starttime=self.starttime, endtime=self.endtime
         )
 
-        # Drop the instance_id, hasSimulationMessageType, and simulation_id
-        # columns.
-        data.drop(columns=['instance_id', 'hasSimulationMessageType',
-                           'simulation_id'], inplace=True)
-
-        # Merge with our original DataFrame to map the measurements to
-        # equipment.
-        merged = data.merge(right=self.df, how='left', on='measurement_mrid')
-
-        # Group by equipment ID and start filling up the queue.
-        grouped = merged.groupby(by='eqid')
+        # Map the data and group by equipment.
+        grouped = _drop_merge_group(map_df=df_in, data_df=data)
 
         # Put each group in the queue.
         for _, group in grouped:
@@ -196,6 +181,33 @@ class QueueFeeder:
 
         # Flag that we've put data into the queue.
         self.signal_queue.put(self.load_count)
+
+
+def _drop_merge_group(map_df, data_df):
+    """Helper to take simulation output data from the platform, drop
+    columns we don't care about, merge with a DataFrame which maps
+    equipment MRIDs, measurement MRIDs, and measurement types, and
+    finally group by equipment ID. This helper should only be used
+    by the QueueFeeder, and is separated out like this to ease testing.
+
+    :param map_df: DataFrame as would come from
+        sparql.SPARQLManager.query_load_measurements()
+    :param data_df: DataFrame as would come from
+        gridappsd_platform.PlatformManager.get_simulation_output, with
+        the index_by_time parameter set to False.
+    """
+    # Drop the instance_id, hasSimulationMessageType, and simulation_id
+    # columns.
+    data_df.drop(columns=['instance_id', 'hasSimulationMessageType',
+                          'simulation_id'], inplace=True)
+
+    # Merge with the map DataFrame.
+    merged = data_df.merge(right=map_df[['id', 'eqid', 'type']],
+                           how='left', left_on='measurement_mrid',
+                           right_on='id', copy=False).drop(columns=['id'])
+
+    # Return the merged DataFrame grouped by equipment ID.
+    return merged.groupby(by='eqid')
 
 
 class LoadModelManager:
