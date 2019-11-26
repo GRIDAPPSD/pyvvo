@@ -11,12 +11,15 @@ import logging
 LOG = logging.getLogger(__name__)
 
 
-def parse_timeseries(data):
+def parse_timeseries(data, index_by_time=True):
     """Helper to parse platform timeseries data.
 
     :param data: dictionary with results from calling the timeseries
         API (either for weather data or simulation data). Ultimately,
         this is a return from gridappsd.GridAPPSD.get_response.
+    :param index_by_time: Boolean, whether or not to return data
+        indexed by time. You may want to set this to false if the
+        data has multiple entries for a single time.
 
     :returns: pandas DataFrame representing the data. Data types in
         NUMERIC_COLS will be cast to np.float. Note NaNs may be present.
@@ -34,7 +37,10 @@ def parse_timeseries(data):
     df['time'] = pd.to_datetime(df['time'], unit='s', utc=True, origin='unix')
 
     # Set the time index and return
-    return df.set_index(keys='time', drop=True, inplace=False)
+    if index_by_time:
+        return df.set_index(keys='time', drop=True, inplace=False)
+    else:
+        return df
 
 
 def parse_weather(data):

@@ -153,6 +153,19 @@ class ParseTimeseriesMeasurementsTestCase(unittest.TestCase):
             #   get 10 records.
             # self.assertEqual(10, parsed.shape[0])
 
+    def test_13_not_indexed_by_time(self):
+        """Ensure the index_by_time parameter is working as intended."""
+        parsed = timeseries.parse_timeseries(data=self.meas_13,
+                                             index_by_time=False)
+
+        # In this case, we should have 'time' as a column rather than
+        # the index.
+        self.assertIn('time', parsed.columns)
+
+        # Ensure we just have a simple range index.
+        self.assertEqual(parsed.index[0], 0)
+        self.assertEqual(parsed.index[-1], parsed.shape[0] - 1)
+
 
 class ParseWeatherTestCase(unittest.TestCase):
     """Test parse_weather"""
