@@ -1200,6 +1200,17 @@ class EquipmentManager:
 
         return delta
 
+    def update_equipment_log_level(self, level: Union[int, str]) -> None:
+        """Change all equipment's logging level to the given level.
+
+        :param level: Logging level compatible with
+            logging.Logger.setLevel.
+        """
+        def _set_level(eq):
+            eq.log.setLevel(level)
+
+        loop_helper(eq_dict=self.eq_dict, func=_set_level)
+
 
 def _expected_not_equal_to_actual(eq: EquipmentSinglePhase):
     """Helper which returns True if a given piece of equipment's

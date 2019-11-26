@@ -9,6 +9,7 @@ from datetime import datetime
 import threading
 import queue
 import time
+import logging
 
 from pyvvo import equipment, utils
 
@@ -576,6 +577,21 @@ class EquipmentManagerRegulatorTestCase(unittest.TestCase):
                               func=count)
 
         self.assertEqual(c, self.reg_mgr.eq_count)
+
+    def test_update_equipment_log_level(self):
+        """Test update_equipment_log_level."""
+        self.reg_mgr.update_equipment_log_level(level='ERROR')
+
+        call_count = 0
+
+        def _check_level(eq):
+            nonlocal call_count
+            call_count += 1
+
+            self.assertEqual(eq.log.getEffectiveLevel(), logging.ERROR)
+
+        equipment.loop_helper(eq_dict=self.reg_mgr.eq_dict, func=_check_level)
+        self.assertEqual(call_count, self.reg_mgr.eq_count)
 
 
 class EquipmentManagerCapacitorTestCase(unittest.TestCase):
