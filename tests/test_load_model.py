@@ -452,11 +452,21 @@ class QueueFeederTestCase(unittest.TestCase):
 
     def _check_dataframe(self, df):
         # TODO: Finish this method.
-        pass
-        # # We're expecting 4 measurements and thus four
-        # self.assertEqual(4, df.shape[0])
-        # self.assertSetEqual(set(df.cols),
-        #                     {'magnitude', 'angle', 'measurement_mrid', 'eqid'})
+        # Each DataFrame should correspond to a single piece of
+        # equipment.
+        self.assertEqual(1, len(df['eqid'].unique()))
+
+        # Each DataFrame should have four unique measurements.
+        self.assertEqual(4, len(df['measurement_mrid'].unique()))
+
+        # Each DataFrame should not be indexed by time, but rather have
+        # time in its columns.
+        self.assertIn('time', df.columns)
+
+        # Each DataFrame should also have magnitude and angle in the
+        # columns.
+        self.assertIn('magnitude', df.columns)
+        self.assertIn('angle', df.columns)
 
     def test_stuff(self):
         # Triplex loads have 4 measurements per load.
@@ -477,6 +487,11 @@ class QueueFeederTestCase(unittest.TestCase):
                   'meas_per_load': meas_per_load}
 
         feeder = load_model.QueueFeeder(**kwargs)
+
+        self.assertIsNone(feeder.starttime)
+        self.assertIsNone(feeder.endtime)
+
+        self.assertFalse(feeder.done)
 
         # TODO: mock calls to platform.
         t = threading.Thread(target=feeder.run)
@@ -519,6 +534,8 @@ class QueueFeederTestCase(unittest.TestCase):
             feeder.load_count
         )
 
+        # Ensure we're done.
+        self.assertTrue(feeder.done)
         pass
 
 

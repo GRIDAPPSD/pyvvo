@@ -39,13 +39,18 @@ CONFIG = utils.read_config()
 class QueueFeeder:
 
     def __init__(self, load_measurements: pd.DataFrame, simulation_id: str,
-                 data_queue: mp.Queue, starttime, endtime,
+                 data_queue: mp.Queue,
                  initial_n: int, subsequent_n: int, meas_per_load: int = 4,
+                 starttime=None, endtime=None,
                  ):
 
-        """Class to continuously feed a queue with historic load data
+        """
+        Class to continuously feed a queue with historic load data
         from the platform. After initialization, attach a thread to
-        the object's "run" method.
+        the object's "run" method. This class's singular purpose is to
+        get load data from the platform and put it into a queue.
+        However, it does so in a way that is memory friendly - we don't
+        go and ask for data for all loads at once.
 
         :param load_measurements: DataFrame as would come from
             sparql.SPARQLManager.query_load_measurements()
@@ -56,6 +61,10 @@ class QueueFeeder:
         :param meas_per_load: Number of measurements per load. Will always
             be 4 for triplex loads (one VA and one PNV measurement per
             phase).
+        :param starttime: Passed directly to
+            gridappsd_platform.PlatformManager.get_simulation_output
+        :param endtime: Passed directly to
+            gridappsd_platform.PlatformManager.get_simulation_output
         """
         # Ensure we have the correct number of measurements per load.
         if (load_measurements.groupby('eqid').size() != meas_per_load).all():
@@ -71,6 +80,8 @@ class QueueFeeder:
         self.initial_n = initial_n
         self.subsequent_n = subsequent_n
         self.meas_per_load = meas_per_load
+        self.starttime = starttime
+        self.endtime = endtime
 
         # Our queue will change by initial_n - subsequent_n before any
         # more work is done.
@@ -91,9 +102,8 @@ class QueueFeeder:
         # Rename 'id' to 'measurement_mrid' to make merging easier.
         self.df.rename(columns={'id': 'measurement_mrid'}, inplace=True)
 
-        # We only care about 'measurement_mrid' and 'eqid' columns at
-        # this point, so only hang on to those.
-        self.df = self.df[['measurement_mrid', 'eqid']]
+        # Hang on to the columns we care about.
+        self.df = self.df[['measurement_mrid', 'eqid', 'type']]
 
         # Number of measurements to query initially.
         self.initial_meas = self.initial_n * self.meas_per_load
@@ -109,6 +119,9 @@ class QueueFeeder:
         else:
             # Number of measurements to query subsequently.
             self.subsequent_meas = self.subsequent_n * self.meas_per_load
+
+        # Set flag for when we're done.
+        self.done = False
 
     def run(self, timeout=15):
         # Initialize indices.
@@ -150,6 +163,9 @@ class QueueFeeder:
             # without the need to try/except IndexError.
             self._load_queue(self.df.iloc[s:e]['measurement_mrid'].tolist())
 
+        # Flag completion.
+        self.done = True
+
     def _load_queue(self, meas_mrids):
         # Update the counter
         self.load_count += 1
@@ -165,17 +181,9 @@ class QueueFeeder:
         data.drop(columns=['instance_id', 'hasSimulationMessageType',
                            'simulation_id'], inplace=True)
 
-        # In order to make the merging work, reset the index. This will
-        # give us a "time" column.
-        data.reset_index(inplace=True)
-
         # Merge with our original DataFrame to map the measurements to
-        # equipment. For whatever reason, Pandas won't keep my time index,
-        # even after trying to use the "left_index" flag.
+        # equipment.
         merged = data.merge(right=self.df, how='left', on='measurement_mrid')
-
-        # Re-index by time.
-        merged.set_index(keys='time', drop=True, inplace=True)
 
         # Group by equipment ID and start filling up the queue.
         grouped = merged.groupby(by='eqid')
