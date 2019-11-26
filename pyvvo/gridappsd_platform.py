@@ -512,14 +512,18 @@ class PlatformManager:
         return self.gad.get_response(topic=topics.TIMESERIES,
                                      message=payload, timeout=30)
 
-    def get_simulation_output(self, simulation_id,
-                              query_measurement='simulation', starttime=None,
-                              endtime=None,
-                              measurement_mrid:
-                              Union[List[str], str, None] = None):
+    def get_simulation_output(
+            self, simulation_id, query_measurement='simulation',
+            starttime=None, endtime=None,
+            measurement_mrid: Union[List[str], str, None] = None,
+            index_by_time=True):
         """Simple wrapper to call _query_simulation_output and then
-            parse and return the results. See the docstring of
-            _query_simulation_output for details on inputs.
+        parse and return the results. See the docstring of
+        _query_simulation_output for details on inputs.
+
+        TODO: document parameters.
+            
+        :param index_by_time: Passed to timeseries.parse_timeseries.
         """
         # Query the timeseries database.
         data = \
@@ -529,7 +533,7 @@ class PlatformManager:
                 endtime=endtime, measurement_mrid=measurement_mrid)
 
         # Parse the result and return.
-        return timeseries.parse_timeseries(data)
+        return timeseries.parse_timeseries(data, index_by_time)
 
     def run_simulation(self, feeder_id, start_time, duration, realtime,
                        applications=None, random_zip=False,

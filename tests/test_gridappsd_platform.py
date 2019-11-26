@@ -623,7 +623,8 @@ class PlatformManagerTestCase(unittest.TestCase):
                        return_value=21) as p2:
                 out = self.platform.get_simulation_output(
                     simulation_id=7, query_measurement=3,
-                    starttime=10, endtime=16, measurement_mrid=65
+                    starttime=10, endtime=16, measurement_mrid=65,
+                    index_by_time=True
                 )
 
         p1.assert_called_once()
@@ -631,7 +632,7 @@ class PlatformManagerTestCase(unittest.TestCase):
 
         p1.assert_called_with(simulation_id=7, query_measurement=3,
                               starttime=10, endtime=16, measurement_mrid=65)
-        p2.assert_called_with(42)
+        p2.assert_called_with(42, True)
 
         self.assertEqual(21, out)
 
