@@ -142,6 +142,11 @@ def main(sim_id, sim_request):
     inverter_mgr.log.setLevel(log_level)
     LOG.info(
         f'InverterManager log level changed to {log_level} to reduce output.')
+    log_level = 'ERROR'
+    inverter_mgr.update_equipment_log_level(level=log_level)
+    LOG.info(
+        f'All individual inverter log levels changed to {log_level} to reduce '
+        'output.')
 
     # Run the genetic algorithm.
     # TODO: Manage loop exit, etc. Should exit when simulation is
