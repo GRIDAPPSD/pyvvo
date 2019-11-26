@@ -174,7 +174,9 @@ class QueueFeeder:
         data = self.mgr.get_simulation_output(
             simulation_id=self.simulation_id,
             query_measurement='gridappsd-sensor-simulator',
-            measurement_mrid=meas_mrids)
+            measurement_mrid=meas_mrids, index_by_time=False,
+            starttime=self.starttime, endtime=self.endtime
+        )
 
         # Drop the instance_id, hasSimulationMessageType, and simulation_id
         # columns.
@@ -213,14 +215,22 @@ class LoadModelManager:
             through a glm.GLMManager object ('mgr' in this example):
             list(mgr.get_items_by_type(item_type='object',
                                        object_type='triplex_load').keys())
+        :param simulation_id: ID of simulation for which we're managing
+            load models.
         """
         # Initialize the log.
         self.log = logging.getLogger(self.__class__.__name__)
+
+        # Store reference to the load measurements.
+        self.load_measurements = load_measurements
 
         # Map our inputs together, resulting in a single DataFrame.
         self._load_df = self._map_names_to_measurements(load_nominal_voltage,
                                                         load_measurements,
                                                         load_names_glm)
+
+        # Group by equipment ID.
+        self.load_df_grouped = self.load_df.groupby(by='eqid')
 
         # Log success.
         self.log.info('GridLAB-D load names successfully mapped to CIM '
@@ -235,6 +245,9 @@ class LoadModelManager:
         self._input_queue = mp.JoinableQueue()
         self._output_queue = mp.Queue()
         self._logging_queue = mp.Queue()
+
+        # Later, we'll initialize a QueueFeeder.
+        self.feeder = None
 
         # Start the logging thread.
         self._logging_thread = \
@@ -254,8 +267,8 @@ class LoadModelManager:
 
     @property
     def load_df(self):
-        """Pandas DataFrame with three columns: meas_type, meas_mrid,
-        and load_name.
+        """Pandas DataFrame with four columns: meas_type, meas_mrid,
+        eqid, and load_name.
         """
         return self._load_df
 
@@ -359,7 +372,7 @@ class LoadModelManager:
         # For starters, we should have four times the number of groups
         # as triplex loads in the model, because each load should have
         # four measurements.
-        if not (len(grouped) == len(load_names_glm) * 4):
+        if len(grouped) != (len(load_names_glm) * 4):
             raise ValueError('The number of triplex loads in load_nominal_'
                              'voltage/load_measurements does not match the '
                              'number of loads in load_names_glm. This could '
@@ -396,7 +409,7 @@ class LoadModelManager:
 
         # Finally, clean up our DataFrame to keep only the things we
         # care about.
-        final_df.drop(columns=['class', 'node', 'phases', 'load', 'eqid',
+        final_df.drop(columns=['class', 'node', 'phases', 'load',
                                'trmid', 'bus', 'basev', 'conn',
                                'fixed_name'], inplace=True)
 
@@ -463,25 +476,42 @@ class LoadModelManager:
 
         self.log.info('Processes closed.')
 
-    # def fit_for_all(self, sim_id, starttime, endtime):
-    #     """"""
-    #     # Fire up processes.
-    #     self._start_processes()
-    #
-    #     # Get weather data.
-    #     weather_data = self.platform.get_weather(start_time=starttime,
-    #                                              end_time=endtime)
-    #
-    #     # Initialize get_data_for_load arguments.
-    #     gdfl_kwargs = {'sim_id': sim_id, 'starttime': starttime,
-    #                    'endtime': endtime}
-    #
-    #     # Initialize fit_for_load arguments.
-    #     # TODO: Add options for selection_data and prediction_datetime.
-    #     ffl_kwargs = {'weather_data': weather_data}
-    #
-    #     #
-    #     # Fill up queue.
+    def fit_for_all(self, sim_id, starttime, endtime, feeder_kwargs):
+        """"""
+        # Initialize a QueueFeeder.
+        self.feeder = QueueFeeder(load_measurements=self.load_measurements,
+                                  data_queue=self._input_queue,
+                                  simulation_id=sim_id,
+                                  starttime=starttime, endtime=endtime,
+                                  **feeder_kwargs)
+
+        # Fire up processes.
+        self._start_processes()
+
+        # Get weather data.
+        weather_data = self.platform.get_weather(start_time=starttime,
+                                                 end_time=endtime)
+
+        # Initialize get_data_for_load arguments.
+        gdfl_kwargs = {'sim_id': sim_id, 'starttime': starttime,
+                       'endtime': endtime}
+
+        # Initialize fit_for_load arguments.
+        # TODO: Add options for selection_data and prediction_datetime.
+        ffl_kwargs = {'weather_data': weather_data}
+
+        # Fill up queue by looping over loads.
+        grouped = self.load_df.groupby('load_name')
+
+        for g in grouped:
+            # The DataFrame is in entry 1 of the tuple, and the name
+            # is in entry 0.
+            self.input_queue.put(
+                {'gdfl_kwargs': {'meas_data': g[1], **gdfl_kwargs},
+                 'ffl_kwargs': ffl_kwargs,
+                 'load_name': g[0]})
+            pass
+
 
 def fix_load_name(n):
     """Strip quotes, remove prefix, and remove suffix from load names.
@@ -520,117 +550,50 @@ def fix_load_name(n):
     return tmp[len(TRIPLEX_LOAD_PREFIX):]
 
 
-def get_data_for_load(sim_id, meas_data,
-                      query_measurement='gridappsd-sensor-simulator',
-                      starttime=None, endtime=None,):
-    """Query sensor service output to get data for given measurement
-    mrids. This is specific to triplex_loads, and at the moment DOES NOT
-    generalize to three phase loads.
+def transform_data_for_load(meas_data: pd.DataFrame):
+    """Given load measurement data from the GridAPPS-D platform,
 
-    NOTE 1: query_measurement, starttime, and endtime are all directly
-        passed to
-        gridappsd_platform.PlatformManager.get_simulation_output. For
-        details on these inputs, see that method's docstring.
-
-    NOTE 2: The given meas_mrids are assumed to be associated with the
-        same load, but no integrity checks will be performed.
-
-    :param sim_id: Simulation ID, string.
-    :param meas_data: Pandas DataFrame with 4 rows (one for each
-        measurement object on a triplex load) and 2 columns:
-        meas_type and meas_mrid. meas_type must be PNV or VA, and there
-        must be two of each type. An easy way to get this DataFrame is
-        to group a LoadModelManager's load_df DataFrame by load_name.
-    :param query_measurement: String, defaults to
-        'gridappsd-sensor-simulator.'
-    :param starttime: datetime.datetime. Filters measurements.
-    :param endtime: datetime.datetime. Filters measurements.
+    :param meas_data: Pandas DataFrame which comes from a QueueFeeder.
+        It represents data for a single load over a given time
+        horizon.
 
     :returns: pandas DataFrame with three columns, 'v', 'p', and 'q'.
         Indexed by time as returned by
         gridappsd_platform.PlatformManager.get_simulation_output.
     """
-    # Do some quick input checks.
-    if not isinstance(meas_data, pd.DataFrame):
-        raise TypeError('meas_data must be a Pandas DataFrame.')
+    # Get complex numbers for angle and magnitude.
+    meas_data['cplx'] = utils.get_complex(r=meas_data['magnitude'],
+                                          phi=meas_data['angle'],
+                                          degrees=True)
 
-    if meas_data.shape[0] != 4:
-        raise ValueError('Since meas_data should correspond to measurements '
-                         'for a single triplex_load, it should have 4 rows.')
+    # Sum PNV and VA measurements that occur at the same time.
+    grouped = meas_data.loc[:, ['cplx', 'time', 'type']].groupby(
+        by=['time', 'type']).sum().reset_index()
 
-    # Get a PlatformManager to query the time series database.
-    # NOTE: This is created on demand rather than being an input to
-    # make this more robust for running in parallel.
-    # TODO: Is this on-demand strategy good? Or should we be passing
-    #   a PlatformManager around?
-    mgr = PlatformManager()
+    # Extract PNV and VA measurements.
+    pnv_mask = grouped['type'] == 'PNV'
+    va_mask = grouped['type'] == 'VA'
 
-    # Initialize dictionary to hold DataFrames. It will be keyed by
-    # measurement MRID.
-    data = {}
+    pnv = grouped.loc[pnv_mask, ['cplx', 'time']].set_index(
+        'time').rename(columns={'cplx': 'pnv'})
+    va = grouped.loc[va_mask, ['cplx', 'time']].set_index(
+        'time').rename(columns={'cplx': 'va'})
 
-    # Query the time series database.
-    for m in meas_data['meas_mrid'].values:
-        # Get the data for this measurement.
-        d = mgr.get_simulation_output(
-            simulation_id=sim_id,
-            query_measurement=query_measurement,
-            starttime=starttime, endtime=endtime,
-            measurement_mrid=m
-        )
+    # Ensure they're the same length.
+    assert pnv.shape == va.shape
+    assert pnv.shape[0] + va.shape[0] == meas_data.shape[0] / 2
 
-        # There may be some bugs in pandas related to complex numbers...
-        # So, we'll hack around this.
-        data[m] = {'data': utils.get_complex(r=d['magnitude'].values,
-                                             phi=d['angle'].values,
-                                             degrees=True),
-                   'idx': d.index
-                   }
+    # Combine.
+    df = pnv.join(va)
 
-    # Ensure nothing funky is going on and that all our data is the
-    # same shape.
-    v_iter = iter(data.values())
-    dict1 = next(v_iter)
-    s = dict1['data'].shape
-    idx = dict1['idx']
-
-    for d in v_iter:
-        assert s == d['data'].shape
-        pd.testing.assert_index_equal(idx, d['idx'])
-
-    # Initialize arrays to hold our phase to neutral measurements and
-    # VA measurements. I initially had these as columns in a DataFrame,
-    # but pandas gets upset about complex numbers?
-    pnv = np.zeros_like(dict1['data'])
-    va = np.zeros_like(dict1['data'])
-
-    # Loop over our list of DataFrames
-    for meas_mrid, d in data.items():
-        # By the nature of our query, we can ensure that each DataFrame
-        # only corresponds to a single measurement MRID.
-        # Extract the row in meas_data corresponding to this mrid.
-        row = meas_data[meas_data['meas_mrid'] == meas_mrid]
-
-        # Ensure it really is just a row.
-        assert row.shape[0] == 1
-
-        # Extract the type.
-        meas_type = row.iloc[0]['meas_type']
-
-        if meas_type == 'PNV':
-            pnv += d['data']
-        elif meas_type == 'VA':
-            va += d['data']
-        else:
-            raise ValueError('Unexpected measurement type, {}.'
-                             .format(meas_type))
+    # Create v, p, and q columns.
+    df['v'] = df['pnv'].abs()
+    df['p'] = df['va'].values.real
+    df['q'] = df['va'].values.imag
 
     # Return a DataFrame with the 'v', 'p', and 'q' columns needed for
     # ZIP fitting.
-    return pd.DataFrame(data={'v': np.abs(pnv),
-                              'p': va.real,
-                              'q': va.imag},
-                        index=idx)
+    return df.loc[:, ['v', 'p', 'q']]
 
 
 def fit_for_load(load_data, weather_data, selection_data=None,
@@ -773,11 +736,11 @@ def _get_data_and_fit_worker(input_queue, output_queue, logging_queue):
     get_data_and_fit.
 
     :param input_queue: Multiprocessing.JoinableQueue instance. The
-        objects in the queue should be dictionaries with two fields:
-        'gdfl_kwargs' and 'ffl_kwargs'. The dictionary will simply be
-        unpacked into the get_data_and_fit method. Putting None in the
-        queue is used as the termination signal for the worker, causing
-        this method to return.
+        objects in the queue should be dictionaries with three fields:
+        'gdfl_kwargs,' 'ffl_kwargs,' and 'load_name'. gdfl_kwargs and
+        ffl_kwargs will be passed to get_data_and_fit. Putting None in
+        the queue is used as the termination signal for the worker,
+        causing this method to return.
     :param output_queue: Multiprocessing.Queue instance. The output from
         calling get_data_and_fit will be placed in the output_queue.
         Note that a 'load_name' field will also be added.
@@ -791,6 +754,8 @@ def _get_data_and_fit_worker(input_queue, output_queue, logging_queue):
 
     :returns: None
     """
+    # Initialize a PlatformManager.
+    platform_manager = PlatformManager()
 
     # Loop until the termination signal is received.
     while True:
@@ -803,18 +768,20 @@ def _get_data_and_fit_worker(input_queue, output_queue, logging_queue):
 
         # Do the work.
         t0 = time.time()
-        result = get_data_and_fit(**d)
+        result = get_data_and_fit(
+            gdfl_kwargs={'platform_manager': platform_manager,
+                         **d['gdfl_kwargs']},
+            ffl_kwargs=d['ffl_kwargs'])
         t1 = time.time()
 
-        load_name = d['meas_data'].iloc[0]['load_name']
         # Dump information into the logging queue.
-        logging_queue.put({'load_name': load_name,
+        logging_queue.put({'load_name': d['load_name'],
                            'time': t1 - t0, 'clusters': result['k'],
                            'data_samples': result['data_len'],
                            'sol': result['sol']})
 
         # Add a load_name field to the result.
-        result['load_name'] = load_name
+        result['load_name'] = d['load_name']
 
         # Put the result in the output queue.
         output_queue.put(result)
@@ -846,7 +813,8 @@ def _logging_worker(logging_queue):
         # Log.
         if d['sol'].success:
             # TODO: Should this be debug instead of info?
-            LOG.info('Fit for load {} complete in {:.2f} seconds'
+            LOG.info('Fit for load {} complete in {:.2f} seconds, including '
+                     'data retrieval from the platform.'
                      .format(d['load_name'], d['time']))
         else:
             # Warn on failure.
