@@ -140,6 +140,13 @@ PARSED_SENSOR_9500_3 = \
 PARSED_SENSOR_LIST = [PARSED_SENSOR_9500_0, PARSED_SENSOR_9500_1,
                       PARSED_SENSOR_9500_2, PARSED_SENSOR_9500_3]
 
+# This file will be a composite of all the individual measurement files,
+# as the platform now supports querying for multiple MRIDs at once.
+# Note that we'll use get_simulation_output with index_by_time=False to
+# generate this file.
+PARSED_SENSOR_9500_ALL = \
+    os.path.join(DATA_DIR, PARSED_SENSOR_BASE + '_all.csv')
+
 PARSED_SENSOR_VPQ = os.path.join(DATA_DIR, 'parsed_sensor_vpq_9500.csv')
 
 WEATHER_FOR_SENSOR_DATA_9500_JSON = \
@@ -483,14 +490,9 @@ def _get_9500_meas_data_for_one_node():
 
 
 def generate_sensor_service_measurements_9500():
-    """NOTE: THIS ONE WON'T JUST WORK OUT OF THE BOX, SINCE EXTENSIVE
-    PLATFORM CONFIGURATION IS NECESSARY.
-
-    To get it to work, you must ensure the sample application has the
-    "gridappsd-sensor-simulator" listed in its "prereqs" field.
-
-    This method is also going to produce different results depending
-    on how the sensor service is configured.
+    """Use the sensor service to create average measurements for an
+    energy consumer, then extract the measurements from the timeseries
+    database and save them to file.
     """
     time_diff = SENSOR_MEASUREMENT_TIME_END - SENSOR_MEASUREMENT_TIME_START
 
@@ -529,11 +531,12 @@ def generate_sensor_service_measurements_9500():
     #   is resolved.
     sim_id = platform.run_simulation(feeder_id=FEEDER_MRID_9500,
                                      start_time=SENSOR_MEASUREMENT_TIME_START,
-                                     duration=time_diff.seconds,
+                                     duration=int(time_diff.total_seconds()),
                                      realtime=False,
                                      applications=[],
                                      random_zip=False, houses=False,
-                                     services=full_config)
+                                     services=full_config,
+                                     events=None)
 
     # Wait for simulation completion.
     platform.wait_for_simulation()
@@ -541,7 +544,7 @@ def generate_sensor_service_measurements_9500():
     # TODO: Remove this time.sleep when
     #  https://github.com/GRIDAPPSD/gridappsd-forum/issues/24#issue-487936782
     #  has been addressed.
-    time.sleep(60)
+    time.sleep(30)
 
     # Get output for all our MRIDs.
     for idx, meas_mrid in enumerate(meas_data['id'].values):
@@ -552,6 +555,17 @@ def generate_sensor_service_measurements_9500():
 
         # Save the output to file.
         _dict_to_json(data=out, fname=SENSOR_MEAS_LIST[idx])
+
+    # Now, generate a file which has all measurements in one place.
+    # NOTE: We'll ensure index_by_time is False.
+    out = platform.get_simulation_output(
+        simulation_id=sim_id, query_measurement='gridappsd-sensor-simulator',
+        measurement_mrid=meas_data['id'].tolist(),
+        index_by_time=False
+    )
+
+    # Save to file.
+    to_file(df=out, csv_file=PARSED_SENSOR_9500_ALL)
 
 
 def generate_parsed_sensor_service_measurements_9500():
