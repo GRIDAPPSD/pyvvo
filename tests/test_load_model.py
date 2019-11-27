@@ -5,6 +5,7 @@ import time
 import multiprocessing as mp
 import threading
 import queue
+import simplejson as json
 
 from tests import data_files as _df
 from tests import models
@@ -217,51 +218,62 @@ class LoadModelManagerModified123TestCase(unittest.TestCase):
                         " is fixed.")
 
 
-class GetDataForLoadTestCase(unittest.TestCase):
-    """Test get_data_for_load"""
+class TransformDataForLoadTestCase(unittest.TestCase):
+    """Test transform_data_for_load"""
 
     @classmethod
     def setUpClass(cls):
-        # Grab the all meas data for one load in the the 9500 node
-        # model, just as is done in
-        # generate_sensor_service_measurements_9500 in data_files.py
+        # Grab the all measurement information for a single node/load.
         cls.meas_data = _df._get_9500_meas_data_for_one_node()
-        cls.meas_data.rename(columns={'id': 'meas_mrid', 'type': 'meas_type'},
-                             inplace=True)
 
         # Get dates corresponding to measurements.
         cls.starttime = _df.SENSOR_MEASUREMENT_TIME_START
         cls.endtime = _df.SENSOR_MEASUREMENT_TIME_END
 
-        # Read the outputs from the timeseries database.
-        cls.ts_out = []
-        for file in _df.PARSED_SENSOR_LIST:
-            cls.ts_out.append(_df.read_pickle(file))
+        # Load up the time series data.
+        ts = _df.read_pickle(_df.PARSED_SENSOR_9500_ALL)
+
+        # Combine it with the meas data map.
+        grouped = load_model._drop_merge_group(map_df=cls.meas_data,
+                                               data_df=ts)
+
+        # Ensure grouped just has one element.
+        assert len(grouped) == 1
+
+        # Assign the group data.
+        for _, group in grouped:
+            cls.df = group
 
     def test_runs(self):
         """Use our testing data from the platform to ensure this works
         all the way through.
         """
-        # Patch calls to _query_simulation_output to read our
-        # measurements in order.
-        with patch(('pyvvo.gridappsd_platform.PlatformManager'
-                    + '.get_simulation_output'),
-                   side_effect=self.ts_out) as p:
-            results = \
-                load_model.get_data_for_load(
-                    sim_id='1234', meas_data=self.meas_data,
-                    starttime=self.starttime, endtime=self.endtime,
-                    query_measurement='gridappsd-sensor-simulator')
+        # Call the function. It should run without error.
+        result = load_model.transform_data_for_load(meas_data=self.df)
 
-        self.assertEqual(4, p.call_count)
-        self.assertIsInstance(results, pd.DataFrame)
+        # Now, time to ensure we got back what we expected.
 
+        # Start by ensuring the columns are correct.
+        self.assertSetEqual({'p', 'q', 'v'}, set(result.columns.tolist()))
+
+        # Now, we should have one fourth the rows of the original,
+        # since we've taken the four triplex measurements and added
+        # them to effectively create one measurement per time step.
+        self.assertEqual(self.df.shape[0] / 4, result.shape[0])
+
+        # Next up, ensure our index is time.
+        self.assertEqual('time', result.index.name)
+
+    # noinspection PyMethodMayBeStatic
     def test_expected(self):
         """Create expected results, create inputs by deconstructing
         them.
         """
+        # Initialize expected return.
+        t = [datetime(2019, 11, 27, 8), datetime(2019, 11, 27, 9)]
         expected = pd.DataFrame(data=[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]],
-                                columns=['v', 'p', 'q'])
+                                columns=['v', 'p', 'q'], index=t)
+        expected.index.name = 'time'
 
         # Extract v from our expected.
         v = expected['v'].values
@@ -271,8 +283,13 @@ class GetDataForLoadTestCase(unittest.TestCase):
 
         v_angle = pd.Series(np.zeros_like(v_3))
 
+        # Create type lists for PNV and VA.
+        pnv_type = ['PNV', 'PNV']
+        va_type = ['VA', 'VA']
+
         # Create DataFrame for v, which holds 1/3 of the sum.
-        df1 = pd.DataFrame(data={'magnitude': v_3, 'angle': v_angle})
+        df1 = pd.DataFrame(data={'magnitude': v_3, 'angle': v_angle,
+                                 'type': pnv_type, 'time': t})
 
         # Second DataFrame for v should hold 2/3 of sum.
         df2 = pd.DataFrame(data={'magnitude': 2 * v_3, 'angle': v_angle})
@@ -285,30 +302,22 @@ class GetDataForLoadTestCase(unittest.TestCase):
 
         # Create our first DataFrame for VA
         df3 = pd.DataFrame(data={'magnitude': np.abs(va_4),
-                                 'angle': np.angle(va_4, deg=True)})
+                                 'angle': np.angle(va_4, deg=True),
+                                 'type': va_type, 'time': t})
         # Now, our second.
         df4 = pd.DataFrame(data={'magnitude': np.abs(3 * va_4),
-                                 'angle': np.angle(3 * va_4, deg=True)})
+                                 'angle': np.angle(3 * va_4, deg=True),
+                                 'type': va_type, 'time': t})
 
-        # Mock up our 'meas_data' input. Note the alignment with our
-        # DataFrames in order.
-        meas_data = pd.DataFrame({'meas_mrid': ['a', 'b', 'c', 'd'],
-                                  'meas_type': ['PNV', 'PNV', 'VA', 'VA']})
-
-        # Create a mock for the PlatformManager.
-        mock_mgr = MagicMock()
-        mock_mgr.get_simulation_output = \
-            MagicMock(side_effect=[df1, df2, df3, df4])
+        # Concatenate all our DataFrames. Order should not matter.
+        df_in = pd.concat([df1, df4, df3, df2], axis=0)
 
         # We're ready to call the function.
-        with patch('pyvvo.load_model.PlatformManager',
-                   return_value=mock_mgr) as p:
-            actual = load_model.get_data_for_load(sim_id='bleh',
-                                                  meas_data=meas_data)
+        actual = load_model.transform_data_for_load(meas_data=df_in)
 
-        self.assertEqual(1, p.call_count)
-        self.assertEqual(4, mock_mgr.get_simulation_output.call_count)
-        pd.testing.assert_frame_equal(expected, actual)
+        # Ensure our sorted frames match after sorting.
+        pd.testing.assert_frame_equal(expected.sort_index(),
+                                      actual.sort_index())
 
 
 class FitForLoadTestCase(unittest.TestCase):

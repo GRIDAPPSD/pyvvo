@@ -563,11 +563,16 @@ def fix_load_name(n):
 
 
 def transform_data_for_load(meas_data: pd.DataFrame):
-    """Given load measurement data from the GridAPPS-D platform,
+    """Given load measurement data from a QueueFeeder's queue, combine
+    VA and PNV measurements as appropriate, create DataFrame with v,
+    p, and q for load modeling.
 
     :param meas_data: Pandas DataFrame which comes from a QueueFeeder.
-        It represents data for a single load over a given time
-        horizon.
+        It represents data for a SINGLE load over a given time
+        horizon. IMPORTANT: Right now, we're assuming this is a
+        triplex load and simply summing PNV measurements for the
+        same timestamp and also summing VA measurements for the
+        same timestamp.
 
     :returns: pandas DataFrame with three columns, 'v', 'p', and 'q'.
         Indexed by time as returned by
