@@ -631,7 +631,7 @@ class EquipmentManagerCapacitorTestCase(unittest.TestCase):
         # Create a duplicate entry.
         meas = meas.append(meas.iloc[0])
 
-        s = 'Received 2 measurements for equipment with mrid'
+        s = 'The number of measurements for equipment with mrid'
         with self.assertRaisesRegex(ValueError, s):
             _ = \
                 equipment.EquipmentManager(
