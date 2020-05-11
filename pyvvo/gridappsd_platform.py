@@ -406,7 +406,7 @@ class PlatformManager:
                                      timeout=self.timeout)
 
         # Check to see if we actually have any data.
-        if data['data'] is None:
+        if (data['data'] is None) or (len(data['data']) == 0):
             raise QueryReturnEmptyError(topic=topic, query=payload)
 
         return data
