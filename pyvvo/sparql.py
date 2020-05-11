@@ -5,6 +5,7 @@ from pyvvo.gridappsd_platform import get_gad_object
 from pyvvo.utils import map_dataframe_columns
 
 import pandas as pd
+import numpy as np
 
 # Map CIM booleans (come back as strings) to Python booleans.
 BOOLEAN_MAP = {'true': True, 'false': False}
@@ -288,7 +289,7 @@ class SPARQLManager:
             output = output.apply(pd.to_numeric, errors='ignore')
 
         # Replace the empty string with nan.
-        output.replace(to_replace='', value=pd.np.nan, inplace=True)
+        output.replace(to_replace='', value=np.nan, inplace=True)
 
         # Warn if there are NaNs.
         if output.isnull().values.any():
