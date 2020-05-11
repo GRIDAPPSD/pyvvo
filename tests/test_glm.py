@@ -1963,13 +1963,17 @@ class ConvertSwitchStatusToThreePhaseTestCase(unittest.TestCase):
         self.assertNotIn('phase_C_state', s)
         self.assertEqual(s['operating_mode'], 'BANKED')
 
+    def check_for_error(self, std):
+        """Given binary stderr/stdout, ensure there is not an error."""
+        self.assertFalse('error' in std.decode('utf-8').lower())
+
     @unittest.skipIf(not gld_installed(), reason='GridLAB-D is not installed.')
     def test_model_runs_after_modifications(self):
         # Start by ensuring the model runs before modifications.
         result1 = run_gld(model_path=TEST_SWITCH_MOD)
         self.assertEqual(result1.returncode, 0)
-        self.assertEqual(result1.stderr, b'')
-        self.assertEqual(result1.stdout, b'')
+        self.check_for_error(result1.stderr)
+        self.check_for_error(result1.stdout)
 
         # Modify the model.
         mgr = glm.GLMManager(model=TEST_SWITCH_MOD, model_is_path=True)
@@ -1981,8 +1985,8 @@ class ConvertSwitchStatusToThreePhaseTestCase(unittest.TestCase):
         # Run it.
         result2 = run_gld('tmp.glm')
         self.assertEqual(result2.returncode, 0)
-        self.assertEqual(result2.stderr, b'')
-        self.assertEqual(result2.stdout, b'')
+        self.check_for_error(result2.stderr)
+        self.check_for_error(result2.stdout)
 
 
 if __name__ == '__main__':
