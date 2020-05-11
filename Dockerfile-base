@@ -51,7 +51,8 @@ RUN mkdir ${PYVVO} \
     && printf '\nInstalling GridLAB-D...\n' \
     && cd ${TEMP_DIR}/gridlab-d \
     && autoreconf -isf \
-    && ./configure --prefix=${PYVVO} --with-mysql=/usr --with-xerces=${PYVVO} --enable-silent-rules 'CFLAGS=-g -O2 -w' 'CXXFLAGS=-g -O2 -w -std=c++11' 'LDFLAGS=-g -O2 -w' \
+    # http://gridlab-d.shoutwiki.com/wiki/Builds
+    && ./configure --prefix=${PYVVO} --with-mysql=/usr --with-xerces=${PYVVO} --enable-silent-rules 'CFLAGS=-g -O2 -w' 'CCFLAGS=-g -O2 -w' 'CXXFLAGS=-g -O2 -w' 'LDFLAGS=-g -O2 -w' \
     # Do some nasty hard-coded replacement in the Makefile so that it
     # can properly find mysql.h and libmysqlclient.so.
     && sed "s@MYSQL_LDFLAGS = '-L/usr/lib'@MYSQL_LDFLAGS = '-L/usr/lib/x86_64-linux-gnu'@" Makefile > tmp.txt \
