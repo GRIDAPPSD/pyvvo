@@ -1929,8 +1929,8 @@ class InitializeSynchronousMachinesTestCase(unittest.TestCase):
         cls.machines = equipment.initialize_synchronous_machines(cls.df)
 
     def test_length(self):
-        """9500 node has 4 generators, all of which are three phase."""
-        self.assertEqual(4, len(self.machines))
+        """9500 node has 10 generators, all of which are three phase."""
+        self.assertEqual(10, len(self.machines))
 
     def test_dict_or_machines(self):
         """Ensure all instances are dictionaries or machines."""

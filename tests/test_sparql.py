@@ -270,7 +270,7 @@ class SPARQLManagerTestCase(unittest.TestCase):
         # (e.g. 's1') then the 'name' will have a suffix, either 'a' or
         # 'b'.
         expected = pd.Series({'name': '2127146b0', 'bus': 'sx3160864b',
-                              'basev': 208, 'conn': 'Y', 'phases': 's2,s1'})
+                              'basev': 208, 'conn': 'Y', 'phases': 's1,s2'})
 
         full_actual = self.sparql.query_load_nominal_voltage()
 
@@ -401,10 +401,10 @@ class SPARQLManagerTestCase(unittest.TestCase):
         )
 
     def test_query_synchronous_machines_expected_shape(self):
-        """There should be 4 synchronous machines."""
+        """There should be 10 synchronous machines."""
         result = self.sparql.query_synchronous_machines()
-        # 4 rows, 6 columns.
-        self.assertEqual(result.shape, (4, 6))
+        # 10 rows, 6 columns.
+        self.assertEqual(result.shape, (10, 6))
 
     def test_query_synchronous_machines_calls_query(self):
         self.mock_query(
@@ -413,9 +413,9 @@ class SPARQLManagerTestCase(unittest.TestCase):
         )
 
     def test_query_synchronous_machine_meas_expected_shape(self):
-        """4 synchronous machines times 3 VA measurements each."""
+        """10 synchronous machines times 3 VA measurements each."""
         result = self.sparql.query_synchronous_machine_measurements()
-        self.assertEqual(result.shape, (12, 4))
+        self.assertEqual(result.shape, (30, 4))
 
     def test_query_synch_mach_meas_calls_query(self):
         self.mock_query(
