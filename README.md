@@ -4,7 +4,10 @@ be run inside the GridAPPS-D platform.
 
 ## User Information and Set Up
 This section will describe the steps required to get PyVVO set up and 
-running.
+running within the GridAPPS-D platform. This section is primarily for 
+those interested in running but not tweaking PyVVO. If you are a
+developer, please proceed to the "Developer Information and Set Up" 
+section.
 
 ### Prerequisites
 Since the GridAPPS-D platform and PyVVO are all "Dockerized," the 
@@ -601,7 +604,7 @@ use a virtual machine.
 
 **NOTE**: When provisioning your virtual machine, I strongly recommend
 against skimping on resources. Allot as much memory and as many CPUs as
-you can, and create a static virtual hard-drive with no less than 50GB
+you can, and create a static virtual hard-drive with no less than 100GB
 of storage space.
 
 ### Docker and Docker-Compose
@@ -658,14 +661,16 @@ Fortunately, the GridAPPS-D platform is Docker-based, so that makes
 working with it pretty easy. **You will need to have the GridAPPS-D
 platform running while developing PyVVO.** Head on out to the 
 [gridappsd-docker repository](https://github.com/GRIDAPPSD/gridappsd-docker)
-and clone it. The master branch will do just fine. The following
-directions to start the platform assume you've cloned it into
-`~/git/gridappsd-docker`. For the sake of example, we'll be using the
-`v2019.08.1` tag. You can find the release notes [here](https://gridappsd.readthedocs.io/en/latest/overview/index.html#release-history).
+and clone it. Then, check out the `pyvvo_config` branch. From time to 
+time, this branch will need updated (mainly merging `develop` into
+`pyvvo_config`). The following directions to start the platform assume
+you've cloned it into `~/git/gridappsd-docker`. For the sake of example,
+we'll be using the `v2020.05.0` tag. You can find the release notes
+[here](https://gridappsd.readthedocs.io/en/latest/overview/index.html#release-history).
 
 ```
 cd ~/git/gridappsd-docker
-./run.sh -t v2019.08.1
+./run.sh -t v2020.05.0
 ```
 
 After some time, your shell will now be inside the main platform Docker
@@ -681,10 +686,32 @@ You'll see a bunch of start-up messages, and then you should eventually
 see something like:
 
 ```
+____________________________
+Welcome to Apache Felix Gogo
+
+g! Updating configuration properties
+SYSTEM CONFIG UPDATED system manager pnnl.goss.core.security.impl.SecurityConfigImpl@4522fdfa
+SYSTEM MANAGER UPDATED system
+Registering Authorization Handler: pnnl.goss.core.security.AuthorizeAll
+{}
 Creating consumer: 0
+START system manager pnnl.goss.core.security.impl.SecurityConfigImpl@4522fdfa
+Registering user roles: system --  admin,operator,evaluator,testmanager,application,service
+Registering user roles: application2 --  application
+Registering user roles: application1 --  application
+Registering user roles: operator3 --  operator
+Registering user roles: operator2 --  operator
+Registering user roles: evaluator2 --  evaluator,operator
+Registering user roles: operator1 --  operator
+Registering user roles: evaluator1 --  evaluator,operator
+Registering user roles: testmanager2 --  testmanager
+Registering user roles: testmanager1 --  testmanager
+Registering user roles: service2 --  service
+Registering user roles: service.pid --  pnnl.goss.gridappsd.security.rolefile
+Registering user roles: service1 --  service
 CREATING LOG DATA MGR MYSQL
-{"id":"sample_app","description":"GridAPPS-D Sample Application app","creator":"PNNL","inputs":[],"outputs":[],"options":["(simulationId)","\u0027(request)\u0027"],"execution_path":"python /usr/src/gridappsd-sample/sample_app/runsample.py","type":"REMOTE","launch_on_startup":false,"prereqs":["gridappsd-sensor-simulator"],"multiple_instances":true}
-{"heartbeatTopic":"/queue/goss.gridappsd.remoteapp.heartbeat.sample_app","startControlTopic":"/topic/goss.gridappsd.remoteapp.start.sample_app","stopControlTopic":"/topic/goss.gridappsd.remoteapp.stop.sample_app","errorTopic":"Error","applicationId":"sample_app"}
+{"id":"PyVVO","description":"PNNL volt/var optimization application","creator":"PNNL/Brandon-Thayer","inputs":[],"outputs":[],"options":["(simulationId)","\u0027(request)\u0027"],"execution_path":"python /pyvvo/pyvvo/pyvvo/run_pyvvo.py","type":"REMOTE","launch_on_startup":false,"prereqs":["gridappsd-sensor-simulator","gridappsd-voltage-violation","gridappsd-alarms"],"multiple_instances":true}
+{"heartbeatTopic":"/queue/goss.gridappsd.remoteapp.heartbeat.PyVVO","startControlTopic":"/topic/goss.gridappsd.remoteapp.start.PyVVO","stopControlTopic":"/topic/goss.gridappsd.remoteapp.stop.PyVVO","errorTopic":"Error","applicationId":"PyVVO"}
 ```
 
 At this point, the platform is ready.
@@ -738,9 +765,13 @@ script, not just simple Docker commands, and **b)** starting the
 platform can take a while and you sure don't want to wait that long each
 time to execute simple code.
 
-Note that PyVVO will eventually run "inside" the platform (i.e.
-configured as a service in the platform's docker-compose file), so this
-discussion primarily pertains to development.
+Note that when running PyVVO for evaluation/demonstration, it is run 
+"inside" the platform (i.e. configured as a service in the platform's
+docker-compose file), so this discussion primarily pertains to
+development. For running "inside" the platform, the `pyvvo_config`
+branch of the `griappsd-docker` repository simply adds the PyVVO
+container and PyVVO's complimentary MySQL container to the platform's
+`docker-compose.yml` file.
 
 I've created some utilities to make running PyVVO outside the platform
 easy. Together with PyCharm's features, the development workflow turns 
@@ -763,8 +794,8 @@ build time, and thus **must** be set at container run time. More on that
 later. Here's a quick description of these variables:
 
 - `platform`: Should be a string, either `1` or `0`. A value of `1`
-means PyVVO is running inside the platform, while a value of `0` indicates
-PyVVO is running outside the platform. 
+means PyVVO is running inside the platform, while a value of `0`
+indicates PyVVO is running outside the platform. 
 - `host_ip`: This variable is only needed if `platform` is `0`. In order
 to connect to the platform, we need to know this machine's (the host's)
 IP address. There's a helper script to set this variable - more on that
@@ -778,25 +809,27 @@ in [this Dockerfile](https://github.com/GRIDAPPSD/gridappsd-python/blob/master/D
 ##### Summary
 You have two options for configuring your PyCharm interpreter for PyVVO:
 
-- **Option 1, Simple Docker Container**: After either running `build.sh`
-or performing a `docker pull gridappsd/pyvvo:latest`, you can set PyCharm
-to use the PyVVO docker container as your interpreter. **IMPORTANT NOTE**: 
-Not everything will work in this configuration. Specifically, anything that
-uses MySQL will fail. MySQL is needed for **a)** running GridLAB-D models
-which store outputs in MySQL, and **b)** accessing MySQL to pull outputs
-from GridLAB-D model runs. You can be sure that any module which imports
-`pyvvo/db.py` depends on MySQL. While not everything will work, this 
-option is faster (takes PyCharm less time to start/kill each time you 
-want to execute code.)
-- **Option 2, Docker-Compose**: Again, you need the latest PyVVO container
-either by running `build.sh` or `docker pull gridappsd/pyvvo:<tag>`. 
-This option uses docker-compose to orchestrate both the PyVVO container
-and a MySQL container that PyVVO can connect to. With this option, you 
-can run all tests/code, but PyCharm takes significantly more time to 
-start/kill containers for each code execution.
+- **Option 1, Docker-Compose (preferred)**: You need the latest PyVVO
+container either by running `build.sh` or
+`docker pull gridappsd/pyvvo:<tag>`. This option uses docker-compose to
+orchestrate both the PyVVO container and a MySQL container that PyVVO
+can connect to. With this option, you can run all tests/code, but
+PyCharm takes significantly more time to start/kill containers for each
+code execution.
+- **Option 2, Simple Docker Container (faster, but does not work for
+everything)**: After either running `build.sh`
+or performing a `docker pull gridappsd/pyvvo:latest`, you can set
+PyCharm to use the PyVVO docker container as your interpreter.
+**IMPORTANT NOTE**: Not everything will work in this configuration.
+Specifically, anything that uses MySQL will fail. MySQL is needed for
+**a)** running GridLAB-D models which store outputs in MySQL, and **b)**
+accessing MySQL to pull outputs from GridLAB-D model runs. You can be
+sure that any module which imports `pyvvo/db.py` depends on MySQL.
+While not everything will work, this option is faster (takes PyCharm
+less time to start/kill each time you want to execute code.)
 
-##### Option 1 - Simple Docker Container
-To configure, do the following:
+##### Steps relevant to both Option 1 and Option 2
+Follow these steps before following the directions for Option 1 or 2:
 1. Ensure you have the latest PyVVO container (run `build.sh` or do a
 `docker pull`)
 2. In PyCharm, go to `File` --> `Settings` or use the keyboard shortcut
@@ -804,19 +837,17 @@ To configure, do the following:
 3. In the menu on the left, select `Project: pyvvo` and then select
 `Project Interpreter`.
 4. Click the gear/cog icon in the upper right, then click `Add`.
-5. In the menu on the left, select `Docker`.
-6. Select the appropriate image, hit `OK` and then hit `Apply`.
 
-##### Option 2 - Docker-Compose
-To configure, do the following:
-1. Follow steps in the [previous section](#option-1---simple-docker-container)
-all the way up to the point where you've clicked `Add` from the cog in
-the `Project Interpreter` section of `Settings`.
-2. In the menu on the left, select `Docker Compose`
-3. For `Configuration file(s)`, set this to `docker-compose.yml`, which
+##### Option 1 - Docker-Compose
+1. In the menu on the left, select `Docker Compose`
+2. For `Configuration file(s)`, set this to `docker-compose.yml`, which
 exists at the top level of this repository.
-4. For `Service`, select `pyvvo`.
-5. Hit `OK` then `Apply`.
+3. For `Service`, select `pyvvo`.
+4. Hit `OK` then `Apply`.
+
+##### Option 2 - Simple Docker Container
+1. In the menu on the left, select `Docker`.
+2. Select the appropriate image, hit `OK` and then hit `Apply`.
 
 #### PyCharm Run Configurations
 In order to ensure the [environment variables](#pyvvo-environment-variables)
@@ -861,9 +892,9 @@ upper left of that window.
 all paths with your local path): 
     - **Name**: `create_env_file`
     - **Description**: `Create env.json file before each run.`
-    - **Program**: `/home/thay838/git/pyvvo/utils/create_env_file.py`
-    - **Arguments**: `-f /home/thay838/git/pyvvo/pyvvo/env.json --platform 0 --port 61613`
-    - **Working directory**: `/home/thay838/git/pyvvo/utils`
+    - **Program**: `/home/<your user>/git/pyvvo/utils/create_env_file.py`
+    - **Arguments**: `-f /home/<your user>/git/pyvvo/pyvvo/env.json --platform 0 --port 61613`
+    - **Working directory**: `/home/<your user>/git/pyvvo/utils`
 12. Click `OK`.
 13. Repeat the `EnvFile` and `External Tools` steps for the other
 template (either `Python` or `Python tests/Unittest`, depending on where 
@@ -935,4 +966,5 @@ output from Python, not from PyCharm. PyCharm reports 826 tests with
 Note that sometimes PyCharm hangs at the end of tests. Give it a minute,
 then click the red square to stop the tests. It'll then stop the spinning
 wheel, but has indeed ran all the tests (as indicated by the "x" and
-"check mark" icons next to all the test files in the bottom left).
+"check mark" icons next to all the test files in the bottom left). I 
+believe this is a bug related to using a Docker-based interpreter.
