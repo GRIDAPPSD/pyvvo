@@ -2,16 +2,27 @@ PyVVO
 =====
 
 PyVVO is a data-driven volt-var optimization application designed to be
-run inside the GridAPPS-D platform.
+run inside the GridAPPS-D platform. The focus of this README is not on
+the application itself, but rather how to configure/run it as a user,
+or how to get set up for development.
+
+There are two primary sections in this README: `User Information and Set
+Up <#user-information-and-set-up>`__ and `Developer Information and Set
+Up <#developer-information-and-set-up>`__. The former is intended for
+those who will simply be configuring and running PyVVO (for
+demonstration purposes, etc.) and the latter is for those who wish to
+do PyVVO development.
+
+To learn more about how PyVVO works, see the `docs` directory of this
+repository. TODO: Add more information, e.g. "Open index.html in your
+web browser."
 
 User Information and Set Up
 ---------------------------
 
 This section will describe the steps required to get PyVVO set up and
 running within the GridAPPS-D platform. This section is primarily for
-those interested in running but not tweaking PyVVO. If you are a
-developer, please proceed to the "Developer Information and Set Up"
-section.
+those interested in running but not tweaking PyVVO.
 
 Prerequisites
 ~~~~~~~~~~~~~
