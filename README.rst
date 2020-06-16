@@ -925,9 +925,7 @@ cloned this repository into ~/git/pyvvo):
     git lfs install
     git lfs pull
 
-.. _gridapps-d:
-
-GridAPPS-D™
+GridAPPS-D
 ~~~~~~~~~~~
 
 Fortunately, the GridAPPS-D platform is Docker-based, so that makes
@@ -1010,8 +1008,9 @@ PyCharm gives you. The goal is to have all files not have a single
 PyCharm mark indicating a problem.
 
 By default, PyCharm is not configured to follow the line length
-requirements laid out in PEP-8. See :ref:`set-pep-8-guides`.
-of this README for details on setting up configuring line length.
+requirements laid out in PEP-8. See `this section
+<#set-visual-guides-for-pep-8>`__ for details on setting up configuring
+line length.
 
 MySQL
 ~~~~~
@@ -1030,8 +1029,6 @@ assuming you cloned the repository into `~/git/pyvvo`):
 
     cd ~/git/pyvvo/mysql
     ./build.sh
-
-.. _set-up-pycharm
 
 Setting up PyCharm to work with PyVVO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1068,8 +1065,6 @@ container and PyVVO's complimentary MySQL container to the platform's
 I've created some utilities to make running PyVVO outside the platform
 easy. Together with PyCharm's features, the development workflow turns
 out to be not so painful.
-
-.. _env-vars:
 
 PyVVO Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1167,9 +1162,10 @@ Option 2 - Simple Docker Container
 PyCharm Run Configurations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to ensure the environment variables (see :ref:`env-vars`) are
-being properly injected for each run, we need to do some configuration.
-Please perform all steps in the following sections.
+In order to ensure the environment variables (see `here
+<#pyvvo-environment-variables>`__) are being properly injected for each
+run, we need to do some configuration. Please perform all steps in the
+following sections.
 
 Install EnvFile Plugin
 ''''''''''''''''''''''
@@ -1250,8 +1246,6 @@ time we run code. Please do the following:
 
 At this point, you should be all set up to start running code!
 
-.. _set-pep-8-guides:
-
 Set Visual Guides For PEP-8
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1284,12 +1278,13 @@ PyCharm:
 Run the tests
 ~~~~~~~~~~~~~
 
-If you've followed all the directions in :ref:`set-up-pycharm`, you
-should be good to start working. To confirm your setup is working, you
-can run all the PyVVO tests. Unfortunately, not all the tests will pass
-even if your setup is correct. The platform has some bugs (fixes are
-perpetually upcoming) and has also recently made some
-backward-incompatible changes that have yet to be addressed.
+If you've followed all the directions in `this section
+<#setting-up-pycharm-to-work-with-pyvvo>`__, you should be good to start
+working. To confirm your setup is working, you can run all the PyVVO
+tests. Unfortunately, not all the tests will pass even if your setup is
+correct. The platform has some bugs (fixes are perpetually upcoming) and
+has also recently made some backward-incompatible changes that have yet
+to be addressed.
 
 **NOTE**: The very first time you run the tests (or any code for that
 matter) I would recommend starting the tests, and after a single test
@@ -1306,11 +1301,13 @@ To run the tests:
 
 1.  Ensure you've installed all the software detailed in this README.
 
-2.  Ensure the platform is running, as specified in :ref:`gridapps-d`
+2.  Ensure the platform is running, as specified in `this section
+    <#gridapps-d>`__.
 
-3.  Ensure you configured PyCharm according to :ref:`set-up-pycharm`.
-    As mentioned, for the most tests to pass you should have the
-    docker-compose interpreter configured.
+3.  Ensure you configured PyCharm according to `this section
+    <#setting-up-pycharm-to-work-with-pyvvo>`__. As mentioned, for the
+    most tests to pass you should have the docker-compose interpreter
+    configured.
 
 4. With pyvvo open in PyCharm, right click on the ``tests`` directory
     and click ``Run 'Unittests in tests'``. The full test suite will
