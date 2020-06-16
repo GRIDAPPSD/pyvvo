@@ -17,12 +17,15 @@ Prerequisites
 ~~~~~~~~~~~~~
 
 Since the GridAPPS-D platform and PyVVO are all "Dockerized," the
-prerequisite software requirements are light: 1. Linux operating system
-(PyVVO has only been tested on Ubuntu 18.04). 2. Docker. At present, I'm
-running ``Docker version 19.03.4, build 9013bf583a``. 3. Docker-Compose.
-At present, I'm running
-``docker-compose version 1.24.1, build 4667896b``. 4. Git. At present,
-I'm running ``git version 2.17.1``.
+prerequisite software requirements are light:
+
+1.  Linux operating system
+    (PyVVO has only been tested on Ubuntu 18.04).
+2.  Docker. At present, I'm running ``Docker version 19.03.11, build
+    42e35e61f3``.
+3.  Docker-Compose. At present, I'm running ``docker-compose version
+    1.24.1, build 4667896b``.
+4.  Git. At present, I'm running ``git version 2.17.1``.
 
 GridAPPS-D Platform Set Up and Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -144,110 +147,148 @@ Updating PyVVO
 ^^^^^^^^^^^^^^
 
 When PyVVO gets updated, you'll want to pull down the updates in order
-to run the latest version. To do so, do the following: 1. Assuming the
-platform is running, stop it by hitting ``Ctrl + C`` on your keyboard in
-the appropriate terminal window. Then, type in ``exit`` and hit enter.
-2. In any terminal, run: ``cd ~/git/gridappsd-docker     ./stop -c``
-Then, follow the directions given by the platform to delete
-``gridappsdmysql`` and ``gridappsd`` directories. 3. Execute
-``docker pull gridappsd/pyvvo:latest`` to get the latest Docker image.
-4. In any terminal, run:
-``cd ~/git/pyvvo    git checkout develop    git pull`` 5. You have now
-successfully updated everything PyVVO. Follow the steps in the previous
-section to get the platform running again with the latest version of
-PyVVO.
+to run the latest version. To do so, do the following:
+
+1.  Assuming the platform is running, stop it by hitting ``Ctrl + C`` on
+    your keyboard in the appropriate terminal window. Then, type in
+    ``exit`` and hit enter.
+
+2.  In any terminal, change directories to ``~/git/gridappsd-docker``
+    and execute ``./stop -c``. Then, follow the directions given by the
+    platform to delete ``gridappsdmysql`` and ``gridappsd`` directories.
+
+3.  Execute ``docker pull gridappsd/pyvvo:latest`` to get the latest
+    Docker image.
+
+4.  In any terminal, change directories to ``~/git/pyvvo`` and run:
+
+    .. code:: sh
+
+        git checkout develop
+        git pull
+
+5.  You have now successfully updated everything PyVVO. Follow the steps
+    in the previous section to get the platform running again with the
+    latest version of PyVVO.
 
 Run the Tests
 ~~~~~~~~~~~~~
 
 After you've followed the steps in the section above ("GridAPPS-D
 Platform Set Up and Configuration"), you can optionally execute all of
-PyVVO's tests. The procedure is quite simple: 1. Execute
-``docker container ls | grep pyvvo:latest``, and copy the container ID.
-This is the 12 character alpha-numeric code on the far left of hte
-output, e.g. ``663128e9dff4``. 2. Enter the container via
-``docker exec -it <container ID> bash``. You should see a prompt like
-``root@663128e9dff4:/pyvvo/pyvvo#``. 3. Execute
-``python -m unittest discover tests``. The tests take a bit to run.
-After a WHOLE LOT of logging, you'll see something like the following:
-\`\`\` LOTS AND LOTS OF OUTPUT ... Ran 775 tests in 106.415s
+PyVVO's tests. The procedure is quite simple:
 
-::
+1.  Execute ``docker container ls | grep pyvvo:latest``, and copy the
+    container ID. This is the 12 character alpha-numeric code on the far
+    left of the output, e.g. ``663128e9dff4``.
 
-    FAILED (failures=4)
-    ```
+2.  Enter the container via ``docker exec -it <container ID> bash``. You
+    should see a prompt like ``root@663128e9dff4:/pyvvo/pyvvo#``.
+
+3.  Execute ``python -m unittest discover tests``. The tests take a bit
+    to run. After a WHOLE LOT of logging, you'll see something like the
+    following::
+
+        <LOTS AND LOTS OF OUTPUT, INCLUDING LOGGING, INTENTIONAL ERRORS, ETC.>
+
+        Ran 781 tests in 120.045s
+
+        FAILED (failures=18, errors=5)
+
     Hopefully in the near future this will read `(failures=0)`. However,
     there is some ongoing work related to historical data from the 
     platform which is intentionally failing.
 
-4. It would seem I have some bad tests which are keeping some processes
-   alive, so you'll need to use ``Ctrl + C`` on your keyboard to kill
-   the tests. You'll get a ton of Python output afterwards - don't worry
-   about it.
-5. Type in ``exit`` and hit enter to leave the container.
+4.  It would seem I have some bad tests which are keeping some processes
+    alive, so you'll need to use ``Ctrl + C`` on your keyboard to kill
+    the tests. You'll get a ton of Python output afterwards - don't
+    worry about it.
+
+5.  Type in ``exit`` and hit enter to leave the container.
 
 Running the Application Through the GridAPPS-D GUI
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-1. In your web browser, navigate to ``http://localhost:8080/``.
-2. Click on the upper-left "hamburger menu" (three horizontal lines),
-   and then click on ``Simulations``.
-3. In the ``Power System Configuration`` tab, change the ``Line name``
-   to ``test9500new`` via the drop-down menu.
-4. Click on the ``Simluation Configuration`` tab, and do the following:
+1.  In your web browser, navigate to ``http://localhost:8080/``.
 
-   1. Change ``Start time`` to desired simulation start time.
-   2. Change ``Duration`` to be longer than the default 120 seconds.
-   3. In the ``Model creation configuration`` area, change the line that
-      reads ``"use_houses": false`` to ``"use_houses": true``.
+2.  Click on the upper-left "hamburger menu" (three horizontal lines),
+    and then click on ``Simulations``.
 
-5. Click on the ``Application Configuration`` tab. In the
-   ``Application name`` drop-down menu, select ``PyVVO``.
-6. Click on the ``Test Configuration`` tab. Add any desired events.
-7. Click ``Submit`` in the lower left of the pop-up window.
-8. After the visualization has loaded, you should see a one-line diagram
-   of the system. After the one-line is visible, it's time to set up
-   plots. Click on the jagged-line icon to the right of the "play
-   button," and do the following:
+3.  In the ``Power System Configuration`` tab, change the ``Line name``
+    to ``test9500new`` via the drop-down menu.
 
-   1.  In the ``Plot name`` form, type in ``feeder_reg1``
-   2.  This should "un-grey" the ``Component type`` drop down. Select
-       ``Tap`` from this menu.
-   3.  Now the ``Component`` drop down should be usable. The entry form
-       at the top can be used for filtering. Type in ``feeder_reg1``.
-       From the drop-down, select ``feeder_reg1a (A)``.
-   4.  In the ``Phases`` drop down, select ``A`` and click ``Add``.
-   5.  Click ``Add component``
-   6.  Click on ``Component``, filter by ``feeder_reg1``, and select
-       ``feeder_reg1b (B)``. Select phase ``B`` in the ``Phases`` drop
-       down, click ``Add``, then click ``Add component``.
-   7.  Repeat for phase ``C``.
-   8.  Repeat all the steps above for all available regulators. At the
-       time of writing, they are:
+4.  Click on the ``Simluation Configuration`` tab, and do the following:
 
-       1. feeder\_reg2
-       2. feeder\_reg3
-       3. vreg2
-       4. vreg3
-       5. vreg4
+    1.  Change ``Start time`` to desired simulation start time.
+    2.  Change ``Duration`` to be longer than the default 120 seconds.
+    3.  In the ``Model creation configuration`` area, change the line
+        that reads ``"use_houses": false`` to ``"use_houses": true``.
 
-   9.  At present, the visualization does not support adding plots for
-       capacitor states (open vs. closed). If those plots ever become
-       available, they'll be useful.
-   10. Add a plot to track feeder power by doing the following:
+5.  Click on the ``Application Configuration`` tab. In the
+    ``Application name`` drop-down menu, select ``PyVVO``.
 
-       1. Use ``power`` for ``Plot Name``
-       2. Select ``Power`` from ``Component type`` drop-down and then
-          check the ``Magnitude`` box.
-       3. Type in ``hvmv_sub`` in the ``Component`` drop-down and select
-          ``hvmv_sub_hsb (A, B, C)``.
-       4. Click on all three phases in the ``Phases`` drop-down, click
-          ``Add``, then click ``Add component``.
+6.  Click on the ``Test Configuration`` tab. Add any desired events.
 
-   11. We're done. Click ``Done`` in the lower left.
+7.  Click ``Submit`` in the lower left of the pop-up window.
 
-9. Start the simulation by clicking on the "play button" in the upper
-   right.
+8.  After the visualization has loaded, you should see a one-line
+    diagram of the system. After the one-line is visible, it's time to
+    set up plots. Click on the jagged-line icon to the right of the
+    "play button," and do the following:
+
+    1.  In the ``Plot name`` form, type in ``feeder_reg1``
+
+    2.  This should "un-grey" the ``Component type`` drop down. Select
+        ``Tap`` from this menu.
+
+    3.  Now the ``Component`` drop down should be usable. The entry form
+        at the top can be used for filtering. Type in ``feeder_reg1``.
+        From the drop-down, select ``feeder_reg1a (A)``.
+
+    4.  In the ``Phases`` drop down, select ``A`` and click ``Add``.
+
+    5.  Click ``Add component``
+
+    6.  Click on ``Component``, filter by ``feeder_reg1``, and select
+        ``feeder_reg1b (B)``. Select phase ``B`` in the ``Phases`` drop
+        down, click ``Add``, then click ``Add component``.
+
+    7.  Repeat for phase ``C``.
+
+    8.  Repeat all the steps above for all available regulators. At the
+        time of writing, they are:
+
+        1.  feeder\_reg2
+
+        2.  feeder\_reg3
+
+        3.  vreg2
+
+        4.  vreg3
+
+        5.  vreg4
+
+    9.  At present, the visualization does not support adding plots for
+        capacitor states (open vs. closed). If those plots ever become
+        available, they'll be useful.
+
+    10. Add a plot to track feeder power by doing the following:
+
+        1.  Use ``power`` for ``Plot Name``
+
+        2.  Select ``Power`` from ``Component type`` drop-down and then
+            check the ``Magnitude`` box.
+
+        3.  Type in ``hvmv_sub`` in the ``Component`` drop-down and
+            select ``hvmv_sub_hsb (A, B, C)``.
+
+        4.  Click on all three phases in the ``Phases`` drop-down, click
+            ``Add``, then click ``Add component``.
+
+    11. We're done. Click ``Done`` in the lower left.
+
+    12. Start the simulation by clicking on the "play button" in the
+        upper right.
 
 Viewing PyVVO Logs As Simulation Proceeds
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -258,11 +299,16 @@ Set Up
 As soon as you've started a simulation involving PyVVO, it's nice to
 view the logs as they're emitted to see what PyVVO is up to. This is
 also where you'll see evidence that PyVVO has handled an event. To get
-the logs going, open up a new terminal, and do the following: 1. Execute
-``docker container ls | grep pyvvo``. 2. From that output, copy the
-container ID associated with ``gridappsd/pyvvo:latest``. The container
-ID is the 12 character alphanumeric string on the far left, e.g.
-``d2c2ec59696b``. 3. Execute ``docker logs -f <container ID goes here>``
+the logs going, open up a new terminal, and do the following:
+
+1.  Execute ``docker container ls | grep pyvvo``.
+
+2.  From that output, copy the container ID associated with
+    ``gridappsd/pyvvo:latest``. The container ID is the 12 character
+    alphanumeric string on the far left, e.g. ``d2c2ec59696b``.
+
+3. Execute ``docker logs -f <container ID goes here>``
+
 4. Watch the logs roll in.
 
 Note that a slightly more detailed version of the log can also be found
@@ -289,37 +335,58 @@ Initialization Messages
 
 When PyVVO is first started, it pulls a lot of information from the
 platform in order to configure itself. As such, you'll see a lot of
-messages in the beginning related to this. -
-``[INFO] [PlatformManager]: Connected to GridAPPS-D platform.``:
-Indicates PyVVO has successfully connected via the ``gridappsd``
-package. -
-``[INFO] [SimulationClock]: SimulationClock configured and initialized.``
-Indicates PyVVO's clock has been initialized. It will log the most
-recent simulation time every ``clock_log_interval`` seconds. See the
-"Configuring PyVVO" section for details on how to change this interval.
-- ``[INFO] [SPARQLManager] <Some equipment type> data obtained``: PyVVO
-emits this record for various types of equipment: regulators,
-capacitors, switches, inverters, synchronous machines, load nominal
-voltage, and substation. This indicates PyVVO pulled data from
-blazegraph related to the feeder in question in order to configure
-itself. -
-``[INFO] [SPARQLManager]: <some equipment type> <some attribute> measurements obtained.``:
-This indicates PyVVO has done an additional query to map measurement
-MRIDs to equipment MRIDs. -
-``[INFO] [GLMManager]: GridLAB-D model parsed and mapped.``: PyVVO has
-requested the base GridLAB-D model from the platform via the API, and
-has parsed the model. -
-``[INFO] [GLMManager]: All solar objects removed from the model.``:
-PyVVO removes solar objects from the GridLAB-D model, and instead
-updates inverter output directly via measurements from the platform. -
-``[INFO] [GLMManager]: All inverters have V_In and I_In set according to their rated power.``:
-This is related to the previous item: PyVVO gives inverters in its
-internal GridLAB-D model a DC source capable of injecting the inverters'
-rated apparent power. -
-``[INFO] [GLMManager]: All switches have had their states converted to three phase notation.``:
-The baseline model from the platform only gives one ``status`` field for
-all switch phases. PyVVO modifies the model so there's an individual
-status for each switch phase.
+messages in the beginning related to this.
+
+*   ``[INFO] [PlatformManager]: Connected to GridAPPS-D platform.``
+
+    Indicates PyVVO has successfully connected via the ``gridappsd``
+    package.
+
+*   ``[INFO] [SimulationClock]: SimulationClock configured and
+    initialized.``
+
+    Indicates PyVVO's clock has been initialized. It will log the most
+    recent simulation time every ``clock_log_interval`` seconds. See the
+    "Configuring PyVVO" section for details on how to change this
+    interval.
+
+*   ``[INFO] [SPARQLManager] <Some equipment type> data obtained``
+
+    PyVVO emits this record for various types of equipment: regulators,
+    capacitors, switches, inverters, synchronous machines, load nominal
+    voltage, and substation. This indicates PyVVO pulled data from
+    blazegraph related to the feeder in question in order to configure
+    itself.
+
+*   ``[INFO] [SPARQLManager]: <some equipment type> <some attribute>
+    measurements obtained.``
+
+    This indicates PyVVO has done an additional query to map measurement
+    MRIDs to equipment MRIDs.
+
+*   ``[INFO] [GLMManager]: GridLAB-D model parsed and mapped.``
+
+    PyVVO has requested the base GridLAB-D model from the platform via
+    the API, and has parsed the model.
+
+*   ``[INFO] [GLMManager]: All solar objects removed from the model.``
+
+    PyVVO removes solar objects from the GridLAB-D model, and instead
+    updates inverter output directly via measurements from the platform.
+
+*   ``[INFO] [GLMManager]: All inverters have V_In and I_In set
+    according to their rated power.``
+
+    This is related to the previous item: PyVVO gives inverters in its
+    internal GridLAB-D model a DC source capable of injecting the
+    inverters' rated apparent power.
+
+*   ``[INFO] [GLMManager]: All switches have had their states converted
+    to three phase notation.``
+
+    The baseline model from the platform only gives one ``status`` field
+    for all switch phases. PyVVO modifies the model so there's an
+    individual status for each switch phase.
 
 Running/Update Messages
 '''''''''''''''''''''''
@@ -327,30 +394,45 @@ Running/Update Messages
 PyVVO is constantly monitoring the state of all important equipment:
 regulators, capacitors, switches, inverters, diesel generators, etc.
 When a measurement message comes in indicating a change in equipment
-state, it's logged. -
-``[INFO] [<equipment type>Manager]: Changed modeled state of <some integer> equipment phases after receiving measurements from the platform.``:
-This message indicates PyVVO has changed its internal modeled state for
-equipment after a message from the platform comes in. You'll see this
-for many different types of equipment. While PyVVO is still "starting
-up," several of these messages will be logged as the equipment in the
-system does not match the nominal/baseline state of the equipment which
-PyVVO pulls from blazegraph. After the initialization stage, these
-messages will indicate some sort of change in the system, e.g. switches
-opening from a fault. -
-``[WARNING] [InverterSinglePhase]: Equipment pv_1041, phase S2, had its state updated to exceed its rated power by 26.34%! New P: 1010.76, New Q: -0.14, New |S|: 1010.76, Rated |S|: 800.00.``:
-PyVVO warns if an inverter or generator's current state is exceeding the
-equipment's rated power. At present, these messages are annoying since a
-handful of them show up now and again. This is due to a bug in the
-platform. When
-`#48 <https://github.com/GRIDAPPSD/gridappsd-forum/issues/48#issue-518622691>`__
-is resolved, hopefully these annoying messages go away. -
-``[INFO] [SimulationClock]: Simulation time is 1358179201.``: The
-SimulationClock periodically reports the approximate simulation time. -
-``[__main__]: InverterManager log level changed to WARNING to reduce output.``:
-Since the inverter states are being constantly updated, a lot of log
-output is produced. Before PyVVO begins its optimization loop, it turns
-down the log level of the InverterManager to reduce this distracting
-output.
+state, it's logged.
+
+*   ``[INFO] [<equipment type>Manager]: Changed modeled state of <some
+    integer> equipment phases after receiving measurements from the
+    platform.``
+
+    This message indicates PyVVO has changed its internal
+    modeled state for equipment after a message from the platform comes
+    in. You'll see this for many different types of equipment. While
+    PyVVO is still "starting up," several of these messages will be
+    logged as the equipment in the system does not match the
+    nominal/baseline state of the equipment which PyVVO pulls from
+    blazegraph. After the initialization stage, these messages will
+    indicate some sort of change in the system, e.g. switches
+    opening from a fault.
+
+*   ``[WARNING] [InverterSinglePhase]: Equipment pv_1041, phase S2, had
+    its state updated to exceed its rated power by 26.34%! New P:
+    1010.76, New Q: -0.14, New |S|: 1010.76, Rated |S|: 800.00.``
+
+    PyVVO warns if an inverter or generator's current state is exceeding the
+    equipment's rated power. At present, these messages are annoying since a
+    handful of them show up now and again. This is due to a bug in the
+    platform. When
+    `#48 <https://github.com/GRIDAPPSD/gridappsd-forum/issues/48#issue-518622691>`__
+    is resolved, hopefully these annoying messages go away.
+
+*   ``[INFO] [SimulationClock]: Simulation time is 1358179201.``
+
+    The SimulationClock periodically reports the approximate simulation
+    time.
+
+*   ``[__main__]: InverterManager log level changed to WARNING to reduce
+    output.``:
+
+    Since the inverter states are being constantly updated, a lot of log
+    output is produced. Before PyVVO begins its main optimization loop,
+    it turns down the log level of the InverterManager to reduce this
+    distracting output.
 
 Optimization Flow Related Messages
 ''''''''''''''''''''''''''''''''''
@@ -359,68 +441,116 @@ After initialization, PyVVO runs in an endless loop calculating optimal
 set points for capacitors and regulators (control of other devices will
 be included in future work). This section will describe messages related
 to the running of the optimization (which is a genetic algorithm,
-abbreviated "GA"). -
-``[__main__]: **********************************************...``: To
-give a visual break in the logs, a bunch of stars are logged right
-before the genetic algorithm starts. - The following messages are
-emitted to indicate that PyVVO has updated its internal GridLAB-D model
-with the current state of various pieces of equipment before starting
-the genetic algorithm. Note that regulator/capacitor states are not
-included in these initial messages as during the course of the genetic
-algorithm PyVVO updates many different models with many different
-possible regulator and capacitor states, including the "current" state.
--
-``[INFO] [__main__]: All inverters in the .glm have been updated with the current inverter state.``
--
-``[INFO] [__main__]: All switches in the .glm have been updated with current states.``
--
-``[INFO] [__main__]: All machines/diesel_dgs in the .glm have been updated with current states.``
--
-``[INFO] [__main__]: Starting genetic algorithm to compute set points for 2013-01-14 16:00:57+00:00 through 2013-01-14 16:01:57+00:00.``:
-For each run of the genetic algorithm, PyVVO let's you know for what
-approximate time period it is computing set points for. -
-``[INFO] [Population]: Approximately 0 individuals have been evaluated, 17 are in the queue, and 6 are currently being evaluated.``:
-While the genetic algorithm is running, PyVVO reports how many
-"individuals" in the "population" have been evaluated. When all
-individuals have been evaluated, a "generation" is complete. Due to the
-nature of Python queues, the numbers provided here may not be exact. -
-``[INFO] [GA]: After generation 1, best fitness: 6363.42 from individual 12``:
-After each generation of the genetic algorithm, PyVVO indicates the best
-"fitness" found. Seeing these fitness values reduce from generation to
-generation indicates the genetic algorithm is finding better solutions
-each generation (which is a good thing!). - You'll see the following
-messages at the end of a successful run through of the genetic algorithm
-(not necessarily exactly in the following order): -
-``[INFO] [Population]: Gracefully stopping genetic algorithm evaluation.``
-- ``[INFO] [GA]: Best overall fitness: 6147.98 from individual 44`` -
-``[INFO] [GA]: Total GA run time: 164.39`` -
-``[PlatformManager]: Preparing to send following command: {"command": "update",...``
-- Repeat of the above, but for capacitors. -
-``[__main__]: Regulator commands sent in.`` -
-``[__main__]: Capacitor commands sent in.`` -
-``[RegulatorManager]: Changed modeled state of 17 equipment phases after receiving measurements from the platform.``
--
-``[CapacitorManager]: Changed modeled state of 5 equipment phases after receiving measurements from the platform.``
--
-``[__main__]: Commands for regulator(s) have been confirmed to have been successfully carried out in the platform.``
--
-``[__main__]: Commands for capacitor(s) have been confirmed to have been successfully carried out in the platform.``
-- You'll see the following messages when PyVVO detects an important
-change in the system and decides the genetic algorithm should be halted
-and restarted with new equipment states. -
-``[INFO] [GAStopper]: Stopping the genetic algorithm because at least one switch changed state at simulation time 2013-01-14 16:01:02+00:00.``
-- ``[INFO] [GA]: Stopping the genetic algorithm.`` -
-``[INFO] [Population]: Gracefully stopping genetic algorithm evaluation.``
--
-``[WARNING] [Population]: The length of the population does not match the expected population size. Perhaps evaluation was interrupted?``
--
-``[WARNING] [GA]: Did not run <bound method Population.natural_selection of <pyvvo.ga.Population object at 0x7f60be74e950>> because the run_event is not set.``
--
-``[INFO] [PlatformManager]: send_command given empty lists, returning None.``:
-This message is emitted if either the genetic algorithm was interrupted,
-or, if PyVVO determined that the current regulator and capacitor set
-points are optimal, and thus no commands need to be sent into the
-platform.
+abbreviated "GA").
+
+*   ``[__main__]: **********************************************...``
+
+    To give a visual break in the logs, a bunch of stars are logged
+    right before the genetic algorithm starts. The following messages
+    are emitted to indicate that PyVVO has updated its internal
+    GridLAB-D model with the current state of various pieces of
+    equipment before starting the genetic algorithm. Note that
+    regulator/capacitor states are not included in these initial
+    messages as during the course of the genetic algorithm PyVVO updates
+    many different models with many different possible regulator and
+    capacitor states, including the "current" state.
+
+    *   ``[INFO] [__main__]: All inverters in the .glm have been updated
+        with the current inverter state.``
+
+
+    *   ``[INFO] [__main__]: All switches in the .glm have been updated
+        with current states.``
+
+    *   ``[INFO] [__main__]: All machines/diesel_dgs in the .glm have
+        been updated with current states.``
+
+*   ``[INFO] [__main__]: Starting genetic algorithm to compute set
+    points for 2013-01-14 16:00:57+00:00 through 2013-01-14
+    16:01:57+00:00.``
+
+    For each run of the genetic algorithm, PyVVO let's you know for what
+    approximate time period it is computing set points for.
+
+*   ``[INFO] [Population]: Approximately 0 individuals have been
+    evaluated, 17 are in the queue, and 6 are currently being
+    evaluated.``
+
+    While the genetic algorithm is running, PyVVO reports how many
+    "individuals" in the "population" have been evaluated. When all
+    individuals have been evaluated, a "generation" is complete. Due
+    to the nature of Python queues, the numbers provided here may not be
+    exact.
+
+*   ``[INFO] [GA]: After generation 1, best fitness: 6363.42 from
+    individual 12``
+
+    After each generation of the genetic algorithm, PyVVO indicates the
+    best "fitness" found. Seeing these fitness values reduce from
+    generation to generation indicates the genetic algorithm is finding
+    better solutions each generation (which is a good thing!).
+
+*   You'll see the following messages at the end of a successful run
+    through of the genetic algorithm (not necessarily exactly in the
+    following order):
+
+        *   ``[INFO] [Population]: Gracefully stopping genetic algorithm
+            evaluation.``
+
+        *   ``[INFO] [GA]: Best overall fitness: 6147.98 from individual
+            44``
+
+        *   ``[INFO] [GA]: Total GA run time: 164.39``
+
+        *   ``[PlatformManager]: Preparing to send following command:
+            {"command": "update",...``
+
+        *   Repeat of the above, but for capacitors.
+
+        *   ``[__main__]: Regulator commands sent in.``
+
+        *   ``[__main__]: Capacitor commands sent in.``
+
+        *   ``[RegulatorManager]: Changed modeled state of 17 equipment
+            phases after receiving measurements from the platform.``
+
+        *   ``[CapacitorManager]: Changed modeled state of 5 equipment
+            phases after receiving measurements from the platform.``
+
+        *   ``[__main__]: Commands for regulator(s) have been confirmed
+            to have been successfully carried out in the platform.``
+
+        *   ``[__main__]: Commands for capacitor(s) have been confirmed
+            to have been successfully carried out in the platform.``
+
+*   You'll see the following messages when PyVVO detects an important
+    change in the system and decides the genetic algorithm should be
+    halted and restarted with new equipment states:
+
+    *   ``[INFO] [GAStopper]: Stopping the genetic algorithm because at
+        least one switch changed state at simulation time 2013-01-14
+        16:01:02+00:00.``
+
+    *   ``[INFO] [GA]: Stopping the genetic algorithm.``
+
+    *   ``[INFO] [Population]: Gracefully stopping genetic algorithm
+        evaluation.``
+
+    *   ``[WARNING] [Population]: The length of the population does not
+        match the expected population size. Perhaps evaluation was
+        interrupted?``
+
+    *   ``[WARNING] [GA]: Did not run <bound method
+        Population.natural_selection of <pyvvo.ga.Population object at
+        0x7f60be74e950>> because the run_event is not set.``
+
+*   ``[INFO] [PlatformManager]: send_command given empty lists,
+    returning None.``
+
+    This message is emitted if either the genetic algorithm was
+    interrupted, or, if PyVVO determined that the current regulator and
+    capacitor set points are optimal, and thus no commands need to be
+    sent into the platform.
 
 TODO: Finish this section up once all the events are working properly.
 
@@ -428,8 +558,13 @@ Configuring PyVVO
 ~~~~~~~~~~~~~~~~~
 
 PyVVO has three configuration files, all of which can be found in the
-``pyvvo`` directory of this repository: - ``log_config.json`` -
-``platform_config.json`` - ``pyvvo_config.json``
+``pyvvo`` directory of this repository:
+
+*   ``log_config.json``
+
+*   ``platform_config.json``
+
+*   ``pyvvo_config.json``
 
 Most users will have no desire or need to tweak either
 ``log_config.json`` or ``platform_config.json``, so these will not be
@@ -481,182 +616,233 @@ when you goofed up the syntax.
 Description of Parameters in pyvvo\_config.json
 '''''''''''''''''''''''''''''''''''''''''''''''
 
-Each sub-heading below will discuss top-level keys and their associated
+The following list will discuss top-level keys and their associated
 parameters.
 
-database
-        
+*   **database**: Most users will never need to change any database
+    fields.
 
-Most users will never need to change any database fields. -
-triplex\_table: Prefix for MySQL tables used to store information
-related to triplex loads (e.g. voltage). - substation\_table: Prefix for
-tables used to store head-of-feeder information (e.g. power magnitude
-and angle). - query\_buffer\_limit: Parameter used by GridLAB-D for
-MySQL submissions. See
-`here <http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql)#query_buffer_limit>`__
-for more details. - max\_connections: Maximum number of allowed database
-connections. Be sure this is higher than the ``ga/population_size``
-parameter.
+    *   *triplex_table*: Prefix for MySQL tables used to store
+        information related to triplex loads (e.g. voltage).
 
-ga
-  
+    *   *substation_table*: Prefix for tables used to store
+        head-of-feeder information (e.g. power magnitude and angle).
 
-The genetic algorithm in PyVVO has many tweakable parameters that affect
-how the application behaves. Most users will likely only ever tweak the
-``population_size``, ``generations``, ``log_interval``, and
-``processes``. Under the ``ga`` key, there are the following items: -
-``probabilities``: object containing several probabilities related to
-the operation of the genetic algorithm: - ``mutate_individual``:
-Probability that a "child" will have its chromosome randomly mutated. -
-``mutate_bit``: If an individual is undergoing mutation, probability of
-random mutation for each bit in the chromosome. - ``crossover``: Given
-two parents, the probability crossover is performed. If crossover is not
-performed, the children will be mutated versions of the parents. -
-``intervals``: object containing several intervals related to the
-operation of the genetic algorithm: - ``sample``: Interval (seconds) for
-which `GridLAB-D
-recorders <http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql)>`__
-sample their respective measurements. This parameter is directly used as
-the ``interval`` parameters for GridLAB-D MySQL recorders. Note that a
-lower value of ``sample`` leads to a higher sampling frequency, which
-can increase algorithm runtime by increasing input/output requirements.
-Additionally, this parameter has some impact on the ``costs`` (discussed
-in that section). - ``minimum_timestep``: `Minimum time
-step <http://gridlab-d.shoutwiki.com/wiki/Minimum_timestep>`__ used in
-GridLAB-D simulation. This should always be less than the value of
-``sample``. Larger values of ``minimum_timestep`` can lead to faster
-simulation runtime, but one must be careful that the setting of this
-parameter does not mess up modeling of components which change over
-time. At this point in time, PyVVO's GridLAB-D simulations do not have
-objects which change state over time (i.e. regulators are in manual
-mode, inverters have a constant output, etc.). - ``model_run``:
-Simulation duration (seconds) for the GridLAB-D models. The "stoptime"
-of the `GridLAB-D clock <http://gridlab-d.shoutwiki.com/wiki/Clock>`__
-will be set in such a way to ensure simulation duration matches this
-parameter. - ``population_size``: Number of "individuals" in the
-"population" for the genetic algorithm. A higher number will often
-result in better solutions, but at the cost of longer run-time. It is
-recommended that the population size be an integer multiple of the
-``processes`` parameter. - ``generations``: Number of "generations" to
-run for the genetic algorithm. A higher number will often result in
-better solutions, but at the cost of longer run-time. -
-``top_fraction``: Used to determine how many of the top individuals to
-carry over between generations via elitism. The number of individuals is
-computed as ``ceil(population_size * top_fraction)``. -
-``total_fraction``: Used to determine how many total individuals to
-carry over between generations. These individuals will all be eligible
-for crossover. The total number of individuals is computed as
-``ceil(population_size * total_fraction)``. - ``tournament_fraction``:
-Used to determine how many individuals compete in each tournament to be
-selected for crossover. The tournament size is computed as
-``ceil(population_size * tournament_fraction)``. - ``log_interval``: How
-often to log genetic algorithm progress in seconds. - ``processes``:
-Number of processes to use for the genetic algorithm. If PyVVO is
-running on the same machine as the platform, I would recommend setting
-this parameter to be number of processors/cores minus two. E.g. 6
-processes on an 8 core machine. - ``process_shutdown_timeout``: How long
-to wait (in seconds) for each process to shut down after the genetic
-algorithm is complete before raising a TimeoutError.
+    *   *query_buffer_limit*: Parameter used by GridLAB-D for MySQL
+        submissions. See
+        `here <http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql)#query_buffer_limit>`__
+        for more details.
 
-limits
-      
+    *   *max_connections*: Maximum number of allowed database
+        connections. Be sure this is higher than the
+        ``ga/population_size`` parameter.
 
-| The ``limits`` indicate the value at which penalties are applied in
-  the genetic algorithm. The following parameters are available: -
-  ``voltage_high``: Voltage in per unit above which over-voltage
-  violation penalties are incurred.
-| - ``voltage_low``: Voltage in per unit below which under-voltage
-  violation penalties are incurred. - ``power_factor_lag``: The minimum
-  lagging power factor, as measured at the head of the feeder, before
-  power factor penalties are incurred. - ``power_factor_lead``: The
-  minimum leading power factor, as measured at the head of the feeder,
-  before power factor penalties are incurred.
+*   **ga**: The genetic algorithm in PyVVO has many tweakable parameters
+    that affect how the application behaves. Most users will likely only
+    ever tweak the ``population_size``, ``generations``,
+    ``log_interval``, and ``processes``. Under the ``ga`` key, there are
+    the following items:
 
-costs
-     
+    *   **probabilities**: object containing several probabilities
+        related to the operation of the genetic algorithm:
 
-The ``costs`` are tightly coupled with the ``limits`` as mentioned
-above. These ``costs`` are effectively weights in the objective function
-of the genetic algorithm. A user can tweak these parameters to
-dramatically alter the behavior of the application. For example, setting
-all ``costs`` parameters to zero *except* for ``energy`` will cause the
-application to purely minimize total energy consumption. Conversely,
-setting all parameters to zero *except* for ``voltage_violation_high``
-and ``voltage_violation_low`` will cause the application to purely
-minimize voltage violations.
+            *   *mutate_individual*: Probability that a "child" will
+                have its chromosome randomly mutated.
 
-The following parameters are available: - ``capacitor_switch``: Penalty
-incurred to change the state (open or close) on a single phase of a
-capacitor. E.g., closing all three phases on a capacitor would incur a
-penalty of ``3 * capacitor_switch``. - ``regulator_tap``: Penalty
-incurred to change a single regulator tap on an individual phase by one
-position. E.g., changing phase B on a regulator from position 5 to 7
-would incur a penalty of ``3 * regulator_tap``. - ``energy``: Cost of
-energy. The total penalty will be computed as total energy that is
-consumed in the feeder for the duration of the simulation times the
-``energy`` cost. - ``voltage_violation_high``: This penalty is applied
-for each recorded value which is above the specified ``voltage_high``
-parameter. At this point in time, PyVVO only looks at 120/240V customers
-for determining voltage violations. For an individual violation, the
-incurred penalty is computed as
-``(actual voltage - voltage_high) * voltage_violation_high`` (if and
-only if the actual voltage is above ``voltage_high``). In this way, the
-worse the voltage violation, the higher the penalty. It's worth noting
-that the calculated penalty is sensitive to the ``intervals/sample``
-parameter: a higher sample rate (lower value of ``intervals/sample``),
-will lead to more samples being taken. Since the penalty is computed for
-each sample, more samples leads to a higher penalty. However, this can
-be combated by simply reducing the value of ``voltage_violation_high``
-rather than increasing ``intervals/sample``. -
-``voltage_violation_low``: See discussion for
-``voltage_violation_high``. In this case, the penalty is computed as
-``(voltage_low - actual voltage) * voltage_violation_low``. -
-``power_factor_lag``: Power factor costs/penalties are associated purely
-with the head of the feeder, and power factor is computed as a single
-value for all three phases: i.e. power factor is not computed for each
-phase individually. This cost should be read as "penalty per 0.01
-deviation from the ``power_factor_lag`` parameter." Note this penalty is
-only applied to lagging power factors. For example, say that an
-individual power factor measurement (well, power factor is computed, but
-you get the idea) comes out to be 0.96 lagging and the
-``limits/power_factor_lag`` parameter is set to be 0.98. If the
-``costs/power_factor_lag`` parameter is set to be 0.05, the penalty
-would be computed as: ``(0.98 - 0.96) * 100 * 0.05``. Similar to the
-discussion provided for ``voltage_violation_high``, the penalty is
-incurred for every recorded measurement in the GridLAB-D simulation, so
-the value of ``intervals/sample`` can impact the total penalty. -
-``power_factor_lead``: See ``power_factor_lag``, but replace every
-instance of "lag" with "lead."
+            *   *mutate_bit*: If an individual is undergoing mutation,
+                probability of random mutation for each bit in the
+                chromosome.
 
-load\_model
-           
+            *   *crossover*: Given two parents, the probability
+                crossover is performed. If crossover is not performed,
+                the children will be mutated versions of the parents.
 
-An important component of PyVVO's operation is its predictive load
-modeling. The parameters here can change how that load modeling is
-performed. - ``averaging_interval``: This should match the averaging
-interval in the historic data which PyVVO uses for creating its
-data-driven load models. For example, if the historic data is reported
-as a fifteen minute average, ``averaging_interval`` should be
-``"15Min"``. This string must be a valid "Date Offset" in Pandas. You
-can find a table
-`here <https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects>`__.
-- ``window_size_days``: How many days into the past PyVVO reaches when
-obtaining historic data to perform load modeling. In our pending HICSS
-publication, we used two weeks, a.k.a. 14 days. -
-``filtering_interval_minutes``: How many minutes plus/minus the current
-simulation time (or rather, the time for which the models will be used)
-for which PyVVO will include historic data for. For example, if the load
-model is intended to be used for 08:00a.m. and
-``filtering_interval_minutes`` is 60, PyVVO will use data ranging from
-07:00a.m. to 09:00a.m. (plus/minus 60 minutes) when creating the load
-model for 08:00a.m.
+    *   **intervals**: object containing several intervals related to
+        the operation of the genetic algorithm:
 
-misc
-    
+        *   *sample*: Interval (seconds) for which
+            `GridLAB-D recorders
+            <http://gridlab-d.shoutwiki.com/wiki/Recorder_(mysql)>`__
+            sample their respective measurements. This parameter is
+            directly used as the ``interval`` parameters for GridLAB-D
+            MySQL recorders. Note that a lower value of ``sample`` leads
+            to a higher sampling frequency, which can increase algorithm
+            runtime by increasing input/output requirements.
+            Additionally, this parameter has some impact on the
+            ``costs`` (discussed in that section).
 
-Miscellaneous levers you can pull are included here. -
-``clock_log_interval``: How often, in seconds, PyVVO's
-``SimulationClock`` will emit the most recent simulation time.
+        *   *minimum_timestep*: `Minimum time step
+            <http://gridlab-d.shoutwiki.com/wiki/Minimum_timestep>`__
+            used in GridLAB-D simulation. This should always be less
+            than the value of ``sample``. Larger values of
+            ``minimum_timestep`` can lead to faster simulation runtime,
+            but one must be careful that the setting of this parameter
+            does not mess up modeling of components which change over
+            time. At this point in time, PyVVO's GridLAB-D simulations
+            do not have objects which change state over time (i.e.
+            regulators are in manual mode, inverters have a constant
+            output, etc.).
+
+        *   *model_run*: Simulation duration (seconds) for the GridLAB-D
+            models. The "stoptime" of the `GridLAB-D clock
+            <http://gridlab-d.shoutwiki.com/wiki/Clock>`__ will be set
+            in such a way to ensure simulation duration matches this
+            parameter.
+
+    *   **population_size**: Number of "individuals" in the
+        "population" for the genetic algorithm. A higher number will
+        often result in better solutions, but at the cost of longer
+        run-time. It is recommended that the population size be an
+        integer multiple of the ``processes`` parameter.
+
+    *   **generations**: Number of "generations" to run for the genetic
+        algorithm. A higher number will often result in better
+        solutions, but at the cost of longer run-time.
+
+    *   **top_fraction**: Used to determine how many of the top
+        individuals to carry over between generations via elitism. The
+        number of individuals is computed as
+        ``ceil(population_size * top_fraction)``.
+
+    *   **total_fraction**: Used to determine how many total individuals
+        to carry over between generations. These individuals will all be
+        eligible for crossover. The total number of individuals is
+        computed as ``ceil(population_size * total_fraction)``.
+
+    *   **tournament_fraction**: Used to determine how many individuals
+        compete in each tournament to be selected for crossover. The
+        tournament size is computed as
+        ``ceil(population_size * tournament_fraction)``.
+
+    *   **log_interval**: How often to log genetic algorithm progress in
+        seconds.
+
+    *   **processes**: Number of processes to use for the genetic
+        algorithm. If PyVVO is running on the same machine as the
+        platform, I would recommend setting this parameter to be number
+        of processors/cores minus two. E.g. 6 processes on an 8 core
+        machine.
+
+    *   **process_shutdown_timeout**: How long to wait (in seconds) for
+        each process to shut down after the genetic algorithm is
+        complete before raising a TimeoutError.
+
+*   **limits**: The ``limits`` indicate the value at which penalties are
+    applied in the genetic algorithm. The following parameters are
+    available:
+
+    *   *voltage_high*: Voltage in per unit above which over-voltage
+        violation penalties are incurred.
+
+    *   *voltage_low*: Voltage in per unit below which under-voltage
+        violation penalties are incurred.
+
+    *   *power_factor_lag*: The minimum lagging power factor, as
+        measured at the head of the feeder, before power factor
+        penalties are incurred.
+
+    *   *power_factor_lead*: The minimum leading power factor, as
+        measured at the head of the feeder, before power factor
+        penalties are incurred.
+
+*   **costs**: The ``costs`` are tightly coupled with the ``limits`` as
+    mentioned above. These ``costs`` are effectively weights in the
+    objective function of the genetic algorithm. A user can tweak these
+    parameters to dramatically alter the behavior of the application.
+    For example, setting all ``costs`` parameters to zero *except* for
+    ``energy`` will cause the application to purely minimize total
+    energy consumption. Conversely, setting all parameters to zero
+    *except* for ``voltage_violation_high`` and
+    ``voltage_violation_low`` will cause the application to purely
+    minimize voltage violations.
+
+    The following parameters are available:
+
+    *   *capacitor_switch*: Penalty incurred to change the state (open
+        or close) on a single phase of a capacitor. E.g., closing all
+        three phases on a capacitor would incur a penalty of
+        ``3 * capacitor_switch``.
+
+    *   *regulator_tap*: Penalty incurred to change a single regulator
+        tap on an individual phase by one position. E.g., changing phase
+        B on a regulator from position 5 to 7 would incur a penalty of
+        ``3 * regulator_tap``.
+
+    *   *energy*: Cost of energy. The total penalty will be computed as
+        total energy that is consumed in the feeder for the duration of
+        the simulation times the ``energy`` cost.
+
+    *   *voltage_violation_high*: This penalty is applied for each
+        recorded value which is above the specified ``voltage_high``
+        parameter. At this point in time, PyVVO only looks at 120/240V
+        customers for determining voltage violations. For an individual
+        violation, the incurred penalty is computed as
+        ``(actual voltage - voltage_high) * voltage_violation_high``
+        (if and only if the actual voltage is above ``voltage_high``).
+        In this way, the worse the voltage violation, the higher the
+        penalty. It's worth noting that the calculated penalty is
+        sensitive to the ``intervals/sample`` parameter: a higher sample
+        rate (lower value of ``intervals/sample``), will lead to more
+        samples being taken. Since the penalty is computed for each
+        sample, more samples leads to a higher penalty. However, this
+        can be combated by simply reducing the value of
+        ``voltage_violation_high`` rather than increasing
+        ``intervals/sample``.
+
+    *   *voltage_violation_low*: See discussion for
+        ``voltage_violation_high``. In this case, the penalty is
+        computed as
+        ``(voltage_low - actual voltage) * voltage_violation_low``.
+
+    *   *power_factor_lag*: Power factor costs/penalties are associated
+        purely with the head of the feeder, and power factor is computed
+        as a single value for all three phases: i.e. power factor is not
+        computed for each phase individually. This cost should be read
+        as "penalty per 0.01 deviation from the ``power_factor_lag``
+        parameter." Note this penalty is only applied to lagging power
+        factors. For example, say that an individual power factor
+        measurement (well, power factor is computed, but you get the
+        idea) comes out to be 0.96 lagging and the
+        ``limits/power_factor_lag`` parameter is set to be 0.98. If the
+        ``costs/power_factor_lag`` parameter is set to be 0.05, the
+        penalty would be computed as: ``(0.98 - 0.96) * 100 * 0.05``.
+        Similar to the discussion provided for
+        ``voltage_violation_high``, the penalty is incurred for every
+        recorded measurement in the GridLAB-D simulation, so the value
+        of ``intervals/sample`` can impact the total penalty.
+
+    *   *power_factor_lead*: See ``power_factor_lag``, but replace every
+        instance of the word lag "lag" with the word "lead."
+
+*   **load_model**: An important component of PyVVO's operation is its
+    predictive load modeling. The parameters here can change how that
+    load modeling is performed. The following parameters are available:
+
+    *   *averaging_interval*: This should match the averaging interval
+        in the historic data which PyVVO uses for creating its
+        data-driven load models. For example, if the historic data is
+        reported as a fifteen minute average, ``averaging_interval``
+        should be ``"15Min"``. This string must be a valid
+        "Date Offset" in Pandas. You can find a table `here
+        <https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#dateoffset-objects>`__.
+
+    *   *window_size_days*: How many days into the past PyVVO reaches
+        when obtaining historic data to perform load modeling. In our
+        `HICSS publication <http://hdl.handle.net/10125/64115>`__, we
+        used two weeks, a.k.a. 14 days.
+
+    *   *filtering_interval_minutes*: How many minutes plus/minus the
+        current simulation time (or rather, the time for which the
+        models will be used) for which PyVVO will include historic data
+        for. For example, if the load model is intended to be used for
+        08:00a.m. and ``filtering_interval_minutes`` is 60, PyVVO will
+        use data ranging from 07:00a.m. to 09:00a.m. (plus/minus 60
+        minutes) when creating the load model for 08:00a.m.
+
+*   **misc**: Miscellaneous levers you can pull are included here:
+
+    *   *clock_log_interval*: How often, in seconds, PyVVO's
+        ``SimulationClock`` will emit the most recent simulation time.
 
 Developer Information and Set Up
 --------------------------------
@@ -739,6 +925,8 @@ cloned this repository into ~/git/pyvvo):
     git lfs install
     git lfs pull
 
+.. _gridapps-d:
+
 GridAPPS-D™
 ~~~~~~~~~~~
 
@@ -767,69 +955,83 @@ container. Your shell should look something like:
 
 Finally, inside the Docker container (where your shell now is), run:
 
-.. code:: ./run-gridappsd.sh```
+.. code::
+
+    ./run-gridappsd.sh
 
 
-    You'll see a bunch of start-up messages, and then you should eventually
-    see something like:
+You'll see a bunch of start-up messages, and then you should eventually
+see something like::
 
---------------
+    ____________________________
+    Welcome to Apache Felix Gogo
 
-Welcome to Apache Felix Gogo
+    g! org.ops4j.pax.logging.pax-logging-api[org.ops4j.pax.logging.internal.Activator] : Enabling SLF4J API support.
+    org.ops4j.pax.logging.pax-logging-api[org.ops4j.pax.logging.internal.Activator] : Enabling Jakarta Commons Logging API support.
+    org.ops4j.pax.logging.pax-logging-api[org.ops4j.pax.logging.internal.Activator] : Enabling Log4J API support.
+    org.ops4j.pax.logging.pax-logging-api[org.ops4j.pax.logging.internal.Activator] : Enabling Avalon Logger API support.
+    org.ops4j.pax.logging.pax-logging-api[org.ops4j.pax.logging.internal.Activator] : Enabling JULI Logger API support.
+    Updating configuration properties
+    SYSTEM CONFIG UPDATED system manager pnnl.goss.core.security.impl.SecurityConfigImpl@29fa3d60
+    SYSTEM MANAGER UPDATED system
+    Registering Authorization Handler: pnnl.goss.core.security.AuthorizeAll
+    {}
+    Creating consumer: 0
+    START system manager pnnl.goss.core.security.impl.SecurityConfigImpl@29fa3d60
+    Registering user roles: system --  admin,operator,evaluator,testmanager,application,service
+    Registering user roles: application2 --  application
+    Registering user roles: application1 --  application
+    Registering user roles: operator3 --  operator
+    Registering user roles: operator2 --  operator
+    Registering user roles: evaluator2 --  evaluator,operator
+    Registering user roles: operator1 --  operator
+    Registering user roles: evaluator1 --  evaluator,operator
+    Registering user roles: testmanager2 --  testmanager
+    Registering user roles: testmanager1 --  testmanager
+    Registering user roles: service2 --  service
+    Registering user roles: service.pid --  pnnl.goss.gridappsd.security.rolefile
+    Registering user roles: service1 --  service
+    CREATING LOG DATA MGR MYSQL
+    {"id":"PyVVO","description":"PNNL volt/var optimization application","creator":"PNNL/Brandon-Thayer","inputs":[],"outputs":[],"options":["(simulationId)","\u0027(request)\u0027"],"execution_path":"python /pyvvo/pyvvo/pyvvo/run_pyvvo.py","type":"REMOTE","launch_on_startup":false,"prereqs":["gridappsd-sensor-simulator","gridappsd-voltage-violation","gridappsd-alarms"],"multiple_instances":true}
+    {"heartbeatTopic":"/queue/goss.gridappsd.remoteapp.heartbeat.PyVVO","startControlTopic":"/topic/goss.gridappsd.remoteapp.start.PyVVO","stopControlTopic":"/topic/goss.gridappsd.remoteapp.stop.PyVVO","errorTopic":"Error","applicationId":"PyVVO"}
 
-g! Updating configuration properties SYSTEM CONFIG UPDATED system
-manager pnnl.goss.core.security.impl.SecurityConfigImpl@4522fdfa SYSTEM
-MANAGER UPDATED system Registering Authorization Handler:
-pnnl.goss.core.security.AuthorizeAll {} Creating consumer: 0 START
-system manager pnnl.goss.core.security.impl.SecurityConfigImpl@4522fdfa
-Registering user roles: system --
-admin,operator,evaluator,testmanager,application,service Registering
-user roles: application2 -- application Registering user roles:
-application1 -- application Registering user roles: operator3 --
-operator Registering user roles: operator2 -- operator Registering user
-roles: evaluator2 -- evaluator,operator Registering user roles:
-operator1 -- operator Registering user roles: evaluator1 --
-evaluator,operator Registering user roles: testmanager2 -- testmanager
-Registering user roles: testmanager1 -- testmanager Registering user
-roles: service2 -- service Registering user roles: service.pid --
-pnnl.goss.gridappsd.security.rolefile Registering user roles: service1
--- service CREATING LOG DATA MGR MYSQL {"id":"PyVVO","description":"PNNL
-volt/var optimization
-application","creator":"PNNL/Brandon-Thayer","inputs":[],"outputs":[],"options":["(simulationId)",":raw-latex:`\u0`027(request):raw-latex:`\u0`027"],"execution\_path":"python
-/pyvvo/pyvvo/pyvvo/run\_pyvvo.py","type":"REMOTE","launch\_on\_startup":false,"prereqs":["gridappsd-sensor-simulator","gridappsd-voltage-violation","gridappsd-alarms"],"multiple\_instances":true}
-{"heartbeatTopic":"/queue/goss.gridappsd.remoteapp.heartbeat.PyVVO","startControlTopic":"/topic/goss.gridappsd.remoteapp.start.PyVVO","stopControlTopic":"/topic/goss.gridappsd.remoteapp.stop.PyVVO","errorTopic":"Error","applicationId":"PyVVO"}
+At this point, the platform is ready.
 
-::
+PEP-8
+~~~~~
 
+While I (Brandon) won't claim to be perfect, I try to strictly follow
+`PEP-8 <https://www.python.org/dev/peps/pep-0008/>`__. Please read the
+PEP and do your best to conform to its requirements.
 
-    At this point, the platform is ready.
+Fortunately, PyCharm will tell you when you're failing to meet PEP-8 in
+most circumstances. So, please don't ignore the colored underlines that
+PyCharm gives you. The goal is to have all files not have a single
+PyCharm mark indicating a problem.
 
-    ### PEP-8
-    While I (Brandon) won't claim to be perfect, I try to strictly follow 
-    [PEP-8](https://www.python.org/dev/peps/pep-0008/). Please read the PEP
-    and do your best to conform to its requirements.
+By default, PyCharm is not configured to follow the line length
+requirements laid out in PEP-8. See :ref:`set-pep-8-guides`.
+of this README for details on setting up configuring line length.
 
-    Fortunately, PyCharm will tell you when you're failing to meet PEP-8 in
-    most circumstances. So, please don't ignore the colored underlines that
-    PyCharm gives you. The goal is to have all files not have a single
-    PyCharm mark indicating a problem.
+MySQL
+~~~~~
 
-    By default, PyCharm is not configured to follow the line length
-    requirements laid out in PEP-8. See [this section](#set-visual-guides-for-pep-8)
-    of this README for details on setting up configuring line length.
+PyVVO relies on MySQL for running the genetic algorithm. In short,
+GridLAB-D is used as a power flow solver/simulator, and simulation
+results get put into a MySQL database. Then, PyVVO pulls the data from
+MySQL to evaluate which simulation performed best.
 
-    ### MySQL
-    PyVVO relies on MySQL for running the genetic algorithm. In short, 
-    GridLAB-D is used as a power flow solver/simulator, and simulation
-    results get put into a MySQL database. Then, PyVVO pulls the data from
-    MySQL to evaluate which simulation performed best.
+At the time of writing (2019-10-11), a Docker repository is not set up
+for PyVVO's MySQL container, so you'll need to build it yourself.
+Luckily, this is very simple. Do the following in a bash shell (
+assuming you cloned the repository into `~/git/pyvvo`):
 
-    At the time of writing (2019-10-11), a Docker repository is not set up
-    for PyVVO's MySQL container, so you'll need to build it yourself.
-    Luckily, this is very simple. Do the following in a bash shell (
-    assuming you cloned the repository into `~/git/pyvvo`):
+.. code:: bash
 
-cd ~/git/pyvvo/mysql ./build.sh \`\`\`
+    cd ~/git/pyvvo/mysql
+    ./build.sh
+
+.. _set-up-pycharm
 
 Setting up PyCharm to work with PyVVO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -866,6 +1068,8 @@ container and PyVVO's complimentary MySQL container to the platform's
 I've created some utilities to make running PyVVO outside the platform
 easy. Together with PyCharm's features, the development workflow turns
 out to be not so painful.
+
+.. _env-vars:
 
 PyVVO Environment Variables
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -928,117 +1132,164 @@ You have two options for configuring your PyCharm interpreter for PyVVO:
 Steps relevant to both Option 1 and Option 2
 ''''''''''''''''''''''''''''''''''''''''''''
 
-Follow these steps before following the directions for Option 1 or 2: 1.
-Ensure you have the latest PyVVO container (run ``build.sh`` or do a
-``docker pull``) 2. In PyCharm, go to ``File`` --> ``Settings`` or use
-the keyboard shortcut ``Ctrl + Alt + S``. 3. In the menu on the left,
-select ``Project: pyvvo`` and then select ``Project Interpreter``. 4.
-Click the gear/cog icon in the upper right, then click ``Add``.
+Follow these steps before following the directions for Option 1 or 2:
+
+1.  Ensure you have the latest PyVVO container (run ``build.sh`` or do a
+    ``docker pull``)
+
+2.  In PyCharm, go to ``File`` --> ``Settings`` or use the keyboard
+    shortcut ``Ctrl + Alt + S``.
+
+3.  In the menu on the left, select ``Project: pyvvo`` and then select
+    ``Project Interpreter``.
+
+4.  Click the gear/cog icon in the upper right, then click ``Add``.
 
 Option 1 - Docker-Compose
 '''''''''''''''''''''''''
 
-1. In the menu on the left, select ``Docker Compose``
-2. For ``Configuration file(s)``, set this to ``docker-compose.yml``,
-   which exists at the top level of this repository.
-3. For ``Service``, select ``pyvvo``.
-4. Hit ``OK`` then ``Apply``.
+1.  In the menu on the left, select ``Docker Compose``
+
+2.  For ``Configuration file(s)``, set this to ``docker-compose.yml``,
+    which exists at the top level of this repository.
+
+3.  For ``Service``, select ``pyvvo``.
+
+4.  Hit ``OK`` then ``Apply``.
 
 Option 2 - Simple Docker Container
 ''''''''''''''''''''''''''''''''''
 
-1. In the menu on the left, select ``Docker``.
-2. Select the appropriate image, hit ``OK`` and then hit ``Apply``.
+1.  In the menu on the left, select ``Docker``.
+
+2.  Select the appropriate image, hit ``OK`` and then hit ``Apply``.
 
 PyCharm Run Configurations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-In order to ensure the `environment
-variables <#pyvvo-environment-variables>`__ are being properly injected
-for each run, we need to do some configuration. Please perform all steps
-in the following sections.
+In order to ensure the environment variables (see :ref:`env-vars`) are
+being properly injected for each run, we need to do some configuration.
+Please perform all steps in the following sections.
 
 Install EnvFile Plugin
 ''''''''''''''''''''''
 
 To make things as easy as possible, we're using the ``EnvFile`` plugin
-by Borys Pierov. To install: 1. Open PyCharm settings
-(``Ctrl + Alt + S``). 2. Select ``Plugins`` on the left. 3. Search for
-``EnvFile``. 4. Click ``Install``.
+by Borys Pierov. To install:
+
+1.  Open PyCharm settings (``Ctrl + Alt + S``).
+
+2.  Select ``Plugins`` on the left.
+
+3.  Search for ``EnvFile``.
+
+4.  Click ``Install``.
 
 Edit Run Configurations
 '''''''''''''''''''''''
 
 We need to configure PyCharm to take a couple light-weight actions each
-time we run code. Please do the following: 1. In PyCharm's upper menu,
-select ``Run``. 2. In the drop-down, select ``Edit Configurations``. 3.
-In the window that pops up, click on the wrench icon in the upper left.
-When you hover over the icon it should say ``Edit Templates``. 4. On the
-left, you should see both ``Python`` and ``Python tests``. **Make sure
-you perform the remaining steps for both ``Python`` and
-``Python tests``.** Note for ``Python tests`` you'll be selecting
-``Unittests`` from the dropdown, whereas for ``Python`` there is no
-dropdown. 5. With ``EnvFile`` installed you should see an ``EnvFile``
-tab in the window. Select it. 6. Click ``Enable EnvFile``. 7. In the
-area below, you should see a table with headers ``Enabled``, ``Path``,
-and ``Type``. Click on the plus icon in the upper right of that table
-and select ``JSON/YAML File``. 8. You'll need to select a path to a file
-in the window that pops up. Assuming you've cloned the repo into
-``~/git/pyvvo``, select the ``~/git/pyvvo/pyvvo/env.json`` file. 9. Now,
-in the bottom of the ``Run/Debug Configurations`` window, you should see
-a section labeled
-``Before launch: External tool, Activate tool window``. Click on the
-"plus" icon in that area. 10. An ``External Tools`` window will pop up.
-Click the "plus" icon in the upper left of that window. 11. Now, a
-``Create Tool`` icon will pop up. Enter the following (replace all paths
-with your local path): - **Name**: ``create_env_file`` -
-**Description**: ``Create env.json file before each run.`` -
-**Program**: ``/home/<your user>/git/pyvvo/utils/create_env_file.py`` -
-**Arguments**:
-``-f /home/<your user>/git/pyvvo/pyvvo/env.json --platform 0 --port 61613``
-- **Working directory**: ``/home/<your user>/git/pyvvo/utils`` 12. Click
-``OK``. 13. Repeat the ``EnvFile`` and ``External Tools`` steps for the
-other template (either ``Python`` or ``Python tests/Unittest``,
-depending on where you started). Note that PyCharm will have saved the
-EnvFile configuration and the ``External Tool`` configurations, so you
-should just be able to select them instead of re-entering all the data.
+time we run code. Please do the following:
+
+1.  In PyCharm's upper menu, select ``Run``.
+
+2.  In the drop-down, select ``Edit Configurations``.
+
+3.  In the window that pops up, click on the wrench icon in the upper
+    left. When you hover over the icon it should say ``Edit Templates``.
+
+4.  On the left, you should see both ``Python`` and ``Python tests``.
+    **Make sure you perform the remaining steps for both ``Python`` and
+    ``Python tests``.** Note for ``Python tests`` you'll be selecting
+    ``Unittests`` from the dropdown, whereas for ``Python`` there is no
+    dropdown.
+
+5.  With ``EnvFile`` installed you should see an ``EnvFile``
+    tab in the window. Select it.
+
+6.  Click ``Enable EnvFile``.
+
+7.  In the area below, you should see a table with headers ``Enabled``,
+    ``Path``, and ``Type``. Click on the plus icon in the upper right of
+    that table and select ``JSON/YAML File``.
+
+8.  You'll need to select a path to a file in the window that pops up.
+    Assuming you've cloned the repo into ``~/git/pyvvo``, select the
+    ``~/git/pyvvo/pyvvo/env.json`` file.
+
+9.  Now, in the bottom of the ``Run/Debug Configurations`` window, you
+    should see a section labeled ``Before launch: External tool,
+    Activate tool window``. Click on the "plus" icon in that area.
+
+10. An ``External Tools`` window will pop up. Click the "plus" icon in
+    the upper left of that window.
+
+11. Now, a ``Create Tool`` icon will pop up. Enter the following
+    (replace all paths with your local path):
+
+    -   **Name**: ``create_env_file``
+
+    -   **Description**: ``Create env.json file before each run.``
+
+    -   **Program**:
+        ``/home/<your user>/git/pyvvo/utils/create_env_file.py``
+
+    -   **Arguments**: ``-f /home/<your user>/git/pyvvo/pyvvo/env.json
+        --platform 0 --port 61613``
+
+    -   **Working directory**: ``/home/<your user>/git/pyvvo/utils``
+
+12. Click ``OK``.
+
+13. Repeat the ``EnvFile`` and ``External Tools`` steps for the other
+    template (either ``Python`` or ``Python tests/Unittest``, depending
+    on where you started). Note that PyCharm will have saved the EnvFile
+    configuration and the ``External Tool`` configurations, so you
+    should just be able to select them instead of re-entering all the
+    data.
 
 At this point, you should be all set up to start running code!
+
+.. _set-pep-8-guides:
 
 Set Visual Guides For PEP-8
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 While PyCharm informs you when you break PEP-8, it doesn't default to
 the proper line length guides. Here's the line length excerpt from
-PEP-8:
+PEP-8::
 
-"Limit all lines to a maximum of 79 characters.
+    "Limit all lines to a maximum of 79 characters.
 
-For flowing long blocks of text with fewer structural restrictions
-(docstrings or comments), the line length should be limited to 72
-characters."
+    For flowing long blocks of text with fewer structural restrictions
+    (docstrings or comments), the line length should be limited to 72
+    characters."
 
 Please follow this when coding. Here's how to set up visual guides in
 PyCharm:
 
-1. Open settings (``Ctrl + Alt + S``).
-2. Expand the ``Editor`` section in the left-hand menu.
-3. Click on ``Code Style`` (no need to expand the section).
-4. In the ``Hard wrap at`` section, enter ``79``. I recommend unchecking
-   ``Wrap on typing``.
-5. In the ``Visual guides`` section enter ``72, 79``.
-6. Click ``Apply`` and ``OK``.
+1.  Open settings (``Ctrl + Alt + S``).
+
+2.  Expand the ``Editor`` section in the left-hand menu.
+
+3.  Click on ``Code Style`` (no need to expand the section).
+
+4.  In the ``Hard wrap at`` section, enter ``79``. I recommend
+    unchecking ``Wrap on typing``.
+
+5.  In the ``Visual guides`` section enter ``72, 79``.
+
+6.  Click ``Apply`` and ``OK``.
 
 Run the tests
 ~~~~~~~~~~~~~
 
-If you've followed all the directions in the `previous
-section <#setting-up-pycharm-to-work-with-pyvvo>`__, you should be good
-to start working. To confirm your setup is working, you can run all the
-PyVVO tests. Unfortunately, not all the tests will pass even if your
-setup is correct. The platform has some bugs (fixes are upcoming) and
-has also recently made some backward-incompatible changes that have yet
-to be addressed.
+If you've followed all the directions in :ref:`set-up-pycharm`, you
+should be good to start working. To confirm your setup is working, you
+can run all the PyVVO tests. Unfortunately, not all the tests will pass
+even if your setup is correct. The platform has some bugs (fixes are
+perpetually upcoming) and has also recently made some
+backward-incompatible changes that have yet to be addressed.
 
 **NOTE**: The very first time you run the tests (or any code for that
 matter) I would recommend starting the tests, and after a single test
@@ -1051,22 +1302,31 @@ previous session. I've filed a ticket
 be a PyCharm limitation rather than a limitation of the EnvFile plugin
 itself.
 
-To run the tests: 1. Ensure you've installed all the software detailed
-in this README. 2. Ensure the platform is running, as specified in the
-`GridAPPS-D section <#gridapps-d>`__. 3. Ensure you have `PyCharm
-configured <#setting-up-pycharm-to-work-with-pyvvo>`__. As mentioned,
-for the most tests to pass you should have the docker-compose
-interpreter configured. 4. With pyvvo open in PyCharm, right click on
-the ``tests`` directory and click ``Run 'Unittests in tests'``. The full
-test suite will take upwards of a minute or two to run (some of the
-tests are more of integration tests, and I need to split them out in the
-future). 5. After the tests have run, click the ``Collapse All`` icon in
-the bottom left area where PyCharm displays the testing results. 6.
-Click the arrow to then expand the tests. 7. At the time of writing,
-with platform version ``v2019.09.1``, and with this repository at commit
-``38e43dc39a3fb7292c180ae09aadf5e3f92b7473``, I expect to see 636 tests
-with 5 failures and 1 error. Note this is the output from Python, not
-from PyCharm. PyCharm reports 826 tests with 7 failures.
+To run the tests:
+
+1.  Ensure you've installed all the software detailed in this README.
+
+2.  Ensure the platform is running, as specified in :ref:`gridapps-d`
+
+3.  Ensure you configured PyCharm according to :ref:`set-up-pycharm`.
+    As mentioned, for the most tests to pass you should have the
+    docker-compose interpreter configured.
+
+4. With pyvvo open in PyCharm, right click on the ``tests`` directory
+    and click ``Run 'Unittests in tests'``. The full test suite will
+    take upwards of a minute or two to run (some of the tests are more
+    of integration tests, and I need to split them out in the future).
+
+5.  After the tests have run, click the ``Collapse All`` icon in
+    the bottom left area where PyCharm displays the testing results.
+
+6.  Click the arrow to then expand the tests.
+
+7.  At the time of writing, with platform version ``v2019.09.1``, and
+    with this repository at commit
+    ``38e43dc39a3fb7292c180ae09aadf5e3f92b7473``, I expect to see 636
+    tests with 5 failures and 1 error. Note this is the output from
+    Python, not from PyCharm. PyCharm reports 826 tests with 7 failures.
 
 Note that sometimes PyCharm hangs at the end of tests. Give it a minute,
 then click the red square to stop the tests. It'll then stop the
