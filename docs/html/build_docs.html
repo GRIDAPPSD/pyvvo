@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Building the PyVVO Documentation &#8212; PyVVO  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="PyVVO Code" href="pyvvo_code.html" />
+    <link rel="prev" title="Welcome to PyVVO’s documentation!" href="index.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="building-the-pyvvo-documentation">
+<h1>Building the PyVVO Documentation<a class="headerlink" href="#building-the-pyvvo-documentation" title="Permalink to this headline">¶</a></h1>
+<p>This section discusses what is required to build PyVVO’s documentation.</p>
+<div class="section" id="virtual-environment">
+<span id="venv"></span><h2>Virtual Environment<a class="headerlink" href="#virtual-environment" title="Permalink to this headline">¶</a></h2>
+<p>To keep things simple, Brandon builds the documentation via a Python
+interpreter within a local virtual environment, rather than using
+a Docker-based interpreter. The <a class="reference external" href="https://docs.python.org/3/tutorial/venv.html">Python docs</a> provide a nice
+tutorial for building and using virtual environments. TL;DR:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> ~/git/pyvvo
+python3 -m venv venv
+<span class="nb">source</span> venv/bin/activate
+</pre></div>
+</div>
+<p>After activating the virtual environment, install <code class="docutils literal notranslate"><span class="pre">sphinx</span></code> and
+<code class="docutils literal notranslate"><span class="pre">numpy</span></code>. The original goal was to <em>only</em> require installing <code class="docutils literal notranslate"><span class="pre">sphinx</span></code>
+in the virtual environment, but <code class="docutils literal notranslate"><span class="pre">zip.py</span></code> has quite a few constants
+that depend on <code class="docutils literal notranslate"><span class="pre">numpy</span></code>, so <a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/extensions/autodoc.html#confval-autodoc_mock_imports">mocking</a>
+the <code class="docutils literal notranslate"><span class="pre">numpy</span></code> import simply isn’t practical. Install like so:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python -m pip install sphinx numpy
+</pre></div>
+</div>
+</div>
+<div class="section" id="initial-setup">
+<h2>Initial Setup<a class="headerlink" href="#initial-setup" title="Permalink to this headline">¶</a></h2>
+<p>The files <code class="docutils literal notranslate"><span class="pre">conf.py</span></code>, <code class="docutils literal notranslate"><span class="pre">index.rst</span></code>, <code class="docutils literal notranslate"><span class="pre">make.bat</span></code>, and <code class="docutils literal notranslate"><span class="pre">Makefile</span></code>
+were originally created using the <a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/quickstart.html">sphinx-quickstart</a> tool.
+All these files have since been modified.</p>
+</div>
+<div class="section" id="building-the-documentation">
+<h2>Building the Documentation<a class="headerlink" href="#building-the-documentation" title="Permalink to this headline">¶</a></h2>
+<p>Building the documentation is wicked simple. After activating your
+virtual environment (see <a class="reference internal" href="#venv"><span class="std std-ref">Virtual Environment</span></a>), simply:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> ~/git/pyvvo/docs
+make html
+</pre></div>
+</div>
+<p>There shouldn’t be any warnings or errors.</p>
+</div>
+<div class="section" id="viewing-the-built-documentation">
+<h2>Viewing the Built Documentation<a class="headerlink" href="#viewing-the-built-documentation" title="Permalink to this headline">¶</a></h2>
+<p>Simply open <code class="docutils literal notranslate"><span class="pre">~/git/pyvvo/docs/html/index.html</span></code> in your web browser.</p>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PyVVO</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building the PyVVO Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#virtual-environment">Virtual Environment</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#initial-setup">Initial Setup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#building-the-documentation">Building the Documentation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#viewing-the-built-documentation">Viewing the Built Documentation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pyvvo_code.html">PyVVO Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Welcome to PyVVO’s documentation!</a></li>
+      <li>Next: <a href="pyvvo_code.html" title="next chapter">PyVVO Code</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Pacific Northwest National Laboratory and Brandon Thayer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/build_docs.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
