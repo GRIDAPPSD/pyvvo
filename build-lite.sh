@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Use this to build the "lite" version of PyVVO. GridLAB-D (and
-# associated dependencies) won't be installed. Additionally, pyvvo will
+# associated dependencies) won't be installed. Additionally, PyVVO will
 # be pip installed.
 #
 # Arguments:

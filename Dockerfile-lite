@@ -14,7 +14,7 @@ WORKDIR /usr/src/pyvvo
 COPY requirements.txt setup.py ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Add pyvvo application files.
+# Add PyVVO application files.
 ARG PYVVO_ARCHIVE
 ADD ${PYVVO_ARCHIVE} /usr/src/pyvvo
 

@@ -130,7 +130,7 @@ def read_gld_csv(f):
             continue
 
         # Create a Series with the complex numbers. Nobody is claiming
-        # this is efficient: it doesn't have to be. pyvvo primarily uses
+        # this is efficient: it doesn't have to be. PyVVO primarily uses
         # the MySQL recorders (which don't have this problem). We're
         # just using these .csv files for unit tests.
         s = pd.Series(0+1j*0, index=df.index)

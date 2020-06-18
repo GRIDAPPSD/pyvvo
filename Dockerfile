@@ -48,7 +48,7 @@ RUN BUILD_DEPS="build-essential libssl-dev python3-dev" \
     && apt-get purge -y --auto-remove ${BUILD_DEPS} \
     && apt-get -y clean
 
-# Add the pyvvo application files.
+# Add the PyVVO application files.
 ARG PYVVO_ARCHIVE
 ADD ${PYVVO_ARCHIVE} ${PYVVO}/pyvvo
 

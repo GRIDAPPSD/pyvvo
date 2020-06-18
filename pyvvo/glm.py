@@ -49,7 +49,7 @@ CHAR_LIST = LETTER_LIST + DIGIT_LIST
 
 # 2019-09-01 - not renaming any more. It's not particularly
 # maintainable, leads to hard to track down bugs, and doesn't do any
-# good for pyvvo.
+# good for PyVVO.
 # List of object properties which will have '-' replaced with '_'
 # RENAME = ['name', 'parent', 'from', 'to', 'configuration']
 

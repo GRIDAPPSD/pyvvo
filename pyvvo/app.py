@@ -1,4 +1,6 @@
-"""Main module for running the pyvvo application."""
+"""
+Main module for running the PyVVO application.
+"""
 from pyvvo import sparql
 from pyvvo.glm import GLMManager
 from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter, \

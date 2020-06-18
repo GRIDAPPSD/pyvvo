@@ -1,4 +1,4 @@
-"""pyvvo is a Volt-VAR optimization (VVO) application for GridAPPS-D.
+"""PyVVO is a Volt-VAR optimization (VVO) application for GridAPPS-D.
 
 TODO: documentation.
 

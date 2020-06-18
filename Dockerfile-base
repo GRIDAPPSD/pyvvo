@@ -25,7 +25,7 @@ ENV CXXFLAGS=-I${PYVVO}/share/gridlabd \
 
 # TODO: In an ideal world, there would be a seperate docker container
 # which contains GridLAB-D, rather than installing GridLAB-D into the
-# pyvvo container. However, the level of effort to get that going simply
+# PyVVO container. However, the level of effort to get that going simply
 # isn't worth it right now.
 
 # Install necessary packages.

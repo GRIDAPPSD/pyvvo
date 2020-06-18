@@ -44,7 +44,7 @@ class SPARQLManager:
         """Connect to the platform.
 
         :param feeder_mrid: unique identifier for the feeder in
-            question. Since pyvvo works on a per feeder basis, this is
+            question. Since PyVVO works on a per feeder basis, this is
             required, and all queries will be executed for the specified
             feeder.
         :param timeout: timeout for querying the blazegraph database.

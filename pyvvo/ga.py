@@ -1,4 +1,4 @@
-"""Module for pyvvo's genetic algorithm.
+"""Module for PyVVO's genetic algorithm.
 """
 # Standard library:
 import multiprocessing as mp

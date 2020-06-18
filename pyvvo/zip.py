@@ -14,7 +14,7 @@ TODO: Once HICSS paper is published/accepted, cite it here.
 ZIP load models represent a load as part constant impedance (Z), part
 constant current (I) and part constant power (P).
 
-Since pyvvo uses GridLAB-D, we'll be formulating the problem the same
+Since PyVVO uses GridLAB-D, we'll be formulating the problem the same
 way GridLAB-D does.
 
 P_i = S_n * [(V_i/V_n)^2 * Z% * cos(Z_theta)
