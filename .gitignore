@@ -1,5 +1,8 @@
 # You'll likely use a virtual environment for building the docs.
 venv
+# Don't add the "doctrees" for documentation building.
+docs/doctrees
+
 # Temporary directory.
 tmp
 # Environment file for PyCharm run configuration.
