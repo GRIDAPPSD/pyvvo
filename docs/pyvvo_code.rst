@@ -3,8 +3,8 @@ PyVVO Code
 This section contains automatically generated documentation of the
 PyVVO source code.
 
-pyvvo PackageSKL
--------------
+pyvvo
+-----
 
 .. automodule:: pyvvo
 
