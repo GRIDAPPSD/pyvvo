@@ -1,3 +1,6 @@
+# You'll likely use a virtual environment for building the docs.
+venv
+# Temporary directory.
 tmp
 # Environment file for PyCharm run configuration.
 # pyvvo/env.json
