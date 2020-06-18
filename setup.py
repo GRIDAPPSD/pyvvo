@@ -8,7 +8,7 @@ packages = find_packages()
 # https://stackoverflow.com/questions/14399534/reference-requirements-txt-for-the-install-requires-kwarg-in-setuptools-setup-py
 install_requires = ['coverage', 'mysqlclient', 'numpy', 'pandas',
                     'python-dateutil', 'scipy', 'simplejson', 'scikit-learn',
-                    'stomp.py']
+                    'stomp.py', 'dateutil']
 
 setup(
     name='pyvvo',
