@@ -17,7 +17,10 @@ from typing import Union
 # Third party:
 import numpy as np
 import pandas as pd
-import simplejson as json
+try:
+    import simplejson as json
+except ModuleNotFoundError:
+    import json
 import MySQLdb
 
 # pyvvo:

@@ -12,7 +12,7 @@ import pandas as pd
 import queue
 try:
     import simplejson as json
-except AttributeError:
+except ModuleNotFoundError:
     import json
 import signal
 from contextlib import contextmanager

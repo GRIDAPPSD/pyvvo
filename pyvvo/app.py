@@ -5,7 +5,10 @@ from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter, \
     SimulationClock
 from pyvvo import equipment, ga
 from datetime import datetime, timedelta
-import simplejson as json
+try:
+    import simplejson as json
+except ModuleNotFoundError:
+    import json
 import time
 import logging
 import dateutil

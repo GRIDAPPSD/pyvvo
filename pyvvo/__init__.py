@@ -6,7 +6,12 @@ Setup logging application-wide.
 """
 import logging
 import logging.handlers
-import simplejson as json
+
+try:
+    import simplejson as json
+except ModuleNotFoundError:
+    import json
+
 import os
 from logging.config import dictConfig
 

@@ -9,7 +9,7 @@ https://github.com/Ashald/EnvFile
 import socket
 try:
     import simplejson as json
-except ImportError:
+except ModuleNotFoundError:
     import json
 import argparse
 

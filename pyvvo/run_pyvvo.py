@@ -1,7 +1,10 @@
 """Module for running PyVVO.
 """
 import argparse
-import simplejson as json
+try:
+    import simplejson as json
+except ModuleNotFoundError:
+    import json
 import logging
 
 from pyvvo import app

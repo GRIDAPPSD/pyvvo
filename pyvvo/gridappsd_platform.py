@@ -7,7 +7,10 @@ from gridappsd import GridAPPSD, topics, simulation
 from gridappsd.difference_builder import DifferenceBuilder as DiffBuilder
 from gridappsd import utils as gad_utils
 
-import simplejson as json
+try:
+    import simplejson as json
+except ModuleNotFoundError:
+    import json
 import os
 import logging
 import re
