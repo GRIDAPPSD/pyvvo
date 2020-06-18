@@ -2,14 +2,15 @@
 Code for creating ZIP load models. Note that this module follows Python
 conventions: functions which start with an underscore are "private." So,
 a user of this module should only use methods which do not start with an
-underscore. At the time of writing (2019-08-13), the public methods are:
+underscore. At the time of writing (2020-06-17), the public methods are:
     - cluster_and_fit
     - get_best_fit_from_clustering
     - zip_fit
 
-Discussion of the ZIP modeling follows:
+A discussion of load modeling in PyVVO can be found in `this paper
+<http://hdl.handle.net/10125/64115>`__.
 
-TODO: Once HICSS paper is published/accepted, cite it here.
+Discussion of the ZIP modeling follows:
 
 ZIP load models represent a load as part constant impedance (Z), part
 constant current (I) and part constant power (P).
@@ -17,38 +18,54 @@ constant current (I) and part constant power (P).
 Since PyVVO uses GridLAB-D, we'll be formulating the problem the same
 way GridLAB-D does.
 
-P_i = S_n * [(V_i/V_n)^2 * Z% * cos(Z_theta)
-      + V_i/V_n * I% * cos(I_theta) + P% * cos(P_theta)]
+.. math::
 
-Q_i = S_n * [(V_i/V_n)^2 * Z% * sin(Z_theta)
-      + V_i/V_n * I% * sin(I_theta) + P% * sin(P_theta)]
+    P_k \\! = \\! S_n \\! \\bigg[\\! \\frac{V_k^2}{V_n^2} Z_\\% \\cos(Z_\\theta) + \\frac{V_k}{V_n} I_\\% \\cos(I_\\theta) + P_\\%  \\cos(P_\\theta) \\bigg]
 
-Constrained by:
-Z% + I% + P% = 1
+    Q_k \\! = \\! S_n \\! \\bigg[\\! \\frac{V_k^2}{V_n^2} Z_\\%  \\sin(Z_\\theta) + \\frac{V_k}{V_n}  I_\\% \\sin(I_\\theta) + P_\\% \\sin(P_\\theta) \\bigg]
+
+    1 = Z_\\% + I_\\% + P_\\%
 
 Where:
-    P_i: Predicted real power for time i
-    Q_i: Predicted reactive power for time i
-    S_n: Magnitude of nominal power
-    V_i: Magnitude of input voltage for time i
-    V_n: Nominal voltage
-    Z%: Impedance fraction
-    Z_theta: Impedance angle
-    I%: Current fraction
-    I_theta: Current angle
-    P%: Power fraction
-    P_theta: Power angle
+
+    :math:`P_k`: Predicted real power for time/interval :math:`k`
+
+    :math:`Q_k`: Predicted reactive power for time/interval :math:`k`
+
+    :math:`S_n`: Magnitude of nominal power
+
+    :math:`V_k`: Magnitude of input voltage for time/interval :math:`k`
+
+    :math:`V_n`: Nominal voltage
+
+    :math:`Z\\%`: Impedance fraction
+
+    :math:`Z_\\theta`: Impedance angle
+
+    :math:`I\\%`: Current fraction
+
+    :math:`I_\\theta`: Current angle
+
+    :math:`P\\%`: Power fraction
+
+    :math:`P_\\theta`: Power angle
 
 To reduce computations during optimization, we'll make the following
-variable substitution:
+variable substitutions:
 
-P_bar = P_i/S_n
-Q_bar = Q_i/S_n
-V_bar = V_i/V_n
+.. math::
+
+    \\bar{P}:=\\frac{P_k}{S_n}
+
+    \\bar{Q}:=\\frac{Q_k}{S_n}
+
+    \\bar{V}:=\\frac{V_a}{V_n}
 
 In this module, a "zip_terms" parameter will be used frequently. This
 parameter is a numpy array with six entries in the following order:
-Z%, Z_theta, I%, I_theta, P%, P_theta.
+
+:math:`Z\\%`, :math:`Z_\\theta`, :math:`I\\%`, :math:`I_\\theta`,
+:math:`P\\%`, :math:`P_\\theta`.
 """
 
 # Standard library
@@ -123,36 +140,39 @@ def zip_fit(vpq, v_n=240, s_n=None, par_0=PAR_0,
            with the corresponding mean square error.
 
     :return: dictionary with several fields:
-        - zip_gld: Dictionary with all the terms needed for GridLAB-D
+
+        -   zip_gld:  Dictionary with all the terms needed for GridLAB-D
             modeling. These include:
-            - base_power: S_n
-            - impedance_fraction: Z%
-            - impedance_pf: Impedance "power factor," cos(Z_theta).
+
+            -   base_power: S_n
+            -   impedance_fraction: Z%
+            -   impedance_pf: Impedance "power factor," cos(Z_theta).
                 Will be negative if the power factor is leading for
                 GridLAB-D conventions
-            - current_fraction: I%
-            - current_pf: Current "power factor," cos(I_theta). Negative
+            -   current_fraction: I%
+            -   current_pf: Current "power factor," cos(I_theta).
+                Negative if leading pf.
+            -   power_fraction: P%
+            -   power_pf: Power "power factor," cos(P_theta). Negative
                 if leading pf.
-            - power_fraction: P%
-            - power_pf: Power "power factor," cos(P_theta). Negative if
-                leading pf.
-        - sol: scipy.optimize.OptimizeResult object from performing the
-            ZIP fit. Docs:
-            https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html#scipy.optimize.OptimizeResult
+
+        -   sol: scipy.optimize.OptimizeResult object from performing
+            the ZIP fit (`docs
+            <https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.OptimizeResult.html#scipy.optimize.OptimizeResult>`__).
             Fields of note include 'x' (contains the zip_terms),
             'success' (indicating if the optimizer exited successfully),
             and 'message' (description of the cause of optimizer
             termination).
 
         If fit_data is true, the following fields will be included:
-        - p_pred: numpy array of predicted real power for the resultant
-            ZIP model.
-        - q_pred: numpy array of predicted reactive power for the
-            resultant ZIP model.
-        - mse_p: mean-squared error for real power.
-        - mse_q: mean-squared error for reactive power.
 
-        IMPORTANT NOTE: If the optimization fails, the only field
+        -   p_pred: numpy array of predicted real power for the
+            resultant ZIP model.
+        -   q_pred: numpy array of predicted reactive power for the
+            resultant ZIP model.
+        -   mse_p: mean-squared error for real power.
+        -   mse_q: mean-squared error for reactive power.
+        **IMPORTANT NOTE**: If the optimization fails, the only field
         in the return will be 'sol.' So it's up to the caller to either
         explicitly check sol.success or handle missing fields.
     """
@@ -603,9 +623,9 @@ def get_best_fit_from_clustering(data, zip_fit_inputs, selection_data=None,
                                  min_cluster_size=4, random_state=None):
     """Loop over different numbers of clusters to find the best ZIP fit.
 
-    This calls cluster_and_fit function for each loop iteration.
+    For input descriptions, see ``cluster_and_fit`` function.
 
-    For input descriptions, see cluster_and_fit.
+    This calls cluster_and_fit function for each loop iteration.
 
     NOTE: the 'fit_data' field of zip_fit_inputs will be overridden to
     be true, as this function won't work otherwise.
