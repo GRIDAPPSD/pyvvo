@@ -13,9 +13,9 @@ those who will simply be configuring and running PyVVO (for
 demonstration purposes, etc.) and the latter is for those who wish to
 do PyVVO development.
 
-To learn more about how PyVVO works, see the `docs` directory of this
-repository. TODO: Add more information, e.g. "Open index.html in your
-web browser."
+To learn more about how PyVVO works, see the ``docs`` directory of this
+repository. Specifically, open ``docs/html/index.html`` with your web
+browser.
 
 User Information and Set Up
 ---------------------------
@@ -872,6 +872,11 @@ use a virtual machine.
 against skimping on resources. Allot as much memory and as many CPUs as
 you can, and create a static virtual hard-drive with no less than 100GB
 of storage space.
+
+**NOTE**: If you must use a virtual machine, take the time to get the
+resolution/screen stuff working well. If you're working in a tiny
+square, a lot of the PyCharm configuration directions will be lost on
+you, since PyCharm does not do well at being shrunk to a tiny size.
 
 Docker and Docker-Compose
 ~~~~~~~~~~~~~~~~~~~~~~~~~
