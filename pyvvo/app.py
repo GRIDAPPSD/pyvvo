@@ -19,7 +19,13 @@ import dateutil
 LOG = logging.getLogger(__name__)
 
 
-def main(sim_id, sim_request):
+def main(sim_id: str, sim_request: dict):
+    """Function for running the PyVVO application.
+
+    :param sim_id: ID of simulation PyVVO will interact with.
+    :param sim_request: Simulation request details that were used to
+        start the simulation.
+    """
     LOG.debug("Simulation ID: {}".format(sim_id))
     LOG.debug("Simulation Request:\n{}".format(json.dumps(sim_request,
                                                           indent=2)))

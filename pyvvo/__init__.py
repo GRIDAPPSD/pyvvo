@@ -1,8 +1,29 @@
 """PyVVO is a Volt-VAR optimization (VVO) application for GridAPPS-D.
 
-TODO: documentation.
+Author: Brandon Thayer (Pacific Northwest National Laboratory)
 
-Setup logging application-wide.
+It is completely "Dockerized," and also dependent on the GridAPPS-D
+platform itself.
+
+In short, PyVVO pulls historic "smart meter" data in order to create
+predictive, voltage-dependent load models. These load models are then
+layered onto a feeder model (in GridLAB-D format). A genetic algorithm
+then runs the feeder model with many different device configurations
+to determine what control settings are best. At the moment, PyVVO only
+controls regulators and capacitors (future work should include
+distributed generation resources such a photovoltaic
+inverters).
+
+Many of PyVVO's Python modules are likely very useful for other
+GridAPPS-D applications. For instance, sparql.py contains many useful
+queries for obtaining information from the CIM triple-store database,
+gridappsd_platform.py provides objects for interfacing with the
+GridAPPS-D platform itself, glm.py is useful for managing GridLAB-D
+models, and zip.py has code for creating ZIP load models from
+measurement data.
+
+This file (__init__.py) does some application-wide logging
+configuration. It uses log_config.json.
 """
 import logging
 import logging.handlers

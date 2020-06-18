@@ -566,7 +566,7 @@ class TestClusterAndFit(unittest.TestCase):
 @unittest.skipIf(condition=(not GLD_PRESENT),
                  reason='gridlabd could not be found.')
 class TestGLDZIP(unittest.TestCase):
-    """Compare outputs between GridLAB-D ZIP load outputs and pyvvo."""
+    """Compare outputs between GridLAB-D ZIP load outputs and PyVVO."""
 
     @classmethod
     def setUpClass(cls):

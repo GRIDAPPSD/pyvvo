@@ -1,4 +1,13 @@
-"""Module for running PyVVO.
+"""Module for running PyVVO. This module is run by the platform (see
+platform_config.json). The program expects two arguments: simulation ID
+and simulation request.
+
+Relevant documentation from GridAPPS-D can be found `here
+<https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#id7>`__.
+Since the link I gave you will almost definitely break or be wrong at
+some point, it's under "Using GridAPPS-D"/"Hosting Application" on the
+GridAPPS-D `Read the Docs site
+<https://gridappsd.readthedocs.io/en/latest/index.html>`__
 """
 import argparse
 try:
