@@ -10,6 +10,9 @@ Welcome to PyVVO's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   build_docs
+   pyvvo_code
+
 
 
 Indices and tables
