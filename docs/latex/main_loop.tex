@@ -13,6 +13,8 @@
 % https://tex.stackexchange.com/a/342227/208656
 % Reference for label shifting in style:
 % https://tex.stackexchange.com/a/78690/208656
+% Reference for curly braces:
+% https://tex.stackexchange.com/a/20887/208656
 \tikzset{flowchart/.style = {
 	base/.style = {
 		draw=black,
@@ -49,6 +51,7 @@
 	},
 	decision/.style = {
 		base,
+		text width=3.0cm,
 		diamond,
 		aspect=1.2,
 		fill=green!30
@@ -56,6 +59,26 @@
 	arrows.meta/.style = {
 		very thick,
 	 	-{Stealth[]}
+	},
+	curlybrace/.style = {%
+		draw=black,
+		decorate,
+		very thick,
+		decoration={brace, amplitude=20pt, raise=6pt, mirror},
+	},
+	curlynode/.style = {
+		draw=none,
+		black,
+		midway,
+		xshift=2.75cm,
+		text width=3cm	
+	},
+	backgroundbox/.style = {
+		draw=none,
+		inner sep=0.8cm,
+		ultra thick,
+		dashed,
+		fill opacity=0.4
 	}
 }}
 
@@ -130,11 +153,46 @@
 	{PyVVO initializes a \code{GLMManager} which parses and maps the \code{.glm} model from
 	\acref{flow:pull-gld}.};
 	%
+	% TODO: Add load modeling.
+	%
 	\node (update-glm-mgr)
-	[process, below=of init-glm-mgr, label={right:\ac{flow:update-glm-mgr}}]
+	[process, below=of init-glm-mgr, label={right:\ac{flow:update-glm-mgr}}, yshift=-0.5cm]
 	{The \code{GLMManager}'s internal model is updated with current equipment states
 	(\textit{e.g.}, inverter injections, switch states, \textit{etc.}).};
 	%
+	\node (init-ga)
+	[process, below=of update-glm-mgr, label=right:\ac{flow:init-ga}]
+	{Initialize \code{GA} and \code{GAStopper} objects.
+	The \code{GA} object manages the entire genetic algorithm for determining optimal
+	capacitor and regulator setpoints, while the \code{GAStopper} object listens for system
+	changes that might cause the current genetic algorithm run to be invalid (\textit{e.g.},
+	system topology changes) and halts the genetic algorithm if such a change occurs.};
+	%
+	\node (run-ga)
+	[process, below=of init-ga, label=right:\ac{flow:run-ga}]
+	{Run the genetic algorithm. The \code{GA} object will initialize a ``population'' of
+	``individuals,'' where each individual has regulators and capacitors initialized to 
+	different states. Each individual runs a GridLAB-D simulation to determine the 
+	resulting value of the objective function, which takes into account voltage violations,
+	feeder power factor, energy consumption, \textit{etc.} The best individuals (and some
+	random low-performers) will undergo ``crossover'' and ``mutation'' to create new 
+	individuals with different device states/settings. This process repeats until convergence,
+	resulting in the overall best individual, which represents the best device states/settings
+	for the given optimization period.};
+	%
+	\node (send-commands)
+	[io, below=of run-ga, label=right:\ac{flow:send-commands}]
+	{The resulting best device states (\textit{e.g.}, regulator tap positions and capacitor states)
+	are sent as commands into the GridAPPS-D platform. PyVVO waits for a set amount of time
+	to confirm that the commands were implemented as directed.};
+	%
+	\node (check-done)
+	[decision, below=of send-commands, label={[yshift=+0.5cm] left:no}, label={[xshift=+0.5cm] below:yes}]
+	{Continue?};
+	%
+	\node (stop)
+	[startstop, below=of check-done]
+	{Stop.};
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	% ARROWS
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -155,6 +213,19 @@
 		\draw[arrows.meta] (pull-gld) -- (init-glm-mgr);
 		%
 		\draw[arrows.meta] (init-glm-mgr) -- (update-glm-mgr);
+		%
+		\draw[arrows.meta] (update-glm-mgr) -- (init-ga);
+		%
+		\draw[arrows.meta] (init-ga) -- (run-ga);
+		%
+		\draw[arrows.meta] (run-ga) -- (send-commands);
+		%
+		\draw[arrows.meta] (send-commands) -- (check-done);
+		%
+		\draw[arrows.meta] (check-done) -- (stop);
+		%
+		\draw[arrows.meta] (check-done.west) -| ++(-4.5,0) |- (update-glm-mgr);
+		\coordinate (keep-going-west) at ($(check-done.west) + (-4.5,0)$);
 	\end{pgfonlayer}
 
 	% Background layer.
@@ -162,17 +233,24 @@
 		% Draw a box around all the initialization data.
 		% https://tex.stackexchange.com/a/75498/208656
 		\node (init-box) [
-			draw=red, fit= (sim-request) (init-glm-mgr), inner sep=0.6cm,
-			ultra thick, dashed, fill=red!20, fill opacity=0.4
+			backgroundbox, draw=red, fill=red!20,
+			fit= (sim-request) (init-glm-mgr)
 		] {};
-		% \coordinate (init-se) at (init-box.south east);
-
+		
+		% Draw a box around the optimization routine.
+		\node (opt-box) [
+			backgroundbox, draw=blue, fill=blue!20,
+			fit= (update-glm-mgr) (send-commands) (check-done) (keep-going-west)
+		] {};
 	\end{pgfonlayer}
 
-	% Draw a curly brace.
-	\draw [decorate, very thick, decoration={brace, amplitude=20pt, raise=6pt, mirror}]
-	(init-box.south east) -- (init-box.north east)
-	node [black, midway, xshift=2.75cm, text width=3cm] {\Large Initialization Phase};
+	% Draw curly brace for initialization.
+	\draw [curlybrace]
+	(init-box.south east) -- (init-box.north east) node [curlynode] {\Large Initialization Phase};
+	
+	% Draw curly brace for optimization.
+	\draw [curlybrace]
+	(opt-box.south east) -- (opt-box.north east) node [curlynode] {\Large Optimization Phase};
 	
 \end{tikzpicture}
 \end{document}
