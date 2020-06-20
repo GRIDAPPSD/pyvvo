@@ -12,6 +12,11 @@ tmp
 *.log
 *.log.*
 
+# Ignore pdf and aux files in the latex directory:
+docs/latex/*.aux
+docs/latex/*.pdf
+docs/latex/*.dvi
+
 # .idea directories are made by PyCharm.
 *.idea
 
