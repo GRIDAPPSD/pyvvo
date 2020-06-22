@@ -4,6 +4,18 @@ latex
 This directory contains LaTex source files for PyVVO documentation
 diagrams.
 
+**NOTE**: In general, there should be a a ``.rst`` file in the ``docs``
+directory for each ``.tex`` file here. An exception to that rule is
+with ``flow_base.tex`` which is intended to be ``\input`` into all the
+``.tex`` files.
+
+The only files that should be added to the repository itself are the
+``.tex`` files. The ``.svg`` files will be placed into
+``../html/_images`` at build time.
+
+Setup
+-----
+
 Brandon installed MikTex, then used TexWorks for editing/compiling the
 LaTex source files. Compiling via TexWorks by default creates ``.pdf``
 output, which cannot be directly integrated into HTML documentation
@@ -15,3 +27,4 @@ files to ``.svg``.
 Fortunately, there's a helper function in this directory called
 ``tex2svg.sh`` to make this simple. Call like ``./tex2svg.sh main_loop``
 if you want to convert ``main_loop.tex`` to ``main_loop.svg``.
+

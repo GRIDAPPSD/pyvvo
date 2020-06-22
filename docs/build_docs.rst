@@ -43,14 +43,22 @@ Building the Documentation
 --------------------------
 
 Building the documentation is wicked simple. After activating your
-virtual environment (see :ref:`venv`), simply:
+virtual environment (see :ref:`venv`), and assuming your shell's
+current working directory is ``pyvvo/docs``, simply:
 
 .. code:: bash
 
-    cd ~/git/pyvvo/docs
-    make html
+    python build_docs.py
 
-There shouldn't be any warnings or errors.
+There's going to be a lot of output as ``build_docs.py`` compiles all
+the ``latex`` files and converts the corresponding images to ``.svg``.
+
+If there are no updates to any of the files in the ``latex`` directory,
+you can simply run the following in your activated virtual environment:
+
+.. code:: bash
+
+    make html
 
 Viewing the Built Documentation
 -------------------------------
