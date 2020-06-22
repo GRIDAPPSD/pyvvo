@@ -1,112 +1,11 @@
 % This LaTex file's purpose is to draw a flow chart representing PyVVO's 
 % main loop, which can be found in app.py.
-
 \documentclass[tikz]{standalone}
-\usetikzlibrary{shapes.geometric, arrows.meta, fit, calc, positioning, automata, decorations.pathreplacing}
 
-% Declare the layers
-% https://tex.stackexchange.com/a/75498/208656
-\pgfdeclarelayer{background}
-\pgfsetlayers{background,main}
-
-% tikzset for flowcharts.
-% https://tex.stackexchange.com/a/342227/208656
-% Reference for label shifting in style:
-% https://tex.stackexchange.com/a/78690/208656
-% Reference for curly braces:
-% https://tex.stackexchange.com/a/20887/208656
-\tikzset{flowchart/.style = {
-	base/.style = {
-		draw=black,
-		very thick,
-		inner sep=10pt,
-		outer sep=0pt,
-		text width=10.0cm,
-		minimum height=0.8cm,
-		align=flush center,
-	},
-	labelshift/.style = {
-		prefix after command= {\pgfextra{\tikzset{every label/.style={xshift=0.42cm}}}}
-	},
-	startstop/.style = {
-		base,
-		labelshift,
-		rectangle,
-		rounded corners,
-		fill=red!30
-	},
-	io/.style = {
-		base,
-		trapezium,
-		trapezium left angle=70,
-		trapezium right angle=110,
-		trapezium stretches=true,
-		fill=blue!30,
-	},
-	process/.style = {
-		base,
-		labelshift,
-		rectangle,
-		fill=orange!30
-	},
-	decision/.style = {
-		base,
-		text width=3.0cm,
-		diamond,
-		aspect=1.2,
-		fill=green!30
-	},
-	arrows.meta/.style = {
-		very thick,
-	 	-{Stealth[]}
-	},
-	curlybrace/.style = {%
-		draw=black,
-		decorate,
-		very thick,
-		decoration={brace, amplitude=20pt, raise=6pt, mirror},
-	},
-	curlynode/.style = {
-		draw=none,
-		black,
-		midway,
-		xshift=2.75cm,
-		text width=3cm	
-	},
-	backgroundbox/.style = {
-		draw=none,
-		inner sep=0.8cm,
-		ultra thick,
-		dashed,
-		fill opacity=0.4
-	}
-}}
+% Load up the basic commands.
+\input{flow_base}
 
 \begin{document}
-
-% Shortcut for inline code:
-% https://stackoverflow.com/a/21344989
-\newcommand{\code}[1]{\texttt{#1}}
-
-% Label counter for the flow chart.
-\newcounter{ac}
-\renewcommand{\theac}{\alph{ac}}
-\newcommand{\ac}[1]{(\refstepcounter{ac}\alph{ac})\label{#1}}
-
-% To put parentheses around references:
-\newcommand{\acref}[1]{(\ref{#1})}
-
-% The following are for extracing coordinates.
-% https://tex.stackexchange.com/a/33706/208656
-\newdimen\XCoord
-\newdimen\YCoord
-\newcommand*{\ExtractCoordinate}[1]{\path (#1); \pgfgetlastxy{\XCoord}{\YCoord};}%
-\newcommand*{\ExtractCoordinateTwo}[1]{\path (#1); \pgfgetlastxy{\XCoordTwo}{\YCoordTwo};}%
-
-% Dimension and command for labeling boxes.
-\newdimen\XLabel
-\newcommand{\LabelNode}[1]{\ExtractCoordinate{$(#1.east)$}; \node (#1-label) at (\XLabel, \YCoord) {\ac{flow:#1}};}
-
 \begin{tikzpicture}[flowchart, node distance=1.2cm] 
 % \begin{tikzpicture}
 % , outer sep=2cm
@@ -125,7 +24,7 @@
 	\coordinate (start-east) at ($(start.east) + (1.5,0)$);
 	\path ($(start-east)$); \pgfgetlastxy{\XLabel}{\YCoord};
 	% Label our first node.
-	\LabelNode{start-east}
+	\LabelNode{start}
 	%
 	\node (sim-request)
 	[io, below=of start]
