@@ -55,6 +55,9 @@ html_theme = 'alabaster'
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
 
+# Don't copy reST sources.
+html_copy_source = False
+
 ########################################################################
 # Prevent skipping __init___
 # Source: https://stackoverflow.com/a/9772922
