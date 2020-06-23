@@ -18,8 +18,8 @@ Initialization Phase
 ^^^^^^^^^^^^^^^^^^^^
 
 When PyVVO is started, it only receives two inputs from
-the platform: the simulation ID and the `simulation request
-<https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#simulation-api>`__
+the platform: the simulation ID and the
+(:gad-using:`simulation request <simulation-api>`)
 \ref{flow:sim-request}. The simulation request contains many useful
 details including, but not limited to, the feeder's MRID, the time span
 of the simulation, *etc.*
@@ -49,21 +49,21 @@ management of devices (a.k.a. "equipment") in :py:mod:`pyvvo.equipment`.
 These classes generally contain a small subset of what's contained in
 the (:gad-dev:`CIM <cim-documentation>`).
 
-`Subscribing to simulation output <sim-output_>`_ is like drinking from
-a fire hose, so PyVVO has the ``SimOutRouter`` class
+:gad-using:`Subscribing to simulation output <subscribe-to-simulation-output>`
+is like drinking from a fire hose, so PyVVO has the ``SimOutRouter`` class
 (:py:class:`pyvvo.gridappsd_platform.SimOutRouter`) which filters
 simulation output and calls methods of the equipment classes that keep
 their states up to date \ref{flow:subscribe}. All state
 updates/subscriptions occur in their own threads, so object states are
 immediately updated whenever new measurements come in.
 
-PyVVO uses `GridLAB-D <gld-home_>`_ (`wiki <gld-wiki_>`_,
-`GitHub <gld-github_>`_) as its power flow solver/simulator, and the
-GridAPPS-D platform is capable of creating a GridLAB-D model from the
-CIM triplestore for its own simulations. PyVVO leverages this fact and
-`requests a model <gld-base_>`_ of the power system in GridLAB-D
-(``.glm``) format \ref{flow:pull-gld}, representing the nominal state
-of the system.
+PyVVO uses :gld-home:`` (:gld-wiki:``, :gld-github:``) as its power flow
+solver/simulator, and the GridAPPS-D platform is capable of creating a
+GridLAB-D model from the CIM triplestore for its own simulations. PyVVO
+leverages this fact and
+:gad-using:`requests a model <request-gridlab-d-base-file>` of the
+power system in GridLAB-D (``.glm``) format \ref{flow:pull-gld},
+representing the nominal state of the system.
 
 Next, PyVVO initializes a ``GLMManager``
 (:py:class:`pyvvo.glm.GLMManager`) \ref{flow:init-glm-mgr} using the
@@ -78,12 +78,14 @@ shortcomings, but also has a *lot* of features and functionality.
 Next, PyVVO begins the process of load modeling by pulling historic
 meter data from the GridAPPS-D platform's timeseries database
 \ref{flow:pull-load-data}. Specifically, historic data should come from
-the platform's `sensor service <sensor-data_>`_. As discussed in
+the platform's
+:gad-using:`sensor service <query-sensor-service-data>`. As discussed in
 :ref:`todo` and noted in the flow chart, this portion of PyVVO is
 currently incomplete due to platform issues.
 
 Weather data is incorporated in PyVVO's load modeling process. This
-data is obtained by `querying the platform <weather-data_>`_
+data is obtained by
+:gad-using:`querying the platform <query-weather-data>`
 \ref{flow:pull-weather-data}. Once obtained, the weather data must
 be parsed and resampled so that it matches up 1:1 with the meter data
 in \ref{flow:pull-load-data}. See
