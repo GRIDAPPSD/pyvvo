@@ -12,6 +12,11 @@ covered in detail here. Instead, check out `this section
 <https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo>`__ in the
 repository's top-level README file.
 
+Additionally, PyVVO emits logs a significant amount of information as it
+runs. Many of PyVVO's log messages are described in `this section
+<https://github.com/GRIDAPPSD/pyvvo#viewing-pyvvo-logs-as-simulation-proceeds>`__
+of the top-level README.
+
 Flow Chart Conventions
 ----------------------
 
@@ -33,6 +38,8 @@ Main Loop
 
 Load Modeling
 -------------
+
+.. _genetic-algorithm:
 
 Genetic Algorithm
 -----------------

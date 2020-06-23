@@ -91,15 +91,46 @@ in \ref{flow:pull-load-data}. See
 
 Optimization Phase
 ^^^^^^^^^^^^^^^^^^
+First of all, note there is some overlap in the "Initialization" and
+"Optimization" phases due to loop priming.
 
 After all procedures described in :ref:`init-phase` have been completed,
 PyVVO enters its optimization loop. The first step in this process is
 to update PyVVO's internal ``.glm`` model of the power system with the
-current states of all equipment \ref{flow:update-glm-manager}. Future
+current states of all equipment \ref{flow:update-glm-mgr}. Future
 work might use predicted future states rather than current states.
 
 Next, PyVVO initializes all the required objects for running the genetic
-algorithm.
+algorithm \ref{flow:init-ga}. The genetic algorithm components are fully
+encapsulated in :py:mod:`pyvvo.ga`. As noted in the flow chart, a
+``GAStopper`` object is used for stopping the genetic algorithm
+prematurely based on system events. At present, this only includes
+switches changing state (though `future work <todo>` should include
+other conditions). If the genetic algorithm were not halted due to a
+topology change, it would continue optimizing, but its internal model
+would no longer represent reality, making the result wrong/suboptimal
+(and perhaps dangerous to the health of the system).
+
+The internal workings of the genetic algorithm itself are rather
+complex, so discussion here will be limited to what's already mentioned
+in \ref{fig:run-ga}. More details can be found in
+:ref:`genetic-algorithm`.
+
+After the genetic algorithm has run to completion, PyVVO has an idea of
+how controllable devices should be operated (*e.g.*, regulators and
+capacitors). These proposed device settings are sent into the platform
+as commands (*e.g.* put regulator 1, phase A at tap 3)
+\ref{flow:send-commands}. PyVVO only sends in commands for proposed
+states that are different from the current state. In this way, if the
+proposed states are identical to the present states (indicating the
+system is already in an "optimal" configuration), no commands are sent
+into the system.
+
+Note that \ref{flow:check-done} is flagged with **INCOMPLETE**. This is
+because at present, PyVVO simply runs the optimization loop indefinitely
+and only stops when its Docker container is killed. PyVVO doesn't
+presently require any particular clean-up procedures, hence why
+\ref{flow:stop} is so simple.
 
 .. _CIM: https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
 .. _sim-output: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#subscribe-to-simulation-output
