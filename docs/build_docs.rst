@@ -2,6 +2,7 @@ Building the PyVVO Documentation
 ================================
 
 This section discusses what is required to build PyVVO's documentation.
+TL;DR (though please read): ``python build_docs.py --checkout``
 
 .. _venv:
 
@@ -48,17 +49,28 @@ current working directory is ``pyvvo/docs``, simply:
 
 .. code:: bash
 
-    python build_docs.py
+    python build_docs.py --checkout
 
-There's going to be a lot of output as ``build_docs.py`` compiles all
-the ``latex`` files and converts the corresponding images to ``.svg``.
-
-If there are no updates to any of the files in the ``latex`` directory,
-you can simply run the following in your activated virtual environment:
+For details on the available flags/arguments, run:
 
 .. code:: bash
 
-    make html
+    python build_docs.py --help
+
+Note that all tools (``latex``, ``dvisvgm``, ``sphinx-build``) have
+their outputs "quieted." Thus, if you get any output besides the
+obvious output from the Python script itself, that's cause for concern.
+For reference, with no warnings, clean output from ``build_docs.py``
+should look like:
+
+    ********************************************************************************
+    Running tex2svg for main_loop
+    Done.
+    ********************************************************************************
+    ********************************************************************************
+    Building the documentation.
+    Done.
+    ********************************************************************************
 
 Viewing the Built Documentation
 -------------------------------

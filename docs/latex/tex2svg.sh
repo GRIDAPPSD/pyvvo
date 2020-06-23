@@ -17,9 +17,13 @@ die () {
 # Collect arguments.
 file=${1}
 
-# Build via latex. Run twice to ensure references work out.
-latex ${file}.tex
-latex ${file}.tex
+# Ensure script fails on error.
+set -e
+
+# Build via latex. Run twice to ensure references work out. Run the
+# first time in draftmode to reduce I/O.
+latex -halt-on-error -quiet -interaction=nonstopmode ${file}.tex
+latex -halt-on-error -quiet -interaction=nonstopmode ${file}.tex
 
 # Convert to svg.
-dvisvgm --font-format=woff2 ${file}.dvi
+dvisvgm --font-format=woff2 --verbosity=3 ${file}.dvi

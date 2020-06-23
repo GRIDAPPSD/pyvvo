@@ -79,7 +79,7 @@ def update_rst(f_in):
 
 
 def main(checkout):
-    # Get listing of .tex files without the extension.
+    # Get listing of .tex files without the exdd_module_tension.
     tex_files = [os.path.splitext(x)[0] for x in os.listdir(LATEX_DIR)
                  if x.endswith('.tex')]
 
@@ -93,7 +93,8 @@ def main(checkout):
         # Compile and get svg files.
         stars()
         print('Running tex2svg for {}'.format(tf))
-        subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR)
+        subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR, check=True)
+        print('Done.')
         stars()
 
         # Update references in .rst files.
@@ -102,14 +103,15 @@ def main(checkout):
     # Finally, build the documentation.
     stars()
     print('Building the documentation.')
-    subprocess.run(['make', 'html'])
+    subprocess.run(['make', 'html'], check=True)
+    print('Done.')
     stars()
 
     # (Maybe) check out the files in rst_latex.
     if checkout:
         stars()
         print('Checking out files in {}.'.format(RST_DIR))
-        subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)])
+        subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)], check=True)
 
 
 if __name__ == '__main__':
