@@ -63,14 +63,9 @@ obvious output from the Python script itself, that's cause for concern.
 For reference, with no warnings, clean output from ``build_docs.py``
 should look like:
 
-    ********************************************************************************
-    Running tex2svg for main_loop
-    Done.
-    ********************************************************************************
-    ********************************************************************************
-    Building the documentation.
-    Done.
-    ********************************************************************************
+    Running tex2svg for main_loop...Done.
+    Building the documentation...Done.
+    Checking out files in rst_latex...Done.
 
 Viewing the Built Documentation
 -------------------------------

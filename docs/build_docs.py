@@ -91,27 +91,29 @@ def main(checkout):
             continue
 
         # Compile and get svg files.
-        stars()
-        print('Running tex2svg for {}'.format(tf))
+        # stars()
+        print('Running tex2svg for {}...'.format(tf), end='', flush=True)
         subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR, check=True)
-        print('Done.')
-        stars()
+        print('Done.', flush=True)
+        # stars()
 
         # Update references in .rst files.
         update_rst(tf)
 
     # Finally, build the documentation.
-    stars()
-    print('Building the documentation.')
+    # stars()
+    print('Building the documentation...', end='', flush=True)
     subprocess.run(['make', 'html'], check=True)
-    print('Done.')
-    stars()
+    print('Done.', flush=True)
+    # stars()
 
     # (Maybe) check out the files in rst_latex.
     if checkout:
-        stars()
-        print('Checking out files in {}.'.format(RST_DIR))
+        # stars()
+        print('Checking out files in {}...'.format(RST_DIR), end='',
+              flush=True)
         subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)], check=True)
+        print('Done.', flush=True)
 
 
 if __name__ == '__main__':
