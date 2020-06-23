@@ -3,6 +3,18 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+.. Following are some link definitions that will be used throughout.
+
+.. _HICSS paper: http://hdl.handle.net/10125/64115
+.. _CIM: https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
+.. _sim-output: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#subscribe-to-simulation-output
+.. _gld-base: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#request-gridlab-d-base-file
+.. _gld-wiki: http://gridlab-d.shoutwiki.com/wiki/Quick_links
+.. _gld-home: https://www.gridlabd.org/
+.. _gld-github: https://github.com/gridlab-d/gridlab-d
+.. _sensor-data: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-sensor-service-data
+.. _weather-data: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-weather-data
+
 Welcome to PyVVO's Documentation!
 =================================
 

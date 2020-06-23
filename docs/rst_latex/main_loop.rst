@@ -1,14 +1,16 @@
 ..  Note that all \ref{} commands here correspond to references in
     ../latex/main_loop.tex.
 
-The following image depicts a flow chart of the operation of ``app.py``.
-Boxes prefaced with **INCOMPLETE** indicate that more work is needed
-to finalize the code related to the process described in the box.
+The following image depicts a flow chart of the operation of ``app.py``
+(:py:mod:`pyvvo.app`). Boxes prefaced with **INCOMPLETE** indicate that
+more work is needed to finalize the code related to the process
+described in the box.
 
 .. image:: latex/main_loop.svg
 
 As noted in \ref{flow:start}, when PyVVO is running inside the
-GridAPPS-D platform, it's started by ``run_pyvvo.py.``
+GridAPPS-D platform, it's started by ``run_pyvvo.py``
+(:py:mod:`pyvvo.run_pyvvo`).
 
 .. _init-phase:
 
@@ -131,12 +133,3 @@ because at present, PyVVO simply runs the optimization loop indefinitely
 and only stops when its Docker container is killed. PyVVO doesn't
 presently require any particular clean-up procedures, hence why
 \ref{flow:stop} is so simple.
-
-.. _CIM: https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation
-.. _sim-output: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#subscribe-to-simulation-output
-.. _gld-base: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#request-gridlab-d-base-file
-.. _gld-wiki: http://gridlab-d.shoutwiki.com/wiki/Quick_links
-.. _gld-home: https://www.gridlabd.org/
-.. _gld-github: https://github.com/gridlab-d/gridlab-d
-.. _sensor-data: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-sensor-service-data
-.. _weather-data: https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-weather-data
