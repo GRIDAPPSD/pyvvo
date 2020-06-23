@@ -109,7 +109,7 @@ def main(checkout):
     if checkout:
         stars()
         print('Checking out files in {}.'.format(RST_DIR))
-        subprocess.run(['git', 'checkout', './*'], cwd=RST_DIR)
+        subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)])
 
 
 if __name__ == '__main__':
