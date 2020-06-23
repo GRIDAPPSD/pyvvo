@@ -1,0 +1,59 @@
+% This file will document the flowchart conventions.
+\documentclass[tikz]{standalone}
+
+% Load up the basic commands.
+\input{flow_base}
+
+\begin{document}
+\begin{tikzpicture}[flowchart, node distance=1.2cm] 
+% \begin{tikzpicture}
+% , outer sep=2cm
+\tikzstyle{every node}=[font=\large]
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% NODES
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\node (start)
+	[startstop]
+	{Nodes like this denote a starting or stopping event/condition/description.};
+	% Create a coordinate which will be referenced for all labels.
+	\coordinate (start-east) at ($(start.east) + (1.5,0)$);
+	\path ($(start-east)$); \pgfgetlastxy{\XLabel}{\YCoord};
+	% Label our first node.
+	\LabelNode{start}
+	%
+	\node (io-ref)
+	[io, below=of start]
+	{Nodes like this denote an input/output operation (\textit{e.g.}, pulling data
+	from the GridAPPS-D platform or sending commands in).};
+	\LabelNode{io-ref}
+	%
+	\node (process-ref)
+	[process, below=of io-ref]
+	{Nodes like this denote a process ({\textit{e.g.} performing a computation). Note 
+	that we can cross-reference the ``start'' node \acref{flow:start}}. This is done 
+	dynamically both in \LaTeX\ and the reStructuredText files (and hence in the
+	HTML output you are now viewing).};
+	\LabelNode{process-ref}
+	%
+	\node (decision-ref)
+	[decision, below= of process-ref, label={[yshift=+0.5cm] left:no}, label={[xshift=+0.5cm] below:yes}]
+	{Nodes like this denote a decision (\textit{e.g.} an \code{if}/\code{else} statement/flow).
+	Shall we stop?};
+	\LabelNode{decision-ref}
+	%
+	\node (stop)
+	[startstop, below=of decision-ref, label]
+	{Stop. For you information, code will be typeset \code{like\_this}.};
+	\LabelNode{stop}
+	
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% ARROWS
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\draw[arrows.meta] (start) -- (io-ref);
+	\draw[arrows.meta] (io-ref) -- (process-ref);
+	\draw[arrows.meta] (process-ref) -- (decision-ref);
+	\draw[arrows.meta] (decision-ref) -- (stop);
+	\draw[arrows.meta] (decision-ref.west) -| ++(-3.5,0) |- (io-ref);
+\end{tikzpicture}
+\end{document}

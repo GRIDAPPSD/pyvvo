@@ -6,6 +6,11 @@ through various flow charts. At times, specific Python modules or
 classes will be referenced. In addition to examining the source code
 itself, the API is documented in the :ref:`pyvvo-code` section.
 
+Flow Chart Conventions
+----------------------
+
+.. include:: rst_latex/flow_conventions.rst
+
 High Level Summary
 ------------------
 
@@ -23,3 +28,5 @@ Main Loop
 Load Modeling
 -------------
 
+Genetic Algorithm
+-----------------

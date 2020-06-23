@@ -1,3 +1,5 @@
+.. _pyvvo-code:
+
 PyVVO Code
 ==========
 This section contains automatically generated documentation of the
