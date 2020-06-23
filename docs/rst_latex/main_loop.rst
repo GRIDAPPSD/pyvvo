@@ -57,10 +57,10 @@ their states up to date \ref{flow:subscribe}. All state
 updates/subscriptions occur in their own threads, so object states are
 immediately updated whenever new measurements come in.
 
-PyVVO uses :gld-home:`a` (:gld-wiki:`a`, :gld-github:`a`) as its power flow
-solver/simulator, and the GridAPPS-D platform is capable of creating a
-GridLAB-D model from the CIM triplestore for its own simulations. PyVVO
-leverages this fact and
+PyVVO uses :gld-home:`GridLAB-D </>` (:gld-wiki:`Wiki </>`,
+:gld-github:`GitHub </>`) as its power flow solver/simulator, and the
+GridAPPS-D platform is capable of creating a GridLAB-D model from the
+CIM triplestore for its own simulations. PyVVO leverages this fact and
 :gad-using:`requests a model <request-gridlab-d-base-file>` of the
 power system in GridLAB-D (``.glm``) format \ref{flow:pull-gld},
 representing the nominal state of the system.

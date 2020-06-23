@@ -29,7 +29,8 @@ author = 'Brandon Thayer'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax']
+extensions = ['sphinx.ext.autodoc', 'sphinx.ext.mathjax',
+              'sphinx.ext.extlinks', 'sphinx.ext.githubpages']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -93,3 +94,16 @@ autodoc_default_options = {'members': True, 'undoc-members': True,
 autodoc_mock_imports = [
     'MySQLdb', 'mysqlclient', 'pandas', 'python-dateutil',
     'scipy', 'sklearn', 'stomp', 'gridappsd', 'dateutil']
+
+########################################################################
+# Configuration for extlinks.
+########################################################################
+# To use the hacked links like hicss or gld-home, pass a '/'.
+extlinks = {
+    'hicss': ('http://hdl.handle.net/10125/64115%s', None),
+    'gad-using': ('https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#%s', None),
+    'gad-dev': ('https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#%s', None),
+    'gld-home': ('https://www.gridlabd.org%s', None),
+    'gld-wiki': ('http://gridlab-d.shoutwiki.com/wiki/Quick_links%s', None),
+    'gld-github': ('https://github.com/gridlab-d/gridlab-d%s', None)
+}
