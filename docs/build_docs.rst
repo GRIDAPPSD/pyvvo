@@ -51,6 +51,13 @@ current working directory is ``pyvvo/docs``, simply:
 
     python build_docs.py --checkout
 
+**NOTE**: Be careful when using the ``--checkout`` flag. You should
+ensure that your Git workspace in ``docs/rst_latex`` is **clean** before
+running ``build_docs.py`` with the --checkout command. Really, you
+should ensure you have a clean workspace before running
+``build_docs.py`` at all, because it does some find+replace in the
+``rst_latex`` directory.
+
 For details on the available flags/arguments, run:
 
 .. code:: bash
