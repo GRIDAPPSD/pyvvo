@@ -7,8 +7,9 @@ import subprocess
 import re
 import argparse
 import logging
+logging.basicConfig(level=logging.INFO)
 
-LOG = logging.getLogger(__name__)
+LOG = logging.getLogger()
 LOG.setLevel(logging.INFO)
 
 # List .tex files in the latex directory that should not be compiled
@@ -31,6 +32,7 @@ def aux2dict(f_in):
         file_str = f.read()
 
     # Extract the label name and the label value.
+    # noinspection RegExpRedundantEscape
     results = re.findall(r'(?:\{)(.*)(?:\})(?:\{\{)(.*)(?:\}\{.*\}\})',
                          file_str)
 
@@ -38,6 +40,7 @@ def aux2dict(f_in):
     return {x[0]: x[1] for x in results}
 
 
+# noinspection RegExpRedundantEscape
 def update_rst(f_in):
     """Read a .rst file and update the references it makes according to
     the ref_dict. It is assumed the .rst file is in this directory. It
@@ -69,6 +72,17 @@ def update_rst(f_in):
         rst = re.sub(r'\\ref\{{{}\}}'.format(ref),
                      r'({})'.format(val), rst)
 
+    # Check for any hanging references and report them.
+    hanging = re.findall(r'\\ref\{.+\}', rst)
+
+    if len(hanging) > 0:
+        LOG.warning(
+            ('Some reference(s) did not get updated in {f}.rst, and are '
+             'thus not defined in {f}.tex: {r}').format(
+                f=f_in, r=hanging)
+
+        )
+
     # Replace.
     with open(full_path, 'w') as f:
         f.write(rst)
@@ -90,7 +104,7 @@ def main(checkout):
             continue
 
         # Compile and get svg files.
-        LOG.info('Running tex2svg for {}...', tf)
+        LOG.info('Running tex2svg for {}...'.format(tf))
         subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR, check=True)
         LOG.info('Done.')
 
@@ -104,7 +118,7 @@ def main(checkout):
 
     # (Maybe) check out the files in rst_latex.
     if checkout:
-        LOG.info('Checking out files in {}...', RST_DIR)
+        LOG.info('Checking out files in {}...'.format(RST_DIR))
         subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)], check=True)
         LOG.info('Done.')
 
