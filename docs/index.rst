@@ -6,7 +6,7 @@
 Welcome to PyVVO's Documentation!
 =================================
 
-PyVVO is an example volt-var optimization (VV) application written in
+PyVVO is an example volt-var optimization (VVO) application written in
 Python (hence the "Py") that runs on the GridAPPS-D platform. The
 GridAPPS-D documentation can be found on `Read the Docs
 <https://gridappsd.readthedocs.io/en/latest/index.html>`__.
