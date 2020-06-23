@@ -44,7 +44,7 @@ management of devices (a.k.a. "equipment") in :py:mod:`pyvvo.equipment`.
 These classes generally contain a small subset of what's contained in
 the `CIM`_.
 
-`Subscribing to simulation output <sim-output>_`_ is like drinking from
+`Subscribing to simulation output <sim-output_>`_ is like drinking from
 a fire hose, so PyVVO has the ``SimOutRouter`` class
 (:py:class:`pyvvo.gridappsd_platform.SimOutRouter`) which filters
 simulation output and calls methods of the equipment classes that keep
