@@ -4,10 +4,10 @@ latex
 This directory contains LaTex source files for PyVVO documentation
 diagrams.
 
-**NOTE**: In general, there should be a a ``.rst`` file in the ``docs``
-directory for each ``.tex`` file here. An exception to that rule is
-with ``flow_base.tex`` which is intended to be ``\input`` into all the
-``.tex`` files.
+**NOTE**: In general, there should be a a ``.rst`` file in the
+``docs/rst_latex`` directory for each ``.tex`` file here. An exception
+to that rule is with ``flow_base.tex`` which is intended to be
+``\input`` into all the ``.tex`` files.
 
 The only files that should be added to the repository itself are the
 ``.tex`` files. The ``.svg`` files will be placed into

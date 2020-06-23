@@ -40,7 +40,7 @@ templates_path = ['_templates']
 #
 # Added: latex, html, README.rst.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'html', 'latex',
-                    'README.rst']
+                    'rst_latex', 'README.rst', '*.py']
 
 
 # -- Options for HTML output -------------------------------------------------

@@ -41,6 +41,13 @@ files via ``latex`` and then converted to ``.svg`` via the ``dvisvgm``
 command line tool. See the README in the ``latex`` directory for more
 details.
 
+rst_latex
+^^^^^^^^^
+
+This directory contains ``.rst`` files that should correspond directly
+(and have an identical name, except for the extension) to ``.tex`` files
+in the ``latex`` directory.
+
 conf.py
 ^^^^^^^
 
