@@ -1,7 +1,9 @@
 The example flow chart below presents the conventions that will be used
 throughout this documentation. Note that all flow charts are vector
 images (specifically, ``.svg``), so you can zoom in on them without
-making them blurry.
+making them blurry. While reading the documentation, it will probably
+be most useful if you open up each flow chart in a second window and
+position it side by side this documentation.
 
 .. image:: latex/flow_conventions.svg
 
