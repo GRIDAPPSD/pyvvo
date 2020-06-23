@@ -17,7 +17,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="PyVVO Code" href="pyvvo_code.html" />
-    <link rel="prev" title="Welcome to PyVVO’s documentation!" href="index.html" />
+    <link rel="prev" title="Outstanding Work, Known Issues, Future Work" href="outstanding_work.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
   
@@ -36,7 +36,8 @@
             
   <div class="section" id="building-the-pyvvo-documentation">
 <h1>Building the PyVVO Documentation<a class="headerlink" href="#building-the-pyvvo-documentation" title="Permalink to this headline">¶</a></h1>
-<p>This section discusses what is required to build PyVVO’s documentation.</p>
+<p>This section discusses what is required to build PyVVO’s documentation.
+TL;DR (though please read): <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">build_docs.py</span> <span class="pre">--checkout</span></code></p>
 <div class="section" id="virtual-environment">
 <span id="venv"></span><h2>Virtual Environment<a class="headerlink" href="#virtual-environment" title="Permalink to this headline">¶</a></h2>
 <p>To keep things simple, Brandon builds the documentation via a Python
@@ -66,12 +67,42 @@ All these files have since been modified.</p>
 <div class="section" id="building-the-documentation">
 <h2>Building the Documentation<a class="headerlink" href="#building-the-documentation" title="Permalink to this headline">¶</a></h2>
 <p>Building the documentation is wicked simple. After activating your
-virtual environment (see <a class="reference internal" href="#venv"><span class="std std-ref">Virtual Environment</span></a>), simply:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> ~/git/pyvvo/docs
-make html
+virtual environment (see <a class="reference internal" href="#venv"><span class="std std-ref">Virtual Environment</span></a>), and assuming your shell’s
+current working directory is <code class="docutils literal notranslate"><span class="pre">pyvvo/docs</span></code>, simply:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python build_docs.py --checkout
 </pre></div>
 </div>
-<p>There shouldn’t be any warnings or errors.</p>
+<p><strong>NOTE</strong>: Be careful when using the <code class="docutils literal notranslate"><span class="pre">--checkout</span></code> flag. You should
+ensure that your Git workspace in <code class="docutils literal notranslate"><span class="pre">docs/rst_latex</span></code> is <strong>clean</strong> before
+running <code class="docutils literal notranslate"><span class="pre">build_docs.py</span></code> with the –checkout command. Really, you
+should ensure you have a clean workspace before running
+<code class="docutils literal notranslate"><span class="pre">build_docs.py</span></code> at all, because it does some find+replace in the
+<code class="docutils literal notranslate"><span class="pre">rst_latex</span></code> directory.</p>
+<p>For details on the available flags/arguments, run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python build_docs.py --help
+</pre></div>
+</div>
+<p>Note that all tools (<code class="docutils literal notranslate"><span class="pre">latex</span></code>, <code class="docutils literal notranslate"><span class="pre">dvisvgm</span></code>, <code class="docutils literal notranslate"><span class="pre">sphinx-build</span></code>) have
+their outputs “quieted.” Thus, if you get any output besides the
+obvious output from the Python script itself, that’s cause for concern.
+For reference, with no warnings, clean output from <code class="docutils literal notranslate"><span class="pre">build_docs.py</span></code>
+should look like:</p>
+<blockquote>
+<div><p><a class="reference external" href="INFO:root:Running">INFO:root:Running</a> tex2svg for flow_conventions…
+<a class="reference external" href="INFO:root:Done">INFO:root:Done</a>.
+<a class="reference external" href="INFO:root:Running">INFO:root:Running</a> tex2svg for main_loop…
+<a class="reference external" href="INFO:root:Done">INFO:root:Done</a>.
+<a class="reference external" href="INFO:root:Building">INFO:root:Building</a> the documentation…
+<a class="reference external" href="INFO:root:Done">INFO:root:Done</a>.
+<a class="reference external" href="INFO:root:Checking">INFO:root:Checking</a> out files in rst_latex…
+<a class="reference external" href="INFO:root:Done">INFO:root:Done</a>.</p>
+</div></blockquote>
+<p><code class="docutils literal notranslate"><span class="pre">build_docs.py</span></code> will emit a warning like so if any of the <code class="docutils literal notranslate"><span class="pre">\ref{}</span></code>
+references in the <code class="docutils literal notranslate"><span class="pre">rst_latex</span></code> files don’t match up with the <code class="docutils literal notranslate"><span class="pre">.tex</span></code>
+files:</p>
+<blockquote>
+<div><p>WARNING:root:Some reference(s) did not get updated in main_loop.rst, and are thus not defined in main_loop.tex: [‘\ref{flow:update-glm-manager}’]</p>
+</div></blockquote>
 </div>
 <div class="section" id="viewing-the-built-documentation">
 <h2>Viewing the Built Documentation<a class="headerlink" href="#viewing-the-built-documentation" title="Permalink to this headline">¶</a></h2>
@@ -98,6 +129,9 @@ make html
 <h3>Navigation</h3>
 <p class="caption"><span class="caption-text">Contents:</span></p>
 <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_install.html">Usage/Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How PyVVO Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outstanding_work.html">Outstanding Work, Known Issues, Future Work</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Building the PyVVO Documentation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#virtual-environment">Virtual Environment</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#initial-setup">Initial Setup</a></li>
@@ -112,7 +146,7 @@ make html
 <h3>Related Topics</h3>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
-      <li>Previous: <a href="index.html" title="previous chapter">Welcome to PyVVO’s documentation!</a></li>
+      <li>Previous: <a href="outstanding_work.html" title="previous chapter">Outstanding Work, Known Issues, Future Work</a></li>
       <li>Next: <a href="pyvvo_code.html" title="next chapter">PyVVO Code</a></li>
   </ul></li>
 </ul>
@@ -146,9 +180,6 @@ make html
       Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
       &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
-      |
-      <a href="_sources/build_docs.rst.txt"
-          rel="nofollow">Page source</a>
     </div>
 
     

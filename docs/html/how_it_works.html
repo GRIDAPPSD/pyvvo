@@ -1,0 +1,280 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>How PyVVO Works &#8212; PyVVO  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Outstanding Work, Known Issues, Future Work" href="outstanding_work.html" />
+    <link rel="prev" title="Usage/Installation" href="use_install.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="how-pyvvo-works">
+<h1>How PyVVO Works<a class="headerlink" href="#how-pyvvo-works" title="Permalink to this headline">¶</a></h1>
+<p>This section will provide an overview of how PyVVO works by walking
+through various flow charts. At times, specific Python modules or
+classes will be referenced. In addition to examining the source code
+itself, the API is documented in the <a class="reference internal" href="pyvvo_code.html#pyvvo-code"><span class="std std-ref">PyVVO Code</span></a> section.</p>
+<p>PyVVO is <em>highly</em> configurable. To keep this documentation maintainable
+and avoid repeating information, the configurable fields will not be
+covered in detail here. Instead, check out <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo">this section</a> in the
+repository’s top-level README file.</p>
+<p>Additionally, PyVVO emits logs a significant amount of information as it
+runs. Many of PyVVO’s log messages are described in <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#viewing-pyvvo-logs-as-simulation-proceeds">this section</a>
+of the top-level README.</p>
+<div class="section" id="flow-chart-conventions">
+<h2>Flow Chart Conventions<a class="headerlink" href="#flow-chart-conventions" title="Permalink to this headline">¶</a></h2>
+<p>The example flow chart below presents the conventions that will be used
+throughout this documentation. Note that all flow charts are vector
+images (specifically, <code class="docutils literal notranslate"><span class="pre">.svg</span></code>), so you can zoom in on them without
+making them blurry. While reading the documentation, it will probably
+be most useful if you open up each flow chart in a second window and
+position it side by side this documentation.</p>
+<img alt="_images/flow_conventions.svg" src="_images/flow_conventions.svg" /><div class="section" id="technical-details">
+<h3>Technical Details<a class="headerlink" href="#technical-details" title="Permalink to this headline">¶</a></h3>
+<p>If the flow charts are rendering well for you and include text, no need
+to read this section.</p>
+<p>If you cannot see any text on the flow charts or they don’t render
+correctly, you’re likely using an archaic web browser. Please either
+update your browser or switch to a modern one (<em>e.g.</em>, Firefox). The
+<code class="docutils literal notranslate"><span class="pre">.svg</span></code> files have the fonts embedded in <a class="reference external" href="https://en.wikipedia.org/wiki/Web_Open_Font_Format">WOFF</a> 2.0 format
+(published as a <a class="reference external" href="https://en.wikipedia.org/wiki/World_Wide_Web_Consortium#W3C_recommendation_(REC)">W3C recommendation</a>
+in 2018) by <a class="reference external" href="https://dvisvgm.de/">dvisvgm</a>.</p>
+</div>
+</div>
+<div class="section" id="high-level-summary">
+<h2>High Level Summary<a class="headerlink" href="#high-level-summary" title="Permalink to this headline">¶</a></h2>
+<p>At the highest level, PyVVO contains two important components:
+data-driven predictive load modeling and a genetic algorithm. The
+load models are layered onto a GridLAB-D model, and resulting GridLAB-D
+simulation outputs are used in the genetic algorithm’s optimization
+process.</p>
+</div>
+<div class="section" id="main-loop">
+<h2>Main Loop<a class="headerlink" href="#main-loop" title="Permalink to this headline">¶</a></h2>
+<p>The following image depicts a flow chart of the operation of <code class="docutils literal notranslate"><span class="pre">app.py</span></code>
+(<a class="reference internal" href="pyvvo_code.html#module-pyvvo.app" title="pyvvo.app"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.app</span></code></a>). Boxes prefaced with <strong>INCOMPLETE</strong> indicate that
+more work is needed to finalize the code related to the process
+described in the box.</p>
+<img alt="_images/main_loop.svg" src="_images/main_loop.svg" /><p>As noted in (a), when PyVVO is running inside the
+GridAPPS-D platform, it’s started by <code class="docutils literal notranslate"><span class="pre">run_pyvvo.py</span></code>
+(<a class="reference internal" href="pyvvo_code.html#module-pyvvo.run_pyvvo" title="pyvvo.run_pyvvo"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.run_pyvvo</span></code></a>).</p>
+<div class="section" id="initialization-phase">
+<span id="init-phase"></span><h3>Initialization Phase<a class="headerlink" href="#initialization-phase" title="Permalink to this headline">¶</a></h3>
+<p>When PyVVO is started, it only receives two inputs from
+the platform: the simulation ID and the
+(<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#simulation-api">simulation request</a>)
+(b). The simulation request contains many useful
+details including, but not limited to, the feeder’s MRID, the time span
+of the simulation, <em>etc.</em></p>
+<p>PyVVO uses the information from (b) to initialize a
+variety of classes whose role is to interface with the GridAPPS-D
+platform (c). These classes can be found in
+<a class="reference internal" href="pyvvo_code.html#module-pyvvo.sparql" title="pyvvo.sparql"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.sparql</span></code></a> and <a class="reference internal" href="pyvvo_code.html#module-pyvvo.gridappsd_platform" title="pyvvo.gridappsd_platform"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.gridappsd_platform</span></code></a>.</p>
+<p>Since PyVVO is a volt-var optimization application, it primarily cares
+about regulators and capacitors (future work should include control of
+other devices). However, since PyVVO is model-based, it also needs to
+know about other active devices in the system such as photovoltaic
+inverters, distributed generators, and switches. PyVVO uses the
+<code class="docutils literal notranslate"><span class="pre">SPARQLManager</span></code> (initialized in (c)) to query
+the GridAPPS-D platform’s Common Information Model
+(<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation">CIM</a>)
+triplestore database to obtain nominal device information
+(c). Additionally, information about the
+measurement objects (<em>e.g.</em>, their MRIDs, measurement types, <em>etc</em>.)
+associated with the each device is pulled from the CIM triplestore.</p>
+<p>With device and measurement information in hand, PyVVO can initialize
+objects that represent all the equipment in the system that PyVVO cares
+about (e). PyVVO has various classes related to the
+management of devices (a.k.a. “equipment”) in <a class="reference internal" href="pyvvo_code.html#module-pyvvo.equipment" title="pyvvo.equipment"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.equipment</span></code></a>.
+These classes generally contain a small subset of what’s contained in
+the (<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#cim-documentation">CIM</a>).</p>
+<p><a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#subscribe-to-simulation-output">Subscribing to simulation output</a>
+is like drinking from a fire hose, so PyVVO has the <code class="docutils literal notranslate"><span class="pre">SimOutRouter</span></code> class
+(<a class="reference internal" href="pyvvo_code.html#pyvvo.gridappsd_platform.SimOutRouter" title="pyvvo.gridappsd_platform.SimOutRouter"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyvvo.gridappsd_platform.SimOutRouter</span></code></a>) which filters
+simulation output and calls methods of the equipment classes that keep
+their states up to date (f). All state
+updates/subscriptions occur in their own threads, so object states are
+immediately updated whenever new measurements come in.</p>
+<p>PyVVO uses <a class="reference external" href="https://www.gridlabd.org/">GridLAB-D</a> (<a class="reference external" href="http://gridlab-d.shoutwiki.com/wiki/Quick_links/">Wiki</a>,
+<a class="reference external" href="https://github.com/gridlab-d/gridlab-d/">GitHub</a>) as its power flow solver/simulator, and the
+GridAPPS-D platform is capable of creating a GridLAB-D model from the
+CIM triplestore for its own simulations. PyVVO leverages this fact and
+<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#request-gridlab-d-base-file">requests a model</a> of the
+power system in GridLAB-D (<code class="docutils literal notranslate"><span class="pre">.glm</span></code>) format (g),
+representing the nominal state of the system.</p>
+<p>Next, PyVVO initializes a <code class="docutils literal notranslate"><span class="pre">GLMManager</span></code>
+(<a class="reference internal" href="pyvvo_code.html#pyvvo.glm.GLMManager" title="pyvvo.glm.GLMManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyvvo.glm.GLMManager</span></code></a>) (h) using the
+<code class="docutils literal notranslate"><span class="pre">.glm</span></code> file pulled in (g). The <code class="docutils literal notranslate"><span class="pre">GLMManager</span></code>
+creates an in-memory representation of the model using Python data
+types, and is capable of modifying the model and writing out a new
+<code class="docutils literal notranslate"><span class="pre">.glm</span></code> file. The module <a class="reference internal" href="pyvvo_code.html#module-pyvvo.glm" title="pyvvo.glm"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.glm</span></code></a> could come in handy for
+other GridAPPS-D applications, or any application that needs to read,
+modify, and write GridLAB-D models. The code isn’t perfect and has some
+shortcomings, but also has a <em>lot</em> of features and functionality.</p>
+<p>Next, PyVVO begins the process of load modeling by pulling historic
+meter data from the GridAPPS-D platform’s timeseries database
+(i). Specifically, historic data should come from
+the platform’s
+<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-sensor-service-data">sensor service</a>. As discussed in
+<a class="reference internal" href="outstanding_work.html#todo"><span class="std std-ref">Outstanding Work, Known Issues, Future Work</span></a> and noted in the flow chart, this portion of PyVVO is
+currently incomplete due to platform issues.</p>
+<p>Weather data is incorporated in PyVVO’s load modeling process. This
+data is obtained by
+<a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query-weather-data">querying the platform</a>
+(j). Once obtained, the weather data must
+be parsed and resampled so that it matches up 1:1 with the meter data
+in (i). See
+<a class="reference internal" href="pyvvo_code.html#pyvvo.timeseries.parse_weather" title="pyvvo.timeseries.parse_weather"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyvvo.timeseries.parse_weather()</span></code></a> and
+<a class="reference internal" href="pyvvo_code.html#pyvvo.timeseries.resample_timeseries" title="pyvvo.timeseries.resample_timeseries"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyvvo.timeseries.resample_timeseries()</span></code></a>.</p>
+</div>
+<div class="section" id="optimization-phase">
+<span id="opt-phase"></span><h3>Optimization Phase<a class="headerlink" href="#optimization-phase" title="Permalink to this headline">¶</a></h3>
+<p>First of all, note there is some overlap in the “Initialization” and
+“Optimization” phases due to loop priming.</p>
+<p>After all procedures described in <a class="reference internal" href="#init-phase"><span class="std std-ref">Initialization Phase</span></a> have been completed,
+PyVVO enters its optimization loop. The first step in this process is
+to update PyVVO’s internal <code class="docutils literal notranslate"><span class="pre">.glm</span></code> model of the power system with the
+current states of all equipment (l). Future
+work might use predicted future states rather than current states.</p>
+<p>Next, PyVVO initializes all the required objects for running the genetic
+algorithm (m). The genetic algorithm components are fully
+encapsulated in <a class="reference internal" href="pyvvo_code.html#module-pyvvo.ga" title="pyvvo.ga"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.ga</span></code></a>. As noted in the flow chart, a
+<code class="docutils literal notranslate"><span class="pre">GAStopper</span></code> object is used for stopping the genetic algorithm
+prematurely based on system events. At present, this only includes
+switches changing state (though <cite>future work &lt;todo&gt;</cite> should include
+other conditions). If the genetic algorithm were not halted due to a
+topology change, it would continue optimizing, but its internal model
+would no longer represent reality, making the result wrong/suboptimal
+(and perhaps dangerous to the health of the system).</p>
+<p>The internal workings of the genetic algorithm itself are rather
+complex, so discussion here will be limited to what’s already mentioned
+in (n). More details can be found in
+<a class="reference internal" href="#genetic-algorithm"><span class="std std-ref">Genetic Algorithm</span></a>.</p>
+<p>After the genetic algorithm has run to completion, PyVVO has an idea of
+how controllable devices should be operated (<em>e.g.</em>, regulators and
+capacitors). These proposed device settings are sent into the platform
+as commands (<em>e.g.</em> put regulator 1, phase A at tap 3)
+(o). PyVVO only sends in commands for proposed
+states that are different from the current state. In this way, if the
+proposed states are identical to the present states (indicating the
+system is already in an “optimal” configuration), no commands are sent
+into the system.</p>
+<p>Note that (p) is flagged with <strong>INCOMPLETE</strong>. This is
+because at present, PyVVO simply runs the optimization loop indefinitely
+and only stops when its Docker container is killed. PyVVO doesn’t
+presently require any particular clean-up procedures, hence why
+(q) is so simple.</p>
+</div>
+</div>
+<div class="section" id="load-modeling">
+<h2>Load Modeling<a class="headerlink" href="#load-modeling" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="genetic-algorithm">
+<span id="id1"></span><h2>Genetic Algorithm<a class="headerlink" href="#genetic-algorithm" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PyVVO</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_install.html">Usage/Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">How PyVVO Works</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#flow-chart-conventions">Flow Chart Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#high-level-summary">High Level Summary</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#main-loop">Main Loop</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#load-modeling">Load Modeling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#genetic-algorithm">Genetic Algorithm</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="outstanding_work.html">Outstanding Work, Known Issues, Future Work</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build_docs.html">Building the PyVVO Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pyvvo_code.html">PyVVO Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="use_install.html" title="previous chapter">Usage/Installation</a></li>
+      <li>Next: <a href="outstanding_work.html" title="next chapter">Outstanding Work, Known Issues, Future Work</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Pacific Northwest National Laboratory and Brandon Thayer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
