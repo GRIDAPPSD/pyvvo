@@ -5,10 +5,15 @@ files which do not need to be individually compiled to the EXCLUDE list.
 import os
 import subprocess
 import re
+import argparse
 
 # List .tex files in the latex directory that should not be compiled
 # themselves. Don't include file extensions.
 EXCLUDE = ['flow_base']
+
+# Directories of latex and rst files.
+LATEX_DIR = 'latex'
+RST_DIR = 'rst_latex'
 
 
 def stars(n=80):
@@ -22,7 +27,7 @@ def aux2dict(f_in):
     :param f_in: Name of aux file without directory or extension.
         Assumed to be in the ``latex`` directory.
     """
-    with open(os.path.join('latex', f_in + '.aux'), 'r') as f:
+    with open(os.path.join(LATEX_DIR, f_in + '.aux'), 'r') as f:
         # Read.
         file_str = f.read()
 
@@ -55,26 +60,27 @@ def update_rst(f_in):
     ref_dict = aux2dict(f_in)
 
     # Start by reading the .rst file.
-    with open(f_in + '.rst', 'r') as f:
+    full_path = os.path.join(RST_DIR, f_in + '.rst')
+    with open(full_path, 'r') as f:
         rst = f.read()
 
     # Now loop over the dictionary and make updates.
     for ref, val in ref_dict.items():
         #
-        rst = re.sub(r'(\.\.\s+\\ref\{{{}\}}\s+)(\(.*\))'.format(ref),
-                     r'\1({})'.format(val), rst)
+        rst = re.sub(r'\\ref\{{{}\}}'.format(ref),
+                     r'({})'.format(val), rst)
 
     # Replace.
-    with open(f_in + '.rst', 'w') as f:
+    with open(full_path, 'w') as f:
         f.write(rst)
 
     # Done.
     return None
 
 
-def main():
+def main(checkout):
     # Get listing of .tex files without the extension.
-    tex_files = [os.path.splitext(x)[0] for x in os.listdir('latex')
+    tex_files = [os.path.splitext(x)[0] for x in os.listdir(LATEX_DIR)
                  if x.endswith('.tex')]
 
     # Compile each .tex file, then update the references in the
@@ -87,7 +93,7 @@ def main():
         # Compile and get svg files.
         stars()
         print('Running tex2svg for {}'.format(tf))
-        subprocess.run(['./tex2svg.sh', tf], cwd='latex')
+        subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR)
         stars()
 
         # Update references in .rst files.
@@ -99,6 +105,23 @@ def main():
     subprocess.run(['make', 'html'])
     stars()
 
+    # (Maybe) check out the files in rst_latex.
+    if checkout:
+        stars()
+        print('Checking out files in {}.'.format(RST_DIR))
+        subprocess.run(['git', 'checkout', './*'], cwd=RST_DIR)
+
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '--checkout', action='store_true',
+        help='Set this flag if you wish to run the "git checkout ./*" '
+             'operation inside the "rst_latex" directory at the end of '
+             'the script. This will help avoid the annoyances related '
+             'to this script constantly changing the .rst files there.')
+
+    args = parser.parse_args()
+
+    main(checkout=args.checkout)
