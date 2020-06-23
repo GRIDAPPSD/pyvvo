@@ -70,9 +70,20 @@ obvious output from the Python script itself, that's cause for concern.
 For reference, with no warnings, clean output from ``build_docs.py``
 should look like:
 
-    Running tex2svg for main_loop...Done.
-    Building the documentation...Done.
-    Checking out files in rst_latex...Done.
+    INFO:root:Running tex2svg for flow_conventions...
+    INFO:root:Done.
+    INFO:root:Running tex2svg for main_loop...
+    INFO:root:Done.
+    INFO:root:Building the documentation...
+    INFO:root:Done.
+    INFO:root:Checking out files in rst_latex...
+    INFO:root:Done.
+
+``build_docs.py`` will emit a warning like so if any of the ``\ref{}``
+references in the ``rst_latex`` files don't match up with the ``.tex``
+files:
+
+    WARNING:root:Some reference(s) did not get updated in main_loop.rst, and are thus not defined in main_loop.tex: ['\\ref{flow:update-glm-manager}']
 
 Viewing the Built Documentation
 -------------------------------
