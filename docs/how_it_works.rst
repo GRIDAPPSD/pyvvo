@@ -6,6 +6,12 @@ through various flow charts. At times, specific Python modules or
 classes will be referenced. In addition to examining the source code
 itself, the API is documented in the :ref:`pyvvo-code` section.
 
+PyVVO is *highly* configurable. To keep this documentation maintainable
+and avoid repeating information, the configurable fields will not be
+covered in detail here. Instead, check out `this section
+<https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo>`__ in the
+repository's top-level README file.
+
 Flow Chart Conventions
 ----------------------
 
