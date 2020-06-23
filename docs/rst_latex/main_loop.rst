@@ -113,7 +113,7 @@ would no longer represent reality, making the result wrong/suboptimal
 
 The internal workings of the genetic algorithm itself are rather
 complex, so discussion here will be limited to what's already mentioned
-in \ref{fig:run-ga}. More details can be found in
+in \ref{flow:run-ga}. More details can be found in
 :ref:`genetic-algorithm`.
 
 After the genetic algorithm has run to completion, PyVVO has an idea of
