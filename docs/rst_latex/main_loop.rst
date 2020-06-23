@@ -22,4 +22,5 @@ of the simulation, *etc.*
 
 PyVVO uses the information from \ref{flow:sim-request} to initialize a
 variety of classes whose role is to interface with the GridAPPS-D
-platform \ref{flow:init-interfaces}.
+platform \ref{flow:init-interfaces}. These classes can be found in
+:py:mod:`pyvvo.sparql` and :py:mod:`pyvvo.gridappsd_platform`.
