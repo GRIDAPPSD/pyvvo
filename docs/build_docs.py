@@ -6,6 +6,10 @@ import os
 import subprocess
 import re
 import argparse
+import logging
+
+LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.INFO)
 
 # List .tex files in the latex directory that should not be compiled
 # themselves. Don't include file extensions.
@@ -14,11 +18,6 @@ EXCLUDE = ['flow_base']
 # Directories of latex and rst files.
 LATEX_DIR = 'latex'
 RST_DIR = 'rst_latex'
-
-
-def stars(n=80):
-    """Simply print some stars."""
-    print('*' * n)
 
 
 def aux2dict(f_in):
@@ -91,29 +90,23 @@ def main(checkout):
             continue
 
         # Compile and get svg files.
-        # stars()
-        print('Running tex2svg for {}...'.format(tf), end='', flush=True)
+        LOG.info('Running tex2svg for {}...', tf)
         subprocess.run(['./tex2svg.sh', tf], cwd=LATEX_DIR, check=True)
-        print('Done.', flush=True)
-        # stars()
+        LOG.info('Done.')
 
         # Update references in .rst files.
         update_rst(tf)
 
     # Finally, build the documentation.
-    # stars()
-    print('Building the documentation...', end='', flush=True)
+    LOG.info('Building the documentation...')
     subprocess.run(['make', 'html'], check=True)
-    print('Done.', flush=True)
-    # stars()
+    LOG.info('Done.')
 
     # (Maybe) check out the files in rst_latex.
     if checkout:
-        # stars()
-        print('Checking out files in {}...'.format(RST_DIR), end='',
-              flush=True)
+        LOG.info('Checking out files in {}...', RST_DIR)
         subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)], check=True)
-        print('Done.', flush=True)
+        LOG.info('Done.')
 
 
 if __name__ == '__main__':
