@@ -1,0 +1,23 @@
+% The flow chart created here depicts PyVVO's load modeling procedures.
+\documentclass[tikz]{standalone}
+
+% Load up the basic commands.
+\input{flow_base}
+
+\begin{document}
+\begin{tikzpicture}[flowchart, node distance=1.2cm] 
+\tikzstyle{every node}=[font=\large]
+
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	% NODES
+	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+	\node (start)
+	[startstop]
+	{Start.};
+	% Create a coordinate which will be referenced for all labels.
+	\coordinate (start-east) at ($(start.east) + (1.5,0)$);
+	\path ($(start-east)$); \pgfgetlastxy{\XLabel}{\YCoord};
+	% Label our first node.
+	\LabelNode{start}
+\end{tikzpicture}
+\end{document}
