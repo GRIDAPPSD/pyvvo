@@ -35,7 +35,8 @@ other devices). However, since PyVVO is model-based, it also needs to
 know about other active devices in the system such as photovoltaic
 inverters, distributed generators, and switches. PyVVO uses the
 ``SPARQLManager`` (initialized in \ref{flow:init-interfaces}) to query
-the GridAPPS-D platform's Common Information Model (`CIM`_)
+the GridAPPS-D platform's Common Information Model
+(:gad-dev:`CIM <cim-documentation>`)
 triplestore database to obtain nominal device information
 \ref{flow:init-interfaces}. Additionally, information about the
 measurement objects (*e.g.*, their MRIDs, measurement types, *etc*.)
@@ -46,7 +47,7 @@ objects that represent all the equipment in the system that PyVVO cares
 about \ref{flow:eq-mgrs}. PyVVO has various classes related to the
 management of devices (a.k.a. "equipment") in :py:mod:`pyvvo.equipment`.
 These classes generally contain a small subset of what's contained in
-the `CIM`_.
+the (:gad-dev:`CIM <cim-documentation>`).
 
 `Subscribing to simulation output <sim-output_>`_ is like drinking from
 a fire hose, so PyVVO has the ``SimOutRouter`` class
