@@ -57,7 +57,9 @@ their states up to date \ref{flow:subscribe}. All state
 updates/subscriptions occur in their own threads, so object states are
 immediately updated whenever new measurements come in.
 
-PyVVO uses :gld-home:`GridLAB-D </>` (:gld-wiki:`Wiki </>`,
+..  Note gld-wiki needs the 's'
+
+PyVVO uses :gld-home:`GridLAB-D </>` (:gld-wiki:`Wiki <s>`,
 :gld-github:`GitHub </>`) as its power flow solver/simulator, and the
 GridAPPS-D platform is capable of creating a GridLAB-D model from the
 CIM triplestore for its own simulations. PyVVO leverages this fact and
