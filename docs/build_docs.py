@@ -114,13 +114,16 @@ def main(checkout):
     # Check links.
     LOG.info('Checking the validity of links...')
     try:
-        subprocess.run(['make', 'linkcheck'], check=True)
-    except subprocess.CalledProcessError:
-        LOG.error('The Sphinx linkcheck found bad links. Please fix '
+        subprocess.run(['make', 'linkcheck'], check=True,
+                       stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    except subprocess.CalledProcessError as e:
+        LOG.error('The Sphinx linkcheck found bad links, so the HTML'
+                  'documentation will NOT be built. Please fix '
                   "them and try again. Don't forget to add and commit "
                   "your changes to Git first.")
+        LOG.error(e.stderr.decode('utf-8'))
         # Call it quits.
-        return None
+        raise e from None
     finally:
         # (Maybe) check out the files in rst_latex.
         if checkout:
