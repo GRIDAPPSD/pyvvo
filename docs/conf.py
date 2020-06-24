@@ -98,9 +98,15 @@ autodoc_mock_imports = [
 ########################################################################
 # Configuration for extlinks.
 ########################################################################
-# To use the hacked links like hicss or gld-home, pass a '/'.
+# NOTES:
+# The hicss link must be used with a '5' - a trailing slash breaks the
+# link.
+#
+# For links like gld-home, gld-wiki, gld-github, simply pass a '/'
+# character. Trailing slashes don't hurt here, and using extlinks allows
+# a single definition of the URLs.
 extlinks = {
-    'hicss': ('http://hdl.handle.net/10125/64115%s', None),
+    'hicss': ('http://hdl.handle.net/10125/6411%s', None),
     'gad-using': ('https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#%s', None),
     'gad-dev': ('https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#%s', None),
     'gld-home': ('https://www.gridlabd.org%s', None),

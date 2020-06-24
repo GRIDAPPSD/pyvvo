@@ -22,10 +22,13 @@ load model for several reasons:
 *   ZIP load models only have a handful of parameters, making
     curve-fitting less time consuming.
 
-For more details, please see our :hicss:`HICSS paper </>`.
+..  Note the 5 must be passed in to the HICSS link since a trailing
+    slash breaks things.
 
-Flow Chart and PyVVO Modules
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+For more details, please see our :hicss:`HICSS paper <5>`.
+
+High-Level Flow Chart and PyVVO Modules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The image below depicts a flow chart of the operation of PyVVO's
 load modeling. The entire procedure spans several modules (presented
