@@ -607,6 +607,8 @@ def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
 
         # "Un-scale" the fit_data.
         # TODO: Again, we've got extra overhead by using DataFrames.
+        # TODO: This inverse_transform may be unnecessary. Could we
+        #   instead use "best_bool" to index directly into "data"?
         fit_data = pd.DataFrame(
             scaler.inverse_transform(data_out[data.columns]),
             index=data_out.index, columns=data.columns)
