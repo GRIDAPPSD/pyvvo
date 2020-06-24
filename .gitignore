@@ -6,6 +6,9 @@ docs/doctrees
 # Similarly, no .buildinfo
 docs/html/.buildinfo
 
+# Ignore linkcheck output.
+docs/linkcheck
+
 # Temporary directory.
 tmp
 # Environment file for PyCharm run configuration.
