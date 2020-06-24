@@ -105,5 +105,6 @@ extlinks = {
     'gad-dev': ('https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#%s', None),
     'gld-home': ('https://www.gridlabd.org%s', None),
     'gld-wiki': ('http://gridlab-d.shoutwiki.com/wiki/Quick_links%s', None),
-    'gld-github': ('https://github.com/gridlab-d/gridlab-d%s', None)
+    'gld-github': ('https://github.com/gridlab-d/gridlab-d%s', None),
+    'readme': ('https://github.com/GRIDAPPSD/pyvvo#%s', None)
 }

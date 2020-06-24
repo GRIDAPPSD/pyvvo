@@ -8,13 +8,12 @@ itself, the API is documented in the :ref:`pyvvo-code` section.
 
 PyVVO is *highly* configurable. To keep this documentation maintainable
 and avoid repeating information, the configurable fields will not be
-covered in detail here. Instead, check out `this section
-<https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo>`__ in the
-repository's top-level README file.
+covered in detail here. Instead, check out :readme:`this section
+<configuring-pyvvo>` in the repository's top-level README file.
 
 Additionally, PyVVO emits logs a significant amount of information as it
-runs. Many of PyVVO's log messages are described in `this section
-<https://github.com/GRIDAPPSD/pyvvo#viewing-pyvvo-logs-as-simulation-proceeds>`__
+runs. Many of PyVVO's log messages are described in
+:readme:`this section <viewing-pyvvo-logs-as-simulation-proceeds>`
 of the top-level README.
 
 Flow Chart Conventions
@@ -36,8 +35,12 @@ Main Loop
 
 .. include:: rst_latex/main_loop.rst
 
+.. _load-modeling:
+
 Load Modeling
 -------------
+
+.. include:: rst_latex/load_modeling.rst
 
 .. _genetic-algorithm:
 
