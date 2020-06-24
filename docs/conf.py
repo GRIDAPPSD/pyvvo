@@ -102,7 +102,10 @@ autodoc_mock_imports = [
 # The hicss link must be used with a '5' - a trailing slash breaks the
 # link.
 #
-# For links like gld-home, gld-wiki, gld-github, simply pass a '/'
+# The gld-wiki link must be used with a 's' - a trailing slash breaks
+# the link.
+#
+# For links like gld-home or gld-github, simply pass a '/'
 # character. Trailing slashes don't hurt here, and using extlinks allows
 # a single definition of the URLs.
 extlinks = {
@@ -110,7 +113,14 @@ extlinks = {
     'gad-using': ('https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#%s', None),
     'gad-dev': ('https://gridappsd.readthedocs.io/en/latest/developer_resources/index.html#%s', None),
     'gld-home': ('https://www.gridlabd.org%s', None),
-    'gld-wiki': ('http://gridlab-d.shoutwiki.com/wiki/Quick_links%s', None),
+    'gld-wiki': ('http://gridlab-d.shoutwiki.com/wiki/Quick_link%s', None),
     'gld-github': ('https://github.com/gridlab-d/gridlab-d%s', None),
     'readme': ('https://github.com/GRIDAPPSD/pyvvo#%s', None)
 }
+
+########################################################################
+# Configuration for linkcheck.
+########################################################################
+# The anchors in the README file come back as invalid. Unfortunate,
+# but we have not other option but to skip.
+linkcheck_ignore = ['https://github.com/GRIDAPPSD/pyvvo#', ]

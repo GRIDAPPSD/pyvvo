@@ -111,16 +111,28 @@ def main(checkout):
         # Update references in .rst files.
         update_rst(tf)
 
+    # Check links.
+    LOG.info('Checking the validity of links...')
+    try:
+        subprocess.run(['make', 'linkcheck'], check=True)
+    except subprocess.CalledProcessError:
+        LOG.error('The Sphinx linkcheck found bad links. Please fix '
+                  "them and try again. Don't forget to add and commit "
+                  "your changes to Git first.")
+        # Call it quits.
+        return None
+    finally:
+        # (Maybe) check out the files in rst_latex.
+        if checkout:
+            LOG.info('Checking out files in {}...'.format(RST_DIR))
+            subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)],
+                           check=True)
+            LOG.info('Done.')
+
     # Finally, build the documentation.
     LOG.info('Building the documentation...')
     subprocess.run(['make', 'html'], check=True)
     LOG.info('Done.')
-
-    # (Maybe) check out the files in rst_latex.
-    if checkout:
-        LOG.info('Checking out files in {}...'.format(RST_DIR))
-        subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)], check=True)
-        LOG.info('Done.')
 
 
 if __name__ == '__main__':
