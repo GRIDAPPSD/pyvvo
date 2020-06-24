@@ -286,6 +286,9 @@ def _zip_fit_slsqp(vpq_bar, par_0=PAR_0, f_tol=F_TOL,
             method='SLSQP',
             # We only have one constraint: Z% + I% + P% = 1.
             # Note the Jacobian for that constraint is always the same.
+            # TODO: is initializing lambda functions each time adding
+            #   overhead? Should there be be regular functions defined
+            #   for 'fun' and 'jac'?
             constraints={
                 'type': 'eq',
                 'fun': lambda x: np.array([np.sum(x[FRACTION_MASK]) - 1]),
