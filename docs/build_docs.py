@@ -122,20 +122,28 @@ def main(checkout):
                   "them and try again. Don't forget to add and commit "
                   "your changes to Git first.")
         LOG.error(e.stderr.decode('utf-8'))
+        # Maybe checkout.
+        _maybe_checkout(checkout)
         # Call it quits.
         raise e from None
-    finally:
-        # (Maybe) check out the files in rst_latex.
-        if checkout:
-            LOG.info('Checking out files in {}...'.format(RST_DIR))
-            subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)],
-                           check=True)
-            LOG.info('Done.')
 
-    # Finally, build the documentation.
+    LOG.info('Done.')
+
+    # Finally, Build the documentation.
     LOG.info('Building the documentation...')
     subprocess.run(['make', 'html'], check=True)
     LOG.info('Done.')
+
+    _maybe_checkout(checkout)
+
+
+def _maybe_checkout(checkout):
+    # (Maybe) check out the files in rst_latex.
+    if checkout:
+        LOG.info('Checking out files in {}...'.format(RST_DIR))
+        subprocess.run(['git', 'checkout', '{}'.format(RST_DIR)],
+                       check=True)
+        LOG.info('Done.')
 
 
 if __name__ == '__main__':
