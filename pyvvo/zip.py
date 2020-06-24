@@ -568,6 +568,10 @@ def cluster_and_fit(data, zip_fit_inputs, selection_data=None, n_clusters=1,
         # Initialize a StandardScaler, and fit it to our data.
         scaler = StandardScaler()
         scaler.fit(data.values)
+        # TODO: MOVE THIS OUTSIDE OF THIS FUNCTION. THE DATA CAN BE
+        #   SCALED ONCE IN THE CALLING FUNCTION, e.g.,
+        #   get_best_fit_from_clustering. Likewise, the selection_data
+        #   can be scaled outside this function.
         # Create a DataFrame for holding scaled data.
         # TODO: We're adding extra over-head to use a DataFrame, but
         #   this is a quick fix without messing with
