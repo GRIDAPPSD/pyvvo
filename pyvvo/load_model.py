@@ -501,6 +501,10 @@ class LoadModelManager:
         self._start_processes()
 
         # Get weather data.
+        # TODO: Could this weather data be resampled ahead of time?
+        #   Or is it best to leave it as is so that Pandas can do its
+        #   magic when joining with the load data and then
+        #   interpolating?
         weather_data = self.platform.get_weather(start_time=starttime,
                                                  end_time=endtime)
 
