@@ -45,6 +45,13 @@ is back in service.</p></li>
 <li><p>Optimization loop termination, rather than run forever.</p></li>
 <li><p>Optimization loop run periodically rather than as frequently as
 possible.</p></li>
+<li><p>Load modeling process: go through with a fine-toothed comb and
+optimize it.</p></li>
+<li><p>PyVVO currently only supports split-phase secondary load modeling.</p></li>
+<li><p>Perhaps the load modeling curve-fitting should be primed with
+ZIP parameters from the previous fit. I would need to refresh my
+understanding of sequential least squares programming to think about
+whether or not this could get the modeling stuck in local minima.</p></li>
 </ul>
 </div>
 

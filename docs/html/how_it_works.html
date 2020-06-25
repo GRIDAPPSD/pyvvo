@@ -42,10 +42,10 @@ classes will be referenced. In addition to examining the source code
 itself, the API is documented in the <a class="reference internal" href="pyvvo_code.html#pyvvo-code"><span class="std std-ref">PyVVO Code</span></a> section.</p>
 <p>PyVVO is <em>highly</em> configurable. To keep this documentation maintainable
 and avoid repeating information, the configurable fields will not be
-covered in detail here. Instead, check out <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo">this section</a> in the
-repository’s top-level README file.</p>
+covered in detail here. Instead, check out <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo">this section</a> in the repository’s top-level README file.</p>
 <p>Additionally, PyVVO emits logs a significant amount of information as it
-runs. Many of PyVVO’s log messages are described in <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#viewing-pyvvo-logs-as-simulation-proceeds">this section</a>
+runs. Many of PyVVO’s log messages are described in
+<a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#viewing-pyvvo-logs-as-simulation-proceeds">this section</a>
 of the top-level README.</p>
 <div class="section" id="flow-chart-conventions">
 <h2>Flow Chart Conventions<a class="headerlink" href="#flow-chart-conventions" title="Permalink to this headline">¶</a></h2>
@@ -121,7 +121,7 @@ simulation output and calls methods of the equipment classes that keep
 their states up to date (f). All state
 updates/subscriptions occur in their own threads, so object states are
 immediately updated whenever new measurements come in.</p>
-<p>PyVVO uses <a class="reference external" href="https://www.gridlabd.org/">GridLAB-D</a> (<a class="reference external" href="http://gridlab-d.shoutwiki.com/wiki/Quick_links/">Wiki</a>,
+<p>PyVVO uses <a class="reference external" href="https://www.gridlabd.org/">GridLAB-D</a> (<a class="reference external" href="http://gridlab-d.shoutwiki.com/wiki/Quick_links">Wiki</a>,
 <a class="reference external" href="https://github.com/gridlab-d/gridlab-d/">GitHub</a>) as its power flow solver/simulator, and the
 GridAPPS-D platform is capable of creating a GridLAB-D model from the
 CIM triplestore for its own simulations. PyVVO leverages this fact and
@@ -193,10 +193,185 @@ presently require any particular clean-up procedures, hence why
 </div>
 </div>
 <div class="section" id="load-modeling">
-<h2>Load Modeling<a class="headerlink" href="#load-modeling" title="Permalink to this headline">¶</a></h2>
+<span id="id1"></span><h2>Load Modeling<a class="headerlink" href="#load-modeling" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h3>
+<p>PyVVO uses “smart” meter data to create time varying predictive load
+models. These models get layered onto a <a class="reference external" href="https://www.gridlabd.org/">GridLAB-D</a> model
+for use in the <a class="reference internal" href="#genetic-algorithm"><span class="std std-ref">Genetic Algorithm</span></a>.</p>
+<p>While there are many, many types of load models, PyVVO attempts to keep
+things simple and uses the ZIP load model. The ZIP load model represents
+a load (or a collection of loads) as part constant impedance (Z), part
+constant current (I), and part constant power (P). PyVVO uses the ZIP
+load model for several reasons:</p>
+<ul class="simple">
+<li><p>ZIP load models have a voltage dependency, which is important for
+model-based voltage control applications.</p></li>
+<li><p>ZIP load models are included in as part of every distribution system
+simulator under the sun.</p></li>
+<li><p>ZIP load models are physics-based, as opposed to “black box” models.</p></li>
+<li><p>ZIP load models only have a handful of parameters, making
+curve-fitting less time consuming.</p></li>
+</ul>
+<p>For more details, please see our <a class="reference external" href="http://hdl.handle.net/10125/64115">HICSS paper</a>.</p>
+</div>
+<div class="section" id="flow-chart-and-pyvvo-modules">
+<h3>Flow Chart and PyVVO Modules<a class="headerlink" href="#flow-chart-and-pyvvo-modules" title="Permalink to this headline">¶</a></h3>
+<p>The image below depicts a flow chart of the operation of PyVVO’s
+load modeling. The entire procedure spans several modules (presented
+here in alphabetical order):</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="pyvvo_code.html#module-pyvvo.cluster" title="pyvvo.cluster"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.cluster</span></code></a> for data clustering operations</p></li>
+<li><p><a class="reference internal" href="pyvvo_code.html#module-pyvvo.gridappsd_platform" title="pyvvo.gridappsd_platform"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.gridappsd_platform</span></code></a> for pulling data from the
+GridAPPS-D platform</p></li>
+<li><p><a class="reference internal" href="pyvvo_code.html#module-pyvvo.load_model" title="pyvvo.load_model"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.load_model</span></code></a> for pulling all the pieces together from
+the different modules</p></li>
+<li><p><a class="reference internal" href="pyvvo_code.html#module-pyvvo.timeseries" title="pyvvo.timeseries"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.timeseries</span></code></a> for parsing and resampling raw data from
+the platform</p></li>
+<li><p><a class="reference internal" href="pyvvo_code.html#module-pyvvo.zip" title="pyvvo.zip"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.zip</span></code></a> for curve-fitting data to create ZIP load
+models</p></li>
+</ul>
+<img alt="_images/load_modeling.svg" src="_images/load_modeling.svg" /><p>The procedures described in the flow chart above can be kicked off by
+instantiating a <a class="reference internal" href="pyvvo_code.html#pyvvo.load_model.LoadModelManager" title="pyvvo.load_model.LoadModelManager"><code class="xref py py-class docutils literal notranslate"><span class="pre">pyvvo.load_model.LoadModelManager</span></code></a> object
+and then calling the <code class="docutils literal notranslate"><span class="pre">fit_for_all</span></code> method. Note that the meta data
+described in (c) are required inputs for
+initializing a <code class="docutils literal notranslate"><span class="pre">LoadModelManager</span></code>. Also note that the <code class="docutils literal notranslate"><span class="pre">load_model</span></code>
+module and associated code are in need of some more work, testing,
+<em>documentation</em>, and attention.</p>
+<p>Generally speaking, the flow chart above speaks for itself. However,
+some items that are worth elaborating on:</p>
+<ul class="simple">
+<li><p>As per usual, many of the parameters (<em>e.g.</em> <span class="math notranslate nohighlight">\(M_{cs}\)</span>) are
+configurable. If the parameters aren’t already in <code class="docutils literal notranslate"><span class="pre">pyvvo.json</span></code>,
+they can easily be added and
+<a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo">documented</a>.</p></li>
+<li><p>At the time of writing, the data standardization in
+(j) scale is unnecessarily done inside the
+clustering and fitting loop. With some moderate refactoring, this
+can be fixed.</p></li>
+<li><p>K-means clustering in (k) is performed via
+Scikit-learn’s <a class="reference external" href="https://scikit-learn.org/stable/modules/clustering.html#k-means">implementation</a>.</p></li>
+<li><p>Note that voltage (<span class="math notranslate nohighlight">\(V\)</span>) is not used in clustering, because
+clustering by voltage will lead to a poorly performing ZIP model.
+The ZIP load model takes voltage magnitude as input and outputs
+<span class="math notranslate nohighlight">\(P\)</span> and <span class="math notranslate nohighlight">\(Q\)</span>. Therefore, it behooves us to have diverse
+voltage values in the data used for fitting, which would be undercut
+by including voltage as a clustering feature.</p></li>
+<li><p>In (l), weather data is exclusively used as
+cluster selection features. This is a heuristic assumption based on
+the load/weather dependence that all power systems engineers are
+well aware of. This has not necessarily been proven to be the best
+approach in all scenarios, and in fact we’ve seen that at times a
+better fit can be obtained by including <span class="math notranslate nohighlight">\(P\)</span> and <span class="math notranslate nohighlight">\(Q\)</span> in
+the cluster selection.</p></li>
+<li><p>Similarly, we do not have a guarantee that our “best” cluster
+necessarily leads to the “best” fit. However, it would be very
+computationally expensive to perform a ZIP fit on every cluster.
+On the other hand, maybe that approach would be worthwhile. There
+is a wealth of experimentation that can still be done.</p></li>
+<li><p>The least squares optimization routine mentioned in
+(m) is moderately complex. It’s worth exploring this
+code in detail. Simply follow the rabbit hole starting with
+<a class="reference internal" href="pyvvo_code.html#pyvvo.zip.zip_fit" title="pyvvo.zip.zip_fit"><code class="xref py py-func docutils literal notranslate"><span class="pre">pyvvo.zip.zip_fit()</span></code></a>.</p></li>
+<li><p>The final ZIP model that comes out of (m) uses
+GridLAB-D conventions. A thorough examination of the GridLAB-D
+source code was undertaken to ensure exact concurrence. There are
+tests to prove it in <code class="docutils literal notranslate"><span class="pre">tests/test_zip.py</span></code>.</p></li>
+<li><p>The reason for using a normalized MSE in (o) is that
+different clustering loop runs will have a different number of
+data points present in the “best” cluster, resulting in very
+different raw MSE values.</p></li>
+<li><p>Note that equal weight is given to <span class="math notranslate nohighlight">\(\text{MSE}_P\)</span> and
+<span class="math notranslate nohighlight">\(\text{MSE}_Q\)</span> in the <span class="math notranslate nohighlight">\(\text{MSE}_\text{norm}\)</span>
+computation in (o). It may be valuable to experiment
+with different weighting schemes.</p></li>
+</ul>
+</div>
+<div class="section" id="outstanding-work-and-possible-issues">
+<h3>Outstanding Work and Possible Issues<a class="headerlink" href="#outstanding-work-and-possible-issues" title="Permalink to this headline">¶</a></h3>
+<p>The GridAPPS-D platform has struggled to put together a working sensor
+service, and the timeseries database and its API have been plagued by
+bugs. Additionally, memory leaks and other issues have prevented the
+platform from running for a prolonged time to generate historic data
+for the load modeling. As such, PyVVO’s load modeling procedures have
+not been fully integrated into <code class="docutils literal notranslate"><span class="pre">app.py</span></code> and <code class="docutils literal notranslate"><span class="pre">load_model.py</span></code> has
+several outstanding issues.</p>
+<p>Fortunately, the underlying clustering and fitting code is complete (at
+least in a working and tested draft form), and most of the remaining
+work involves finalizing the touch points between PyVVO and the platform
+with respect to load modeling.</p>
+<p>It would be prudent to walk through the entire clustering and fitting
+process with an eye toward performance optimization. There are <strong>many</strong>
+loads in the so called “9500 node” model (~1300) and getting the
+required data for each load requires 4 different measurement objects
+(as mentioned in (d) in the flow chart).</p>
+<p>I (Brandon) suspect that the load modeling procedure is going to run
+into bottlenecks with respect to both I/O from the platform as well as
+computation.</p>
+<p id="io-issues"><strong>With respect to I/O</strong>: queries to the timeseries database
+have to date been very slow, and message size and/or memory issues
+means that it may be necessary to perform a single query for each load
+(or maybe even for each measurement!) which comes with a <strong>lot</strong> of
+overhead. Additionally, due to the primitive filtering available through
+the GridAPPS-D API, there are two options for time filtering:</p>
+<ol class="arabic simple">
+<li><p>Pull all historic data at once (<em>e.g.</em>, all data for a two week
+window) and filter it afterwards. Ultimately, PyVVO is only going
+to use something like &lt; 1/10 of the pulled data, so this is clearly
+inefficient.</p></li>
+<li><p>Perform <em>lots</em> of little queries for the the various time windows.
+<em>E.g.</em>, perform ten queries to pull data from 9:00am-11:00am for
+two weeks worth of weekday data. This clearly comes with a lot of
+overhead.</p></li>
+</ol>
+<p>While it may go against the API-only “principles” of GridAPPS-D, the
+best solution would be to query the timeseries database directly and
+create moderately complex custom time filters. This could be done
+through the API if a “custom query” route was created, similarly to
+the <a class="reference external" href="https://gridappsd.readthedocs.io/en/latest/using_gridappsd/index.html#query">SPARQL API</a>.</p>
+<p>It’s also worth noting that if the historic data is ever generated at
+the correct averaging interval by the sensor service (<em>e.g.</em>,
+15 minutes), all the load data for a particular time window <em>might</em> fit
+into memory with a single query. Again, you’re likely going to run into
+maximum message size issues with the platform, although the database
+itself would be totally happy to hand you all that data at once.</p>
+<p>Finally, some thoughts on parallelization: depending on how the platform
+API and database infrastructure are implemented, querying the database
+in parallel on the application side may not result in truly parallel
+queries on the platform side. <em>E.g.</em>, if the database queries are
+multi-threaded instead of multi-processed, you won’t actually get true
+concurrency, just the “fake” concurrency that threading provides.</p>
+<p id="computation-issues"><strong>With respect to computation</strong>: The bottom line is there are a lot of
+loads, and for each load multiple clustering operations and sequential
+least squares optimization operations are run. That’s a lot of
+computation. The good news is that this is <strong>completely</strong>
+parallelizable. GridAPPS-D as a project is emphasizing distributed
+applications, so splitting out the load modeling into its own app could
+be a very valuable use case. This would also be useful for other
+applications that rely on load models, such as WSU’s VVO application.</p>
+<p>There are also a lot of tweaks that can be made to potentially speed
+up the load modeling process. For example, increasing the minimum
+cluster size <span class="math notranslate nohighlight">\(M_{cs}\)</span> in (i) will
+decrease the number of clustering loops that are performed, at the cost
+of less exploration. Additionally, the least-squares optimization could
+potentially be sped up by using the previous fit parameters as a
+starting point for the next optimization run. There are likely lots of
+other little levers such as these that could help alleviate the
+computation bottleneck.</p>
+<p>If you’re feeling lazy and have the computational resources, just throw
+more cores at the problem. However, depending on how you get the data,
+you might run into I/O bottlenecks (as discussed in the
+<a class="reference internal" href="#io-issues"><span class="std std-ref">IO issues</span></a> section.</p>
+<p>If you are feeling really blasphemous and are okay flying in the face of
+all the load modeling work that’s been done for this application, you
+could do something as simple (and likely very, very suboptimal) as use
+state estimator <span class="math notranslate nohighlight">\(P\)</span> and <span class="math notranslate nohighlight">\(Q\)</span> output for each load and model
+them all as constant power (or constant current or constant impedance
+or with arbitrary ZIP parameters). Please don’t do this.</p>
+</div>
 </div>
 <div class="section" id="genetic-algorithm">
-<span id="id1"></span><h2>Genetic Algorithm<a class="headerlink" href="#genetic-algorithm" title="Permalink to this headline">¶</a></h2>
+<span id="id2"></span><h2>Genetic Algorithm<a class="headerlink" href="#genetic-algorithm" title="Permalink to this headline">¶</a></h2>
 </div>
 </div>
 
