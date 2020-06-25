@@ -199,3 +199,13 @@ could do something as simple (and likely very, very suboptimal) as use
 state estimator :math:`P` and :math:`Q` output for each load and model
 them all as constant power (or constant current or constant impedance
 or with arbitrary ZIP parameters). Please don't do this.
+
+Yet another intriguing option would be to aggregate loads up to the
+distribution transformer level. In short, one would need to model the
+voltage drop and losses across the "triplex" lines, and then aggregate
+at the historic data at transformer level. This aggregated data could
+then go through the same ZIP fit procedure described here. However, you
+lose some important information: what's the voltage at each meter? It's
+feasible that downstream of one secondary transformer there's one meter
+within the allowed voltage band and one outside the allowed voltage
+band. How often does this happen? Hard to say.
