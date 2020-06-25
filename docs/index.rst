@@ -20,6 +20,7 @@ contains a lot of novel work in the sphere of load modeling and VVO.
 
    use_install
    how_it_works
+   testing
    outstanding_work
    build_docs
    pyvvo_code
