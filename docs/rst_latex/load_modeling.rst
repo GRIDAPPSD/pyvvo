@@ -51,8 +51,8 @@ instantiating a :py:class:`pyvvo.load_model.LoadModelManager` object
 and then calling the ``fit_for_all`` method. Note that the meta data
 described in \ref{flow:pull-meta-data} are required inputs for
 initializing a ``LoadModelManager``. Also note that the ``load_model``
-module and associated code are in need of some more work, testing, and
-attention.
+module and associated code are in need of some more work, testing,
+*documentation*, and attention.
 
 Generally speaking, the flow chart above speaks for itself. However,
 some items that are worth elaborating on:

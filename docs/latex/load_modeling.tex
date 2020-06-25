@@ -59,7 +59,7 @@
 	\LabelNode{process-load-data}
 	% 
 	\node (join-load-weather)
-	[process, below=of process-load-data, yshift=-1.5cm]
+	[process, below=of process-load-data, yshift=-2.0cm]
 	{Join the weather data from \acref{flow:pull-weather-data} (temperature and GHI)
 	with the $V$, $P$, and $Q$ measurements from \acref{flow:process-load-data} by time.
 	Interpolate as needed to get consistent timestamps across weather and load data.};
@@ -165,13 +165,13 @@
 	% Background layer.
 	\begin{pgfonlayer}{background}
 		% Place a coordinate above join-load-weather
-		\coordinate (above-join-load-weather) at ($(join-load-weather.north) + (0.0cm, 0.75cm)$);
+		\coordinate (above-join-load-weather) at ($(join-load-weather.north) + (0.0cm, 1.0cm)$);
 		% Draw a box around the procedures handled by load_model.fit_for_load.
 		\node (fit-for-load)
 		[backgroundbox, draw=red, fill=red!20, fit = (above-join-load-weather) (select-model) (k-gt-0-west) (k-gt-0-mirror)]
 		{};
 		\node (ffl-label)
-		[yshift=-0.5cm, xshift=-4cm, red, fill=white, text width=6.5cm] at (fit-for-load.north) {Functionality in this \textbf{red} box is executed by calling \code{load\_model.fit\_for\_load}.}; 
+		[yshift=-0.85cm, xshift=-4cm, red, fill=white, text width=6.5cm] at (fit-for-load.north) {Functionality in this \textbf{red} box is executed by calling \code{load\_model.fit\_for\_load}.}; 
 	\end{pgfonlayer}
 	
 	% Curly brace. But we need some coordinates.
