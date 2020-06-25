@@ -48,10 +48,22 @@ This directory contains ``.rst`` files that should correspond directly
 (and have an identical name, except for the extension) to ``.tex`` files
 in the ``latex`` directory.
 
+build_docs.py
+^^^^^^^^^^^^^
+
+Script for building the documentation. See the
+"Building the PyVVO Documentation" of the PyVVO docs for details.
+
 conf.py
 ^^^^^^^
 
 Configuration file used by Sphinx for building PyVVO's documentation.
+
+index.html
+^^^^^^^^^^
+
+This is a hack for getting GitHub pages to work. It just does a
+redirect.
 
 index.rst
 ^^^^^^^^^
