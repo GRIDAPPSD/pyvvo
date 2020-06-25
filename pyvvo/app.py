@@ -144,6 +144,13 @@ def main(sim_id: str, sim_request: dict):
     # Tweak the model (one time setup).
     _prep_glm(glm_mgr)
 
+    # TODO:
+    #   Initialize a load_model.LoadModelManager object.
+    #   Kick off the parallel load modeling process by calling the
+    #   "fit_for_all" method. This could perhaps be started earlier
+    #   in this function so that it's running in the background while
+    #   other work is performed.
+
     # Extract the duration for which GridLAB-D models will be run in the
     # genetic algorithm.
     model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
@@ -174,6 +181,12 @@ def main(sim_id: str, sim_request: dict):
         # platform operates in UTC.
         starttime = datetime.fromtimestamp(clock.sim_time,
                                            tz=dateutil.tz.tzutc())
+
+        # TODO: Layer the most recent ZIP load models onto the
+        #   GridLAB-D model via the GLMManager's
+        #   update_all_triplex_loads method.
+        # TODO: Periodically update the ZIP load models via the
+        #   LoadModelManager's fit_for_all method.
 
         # Compute stop time.
         stoptime = starttime + timedelta(seconds=model_run_time)
