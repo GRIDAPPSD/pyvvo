@@ -62,7 +62,7 @@ some items that are worth elaborating on:
     they can easily be added and
     :readme:`documented <configuring-pyvvo>`.
 -   At the time of writing, the data standardization in
-    \ref{flow:standard} scale is unnecessarily done inside the
+    \ref{flow:standard-scale} scale is unnecessarily done inside the
     clustering and fitting loop. With some moderate refactoring, this
     can be fixed.
 -   K-means clustering in \ref{flow:cluster} is performed via
