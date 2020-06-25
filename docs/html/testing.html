@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Testing &#8212; PyVVO  documentation</title>
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Outstanding Work, Known Issues, Future Work" href="outstanding_work.html" />
+    <link rel="prev" title="How PyVVO Works" href="how_it_works.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="testing">
+<h1>Testing<a class="headerlink" href="#testing" title="Permalink to this headline">¶</a></h1>
+<p>PyVVO has a great many tests. This is necessary because, well, you
+should always test your software. Also, it’s a complex application,
+and with any complex application you can’t trust that it’s working
+without tests. This is also useful if a code modification is made -
+the tests help ensure that something didn’t get inadvertently broken
+(though there’s always room for hidden bugs that the tests don’t
+catch!). These tests have also caught countless platform bugs, and have
+thus proven their worth in more than one dimension.</p>
+<p>There are mentions of the tests in a couple places in the README:
+<a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#run-the-tests">here</a> and <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#run-the-tests-1">here</a> -
+please check those out. The information there will not be duplicated
+here.</p>
+<p>The PyVVO tests contain all sorts of tests: unittests, integration
+tests, and regression tests. The only bad thing is that these are not
+all marked as such, and are all mixed together. Sorry about that.</p>
+<p>Right now (2020-06-25), there are going to be a fair number of tests
+that fail. Some of this is related to platform issues, and part of this
+is related to some unfinished code (especially in
+<a class="reference internal" href="pyvvo_code.html#module-pyvvo.load_model" title="pyvvo.load_model"><code class="xref py py-mod docutils literal notranslate"><span class="pre">pyvvo.load_model</span></code></a> - see <a class="reference internal" href="how_it_works.html#load-modeling"><span class="std std-ref">Load Modeling</span></a> for some more
+information).</p>
+<p>So as to avoid calling the platform for all tests, there are a lot of
+testing files that contain expected output from the platform. These
+need updated from time to time. There are two scripts for updating the
+test data files: <cite>tests/data_files.py</cite> and <cite>tests/models.py</cite>. I’m not
+going to claim these scripts are super clean and super awesome in every
+way, but they get the job done.</p>
+<p><cite>tests/data_files.py</cite> has a bunch of different functions for generating
+data files. Many of these involve running simulations or performing
+lots of queries. It’s not recommended to run all the functions at once -
+rather, run a function at a time, check the diff for the data file,
+commit it, then move on to the next file. This is an unfortunately
+manual, time-consuming, and boring process. Improvements are always
+welcome.</p>
+<p><cite>tests/models.py</cite> is simpler, and essentially just queries the platform
+to pull GridLAB-D models. Don’t hesitate to just run it. It’s always
+a good idea to check the diffs before committing changes to testing
+files.</p>
+<p>Unfortunately, some regression tests will fail from time to time since
+the platform’s CIM triplestore database isn’t deterministic - data
+doesn’t always come back in the same order! That’s an outstanding action
+item: update the testing code to sort DataFrames before comparing them.</p>
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">PyVVO</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="use_install.html">Usage/Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How PyVVO Works</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Testing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="outstanding_work.html">Outstanding Work, Known Issues, Future Work</a></li>
+<li class="toctree-l1"><a class="reference internal" href="build_docs.html">Building the PyVVO Documentation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pyvvo_code.html">PyVVO Code</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="how_it_works.html" title="previous chapter">How PyVVO Works</a></li>
+      <li>Next: <a href="outstanding_work.html" title="next chapter">Outstanding Work, Known Issues, Future Work</a></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2020, Pacific Northwest National Laboratory and Brandon Thayer.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.1.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+    </div>
+
+    
+
+    
+  </body>
+</html>
