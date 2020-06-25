@@ -31,9 +31,9 @@
 	% 
 	\node (pull-meta-data)
 	[io, below=of pull-weather-data]
-	{Use a \code{SPARQLManager} to query the GridAPPS-D platform for meta-data associated with
-	all loads/meters in the system. This includes load (``EnergyConsumer'' in CIM) name, MRID, and
-	information pertaining to all related measurement objects.};
+	{Use a \code{SPARQLManager} to query the GridAPPS-D platform for meta data associated with
+	all loads/meters in the system. This includes load (``EnergyConsumer'' in CIM) name, nominal voltage,
+	 MRID, and information pertaining to all related measurement objects.};
 	\LabelNode{pull-meta-data}
 	%
 	\node (pull-load-data)
@@ -154,7 +154,7 @@
 	\draw[arrows.meta] (norm-mse) -- (dec-k);
 	\draw[arrows.meta] (dec-k) -- (k-gt-0);
 	\draw[arrows.meta] (k-gt-0) -- (select-model);
-	\draw[arrows.meta] (k-gt-0.west) -| ++(-4.5,0) |- (cluster);
+	\draw[arrows.meta] (k-gt-0.west) -| ++(-4.5,0) |- (standard-scale);
 	% Extract/create coordinates for the upcoming optimization phase "fit" box.
 	\coordinate (k-gt-0-west) at ($(k-gt-0.west) + (-4.5,0)$);
 	\ExtractCoordinate{$(k-gt-0-west)$}
