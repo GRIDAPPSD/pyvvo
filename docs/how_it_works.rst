@@ -46,3 +46,5 @@ Load Modeling
 
 Genetic Algorithm
 -----------------
+
+.. include:: rst_latex/genetic_algorithm.rst
