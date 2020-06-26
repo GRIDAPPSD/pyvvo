@@ -97,6 +97,10 @@ files:
 
     WARNING:root:Some reference(s) did not get updated in main_loop.rst, and are thus not defined in main_loop.tex: ['\\ref{flow:update-glm-manager}']
 
+For an unknown reason, Brandon had troubles where the docs would not
+always get completely updated after building. There's a simple fix:
+delete the `doctrees` and `html` directories and build again.
+
 Viewing the Built Documentation
 -------------------------------
 
