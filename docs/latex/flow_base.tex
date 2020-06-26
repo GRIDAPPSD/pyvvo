@@ -1,5 +1,9 @@
 \usetikzlibrary{shapes.geometric, arrows.meta, fit, calc, positioning, automata, decorations.pathreplacing}
 
+% When we exceed 26 characters...
+% https://tex.stackexchange.com/a/269559/208656
+\usepackage{alphalph}
+
 % Declare the layers
 % https://tex.stackexchange.com/a/75498/208656
 \pgfdeclarelayer{background}
@@ -84,8 +88,8 @@
 
 % Label counter for the flow chart.
 \newcounter{ac}
-\renewcommand{\theac}{\alph{ac}}
-\newcommand{\ac}[1]{(\refstepcounter{ac}\alph{ac})\label{#1}}
+\renewcommand{\theac}{\alphalph{\value{ac}}}
+\newcommand{\ac}[1]{(\refstepcounter{ac}\alphalph{\value{ac}})\label{#1}}
 
 % To put parentheses around references:
 \newcommand{\acref}[1]{(\ref{#1})}
