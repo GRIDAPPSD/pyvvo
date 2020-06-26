@@ -16,7 +16,7 @@
     <script async="async" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Outstanding Work, Known Issues, Future Work" href="outstanding_work.html" />
+    <link rel="next" title="Testing" href="testing.html" />
     <link rel="prev" title="Usage/Installation" href="use_install.html" />
    
   <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -368,10 +368,34 @@ could do something as simple (and likely very, very suboptimal) as use
 state estimator <span class="math notranslate nohighlight">\(P\)</span> and <span class="math notranslate nohighlight">\(Q\)</span> output for each load and model
 them all as constant power (or constant current or constant impedance
 or with arbitrary ZIP parameters). Please don’t do this.</p>
+<p>Yet another intriguing option would be to aggregate loads up to the
+distribution transformer level. In short, one would need to model the
+voltage drop and losses across the “triplex” lines, and then aggregate
+at the historic data at transformer level. This aggregated data could
+then go through the same ZIP fit procedure described here. However, you
+lose some important information: what’s the voltage at each meter? It’s
+feasible that downstream of one secondary transformer there’s one meter
+within the allowed voltage band and one outside the allowed voltage
+band. How often does this happen? Hard to say.</p>
 </div>
 </div>
 <div class="section" id="genetic-algorithm">
 <span id="id2"></span><h2>Genetic Algorithm<a class="headerlink" href="#genetic-algorithm" title="Permalink to this headline">¶</a></h2>
+<p>Brandon ran out of time to write about the genetic algorithm in detail,
+but fortunately there’s this nifty flow chart:</p>
+<img alt="_images/genetic_algorithm.svg" src="_images/genetic_algorithm.svg" /><p>Note that many genetic algorithm parameters are controlled in
+<code class="docutils literal notranslate"><span class="pre">pyvvo_config.json</span></code>. Specifically, have a look at the <code class="docutils literal notranslate"><span class="pre">ga</span></code>,
+<code class="docutils literal notranslate"><span class="pre">limits</span></code>, and <code class="docutils literal notranslate"><span class="pre">costs</span></code> keys. Discussion of these parameters is
+covered in the <a class="reference external" href="https://github.com/GRIDAPPSD/pyvvo#configuring-pyvvo">README</a>.</p>
+<p>It’s pretty easy to follow along in the code with the flow chart in
+hand. If you’re using PyCharm, <code class="docutils literal notranslate"><span class="pre">Ctrl</span> <span class="pre">+</span> <span class="pre">B</span></code> is going to be your best
+friend for jumping into methods as you follow the rabbit hole. As
+seen in (b) and (c), the algorithm is
+kicked off in <code class="docutils literal notranslate"><span class="pre">app.py</span></code>. From there, you can sift through <code class="docutils literal notranslate"><span class="pre">ga.py</span></code>
+to find everything you need.</p>
+<p>Note that right now, stopping the algorithm is ill-defined
+(q). It just runs for a fixed number of generations.
+Ideally, some sort of convergence criteria would be developed.</p>
 </div>
 </div>
 
@@ -403,6 +427,7 @@ or with arbitrary ZIP parameters). Please don’t do this.</p>
 <li class="toctree-l2"><a class="reference internal" href="#genetic-algorithm">Genetic Algorithm</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="outstanding_work.html">Outstanding Work, Known Issues, Future Work</a></li>
 <li class="toctree-l1"><a class="reference internal" href="build_docs.html">Building the PyVVO Documentation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pyvvo_code.html">PyVVO Code</a></li>
@@ -413,7 +438,7 @@ or with arbitrary ZIP parameters). Please don’t do this.</p>
 <ul>
   <li><a href="index.html">Documentation overview</a><ul>
       <li>Previous: <a href="use_install.html" title="previous chapter">Usage/Installation</a></li>
-      <li>Next: <a href="outstanding_work.html" title="next chapter">Outstanding Work, Known Issues, Future Work</a></li>
+      <li>Next: <a href="testing.html" title="next chapter">Testing</a></li>
   </ul></li>
 </ul>
 </div>

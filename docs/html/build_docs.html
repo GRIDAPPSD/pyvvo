@@ -38,8 +38,20 @@
 <h1>Building the PyVVO Documentation<a class="headerlink" href="#building-the-pyvvo-documentation" title="Permalink to this headline">¶</a></h1>
 <p>This section discusses what is required to build PyVVO’s documentation.
 TL;DR (though please read): <code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">build_docs.py</span> <span class="pre">--checkout</span></code></p>
+<div class="section" id="prerequisites">
+<span id="venv"></span><h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this headline">¶</a></h2>
+<p>This may not be comprehensive, but I’ll try.</p>
+<ul class="simple">
+<li><p>Python &gt;= 3.5 (Brandon only tested with 3.7)</p></li>
+<li><p>LaTex (Brandon installed via MikTex)</p></li>
+<li><p>LaTex packages (see <code class="docutils literal notranslate"><span class="pre">latex/packages.tex</span></code>, MikTex automagically
+installs packages)</p></li>
+<li><p>dvisvgm (Brandon didn’t have to install this, so maybe it comes with
+MikTex?)</p></li>
+</ul>
+</div>
 <div class="section" id="virtual-environment">
-<span id="venv"></span><h2>Virtual Environment<a class="headerlink" href="#virtual-environment" title="Permalink to this headline">¶</a></h2>
+<h2>Virtual Environment<a class="headerlink" href="#virtual-environment" title="Permalink to this headline">¶</a></h2>
 <p>To keep things simple, Brandon builds the documentation via a Python
 interpreter within a local virtual environment, rather than using
 a Docker-based interpreter. The <a class="reference external" href="https://docs.python.org/3/tutorial/venv.html">Python docs</a> provide a nice
@@ -67,7 +79,7 @@ All these files have since been modified.</p>
 <div class="section" id="building-the-documentation">
 <h2>Building the Documentation<a class="headerlink" href="#building-the-documentation" title="Permalink to this headline">¶</a></h2>
 <p>Building the documentation is wicked simple. After activating your
-virtual environment (see <a class="reference internal" href="#venv"><span class="std std-ref">Virtual Environment</span></a>), and assuming your shell’s
+virtual environment (see <a class="reference internal" href="#venv"><span class="std std-ref">Prerequisites</span></a>), and assuming your shell’s
 current working directory is <code class="docutils literal notranslate"><span class="pre">pyvvo/docs</span></code>, simply:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python build_docs.py --checkout
 </pre></div>
@@ -103,6 +115,9 @@ files:</p>
 <blockquote>
 <div><p>WARNING:root:Some reference(s) did not get updated in main_loop.rst, and are thus not defined in main_loop.tex: [‘\ref{flow:update-glm-manager}’]</p>
 </div></blockquote>
+<p>For an unknown reason, Brandon had troubles where the docs would not
+always get completely updated after building. There’s a simple fix:
+delete the <cite>doctrees</cite> and <cite>html</cite> directories and build again.</p>
 </div>
 <div class="section" id="viewing-the-built-documentation">
 <h2>Viewing the Built Documentation<a class="headerlink" href="#viewing-the-built-documentation" title="Permalink to this headline">¶</a></h2>
@@ -131,8 +146,10 @@ files:</p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="use_install.html">Usage/Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="how_it_works.html">How PyVVO Works</a></li>
+<li class="toctree-l1"><a class="reference internal" href="testing.html">Testing</a></li>
 <li class="toctree-l1"><a class="reference internal" href="outstanding_work.html">Outstanding Work, Known Issues, Future Work</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Building the PyVVO Documentation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#virtual-environment">Virtual Environment</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#initial-setup">Initial Setup</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#building-the-documentation">Building the Documentation</a></li>
