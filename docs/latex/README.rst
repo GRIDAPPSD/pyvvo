@@ -28,3 +28,29 @@ Fortunately, there's a helper function in this directory called
 ``tex2svg.sh`` to make this simple. Call like ``./tex2svg.sh main_loop``
 if you want to convert ``main_loop.tex`` to ``main_loop.svg``.
 
+Packages
+--------
+
+For simplicity, all necessary packages are defined in ``packages.tex``.
+
+Conventions
+-----------
+
+Each flow chart should be created like so:
+
+.. code-block:: tex
+
+    \documentclass[tikz]{standalone}
+
+    % Load up the basic commands.
+    \input{flow_base}
+
+    \begin{document}
+    \begin{tikzpicture}[flowchart, node distance=1.2cm]
+    \tikzstyle{every node}=[font=\large]
+
+        % Put all flow chart stuff here.
+        % ...
+
+    \end{tikzpicture}
+    \end{document}
