@@ -2042,6 +2042,10 @@ class Population:
         # TODO: are we okay with the consequences if this thread doesn't
         #   ever get properly shut down? I think so. Eventually the
         #   queues will get emptied or deleted, and the thread will die.
+        # TODO, new thoughts as of 2020-06-26: Perhaps if this thread
+        #   does not get shut down it holds onto references to the
+        #   queues and processes? Maybe this is why the unittests hang?
+        #   Perhaps weak references should be used?
         t = threading.Thread(target=_progress_thread,
                              kwargs={'input_queue': self.input_queue,
                                      'output_queue': self.output_queue,
