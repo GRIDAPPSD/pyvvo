@@ -6,6 +6,18 @@ TL;DR (though please read): ``python build_docs.py --checkout``
 
 .. _venv:
 
+Prerequisites
+-------------
+
+This may not be comprehensive, but I'll try.
+
+-   Python >= 3.5 (Brandon only tested with 3.7)
+-   LaTex (Brandon installed via MikTex)
+-   LaTex packages (see ``latex/packages.tex``, MikTex automagically
+    installs packages)
+-   dvisvgm (Brandon didn't have to install this, so maybe it comes with
+    MikTex?)
+
 Virtual Environment
 -------------------
 

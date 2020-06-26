@@ -14,7 +14,7 @@ LOG.setLevel(logging.INFO)
 
 # List .tex files in the latex directory that should not be compiled
 # themselves. Don't include file extensions.
-EXCLUDE = ['flow_base']
+EXCLUDE = ['flow_base', 'packages']
 
 # Directories of latex and rst files.
 LATEX_DIR = 'latex'
