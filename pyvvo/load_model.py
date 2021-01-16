@@ -202,9 +202,9 @@ def _drop_merge_group(map_df, data_df):
                           'simulation_id'], inplace=True)
 
     # Merge with the map DataFrame.
-    merged = data_df.merge(right=map_df[['id', 'eqid', 'type']],
+    merged = data_df.merge(right=map_df[['meas_mrid', 'eqid', 'meas_type']],
                            how='left', left_on='measurement_mrid',
-                           right_on='id', copy=False).drop(columns=['id'])
+                           right_on='meas_mrid', copy=False).drop(columns=['meas_mrid'])
 
     # Return the merged DataFrame grouped by equipment ID.
     return merged.groupby(by='eqid')
@@ -588,12 +588,12 @@ def transform_data_for_load(meas_data: pd.DataFrame):
                                           degrees=True)
 
     # Sum PNV and VA measurements that occur at the same time.
-    grouped = meas_data.loc[:, ['cplx', 'time', 'type']].groupby(
-        by=['time', 'type']).sum().reset_index()
+    grouped = meas_data.loc[:, ['cplx', 'time', 'meas_type']].groupby(
+        by=['time', 'meas_type']).sum().reset_index()
 
     # Extract PNV and VA measurements.
-    pnv_mask = grouped['type'] == 'PNV'
-    va_mask = grouped['type'] == 'VA'
+    pnv_mask = grouped['meas_type'] == 'PNV'
+    va_mask = grouped['meas_type'] == 'VA'
 
     pnv = grouped.loc[pnv_mask, ['cplx', 'time']].set_index(
         'time').rename(columns={'cplx': 'pnv'})
@@ -733,6 +733,23 @@ def fit_for_load(load_data, weather_data, selection_data=None,
 
     return output
 
+def get_data_for_load (gdfl_kwargs):
+    # Get the data from sensor-service, manipulate it, and return
+    measmrid = gdfl_kwargs['meas_data']['meas_mrid']
+    start_time = gdfl_kwargs['starttime']
+    end_time = gdfl_kwargs['endtime']
+    simulation_id = gdfl_kwargs['sim_id']
+    platform_manager = gdfl_kwargs['platform_manager']
+    data =  platform_manager.get_simulation_output(
+            simulation_id=simulation_id,
+            query_measurement='gridappsd-sensor-simulator',
+            measurement_mrid=measmrid.tolist(), index_by_time=False,
+            starttime=start_time, endtime=end_time
+        )
+    # Call the Queue private method here
+    result = _drop_merge_group (gdfl_kwargs['meas_data'], data)
+    data = transform_data_for_load(result)
+    return data
 
 # noinspection SpellCheckingInspection
 def get_data_and_fit(gdfl_kwargs, ffl_kwargs):
@@ -746,7 +763,7 @@ def get_data_and_fit(gdfl_kwargs, ffl_kwargs):
         more details.
     """
     # Get data.
-    load_data = get_data_for_load(**gdfl_kwargs)
+    load_data = get_data_for_load(gdfl_kwargs)
 
     # Perform the fit for this load and return.
     return fit_for_load(load_data=load_data, **ffl_kwargs)

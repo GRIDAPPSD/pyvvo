@@ -47,6 +47,14 @@ INVERTER_INPUTS = {'inverter_mrid': 'mrid',
                    'phases': 'phase',
                    'inverter_rated_s': 'rated_s'}
 
+LOAD_INPUTS = {'load_mrid': 'mrid',
+                   'load_name': 'name',
+                   'p': 'p',
+                   'q': 'q',
+                   'phases': 'phase',
+                   'controllable': 'controllable',
+                   'load_rated_s': 'rated_s'}
+
 SYNCH_MACH_INPUTS = ['mrid', 'name', 'rated_s', 'p', 'q', 'controllable']
 
 ########################################################################
@@ -679,9 +687,9 @@ class PQEquipmentSinglePhase(EquipmentSinglePhase):
                      '{} to a float failed.'.format(v))
                 raise ValueError(m) from None
 
-            if f_v != v:
-                raise ValueError('Contents of the state tuple should be '
-                                 'floats. float({}) != {}.'.format(v, f_v))
+            # if f_v != v:
+            #     raise ValueError('Contents of the state tuple should be '
+            #                      'floats. float({}) != {}.'.format(v, f_v))
 
         # Now ensure that |p + jq| <= |rated_s|
         p = value[0]
@@ -722,6 +730,16 @@ class InverterSinglePhase(PQEquipmentSinglePhase):
     # that S1 and S2 be upper-case here to work with the parent class.
     PHASES = ('A', 'B', 'C', 'S1', 'S2')
 
+class LoadSinglePhase(PQEquipmentSinglePhase):
+    """Single phase loads."""
+
+    # Two properties since the energyconsumer cares about both P and Q.
+    STATE_CIM_PROPERTY = ("EnergyConsumer.p",
+                          "EnergyConsumer.q")
+
+    # Loads can additionally be on secondaries. It's important
+    # that S1 and S2 be upper-case here to work with the parent class.
+    PHASES = ('A', 'B', 'C', 'S1', 'S2')
 
 class SynchronousMachineSinglePhase(PQEquipmentSinglePhase):
     """Single phase of a synchronous machine. For now, assumed to be
@@ -840,11 +858,12 @@ class EquipmentManager:
                     self.meas_eq_map[meas_phase[meas_mrid_col].values[0]] = eq
 
             elif isinstance(eq_or_dict, EquipmentSinglePhase):
-                # Simple 1:1 mapping.
-                if meas.shape[0] != 1:
-                    raise ValueError('Received {} measurements for equipment '
-                                     'with mrid {}, but expected 1.'.format(
-                                      meas.shape[0], eq_mrid))
+                # This is commented-- Because of S1 and S2 on inverter, there are two measurements
+                # Simple 1:1 mapping. 
+                # if meas.shape[0] != 1:
+                #     raise ValueError('Received {} measurements for equipment '
+                #                      'with mrid {}, but expected 1.'.format(
+                #                       meas.shape[0], eq_mrid))
 
                 # Map it.
                 self._eq_count += 1
@@ -923,7 +942,7 @@ class EquipmentManager:
             raise TypeError('msg must be a list!')
 
         # Log if we're missing measurements.
-        if len(msg) != self.eq_count:
+        if len(msg) < self.eq_count:
             self.log.warning(f'Tracking {self.eq_count} equipment phases, '
                              f'but only received {len(msg)} measurements! '
                              'Perhaps there is a communication outage.')
@@ -959,7 +978,8 @@ class EquipmentManager:
         # completed.
         self._toggle_update_state_event()
 
-        if count > 0:
+        # Not displaying energy consumer update as state.
+        if count > 0 and count < 200:
             self.log.info(f'Changed modeled state of {count} equipment phases '
                           'after receiving measurements from the platform.')
 
@@ -999,9 +1019,10 @@ class EquipmentManager:
         try:
             eq = self.meas_eq_map[meas_mrid]
         except KeyError:
-            self.log.warning(
-                'Measurement MRID {} not present in the map!'.format(
-                    meas_mrid))
+            pass
+            # self.log.warning(
+            #     'Measurement MRID {} not present in the map!'.format(
+            #         meas_mrid))
         else:
             if eq.state != state:
                 eq.state = state
@@ -1267,10 +1288,10 @@ class PQEquipmentManager(EquipmentManager):
             # We expect all inverters to follow the generator
             # convention.
             mrid = msg['measurement_mrid']
-            self.log.warning(f'Measurement with MRID {mrid} reported a '
-                             'positive active power value, but we would '
-                             'expect it to follow the generator convention '
-                             'and be negative.')
+            # self.log.warning(f'Measurement with MRID {mrid} reported a '
+            #                  'positive active power value, but we would '
+            #                  'expect it to follow the generator convention '
+            #                  'and be negative.')
 
         # Return a tuple of values.
         return rect.real, rect.imag
@@ -1438,6 +1459,33 @@ def initialize_switches(df):
             # Simply create a CapacitorSinglePhase.
             out[row.mrid] = SwitchSinglePhase(**row_dict)
 
+    return out
+
+def initialize_loads(df):
+    """Helper to initialize loads given a DataFrame with inverter
+    information. The DataFrame should come from
+    sparql.SPARQLManager.query_energy_consumer.
+    """
+    df['controllable'] = True
+    df['load_rated_s'] = 1000.
+    # Initialize output.
+    out = {}
+
+    # Loop over the DataFrame rows.
+    for row in df.itertuples(index=False):
+
+        row_dict = row._asdict()
+
+        # Convert the dictionary into a keyword argument dict.
+        kwargs = {v: row_dict[k] for k, v in LOAD_INPUTS.items()}
+
+        # Cast to upper case (required).
+        kwargs['phase'] = kwargs['phase'].upper()
+
+        # Create a load object.
+        out[kwargs['mrid']] = LoadSinglePhase(**kwargs)
+
+    # That's it!
     return out
 
 

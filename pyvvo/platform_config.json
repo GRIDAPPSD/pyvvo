@@ -8,6 +8,6 @@
     "type": "REMOTE",
     "execution_path": "python /pyvvo/pyvvo/pyvvo/run_pyvvo.py",
     "launch_on_startup": false,
-    "prereqs": ["gridappsd-sensor-simulator", "gridappsd-voltage-violation", "gridappsd-alarms"],
+    "prereqs": [],
     "multiple_instances": true
 }

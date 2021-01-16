@@ -64,6 +64,7 @@ INVERTER_PV_PREFIX = 'inv_pv'
 INVERTER_BAT_PREFIX = 'inv_bat'
 SWITCH_PREFIX = 'swt'
 SYNCH_MACH_PREFIX = 'dg'
+LOAD_PREFIX = 'ld'
 # GridLAB-D outputs things in base units (e.g. Watts or Watt-hours), but
 # we want to keep our costs in more typical human terms.
 TO_KW_FACTOR = 1/1000

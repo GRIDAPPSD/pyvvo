@@ -3,6 +3,8 @@ Main module for running the PyVVO application.
 """
 from pyvvo import sparql
 from pyvvo.glm import GLMManager
+from pyvvo.load_model import LoadModelManager
+from pyvvo.load_model import QueueFeeder
 from pyvvo.gridappsd_platform import PlatformManager, SimOutRouter, \
     SimulationClock
 from pyvvo import equipment, ga
@@ -156,15 +158,15 @@ def main(sim_id: str, sim_request: dict):
     model_run_time = ga.CONFIG["ga"]["intervals"]["model_run"]
 
     # Turn down inverter logging.
-    log_level = 'WARNING'
-    inverter_mgr.log.setLevel(log_level)
-    LOG.info(
-        f'InverterManager log level changed to {log_level} to reduce output.')
-    log_level = 'ERROR'
-    inverter_mgr.update_equipment_log_level(level=log_level)
-    LOG.info(
-        f'All individual inverter log levels changed to {log_level} to reduce '
-        'output.')
+    # log_level = 'WARNING'
+    # inverter_mgr.log.setLevel(log_level)
+    # LOG.info(
+    #     f'InverterManager log level changed to {log_level} to reduce output.')
+    # log_level = 'ERROR'
+    # inverter_mgr.update_equipment_log_level(level=log_level)
+    # LOG.info(
+    #     f'All individual inverter log levels changed to {log_level} to reduce '
+    #     'output.')
 
     # Run the genetic algorithm.
     # TODO: Manage loop exit, etc. Should exit when simulation is
@@ -304,6 +306,27 @@ def _update_glm_inverters_switches_machines(glm_mgr: GLMManager,
     _update_switch_state_in_glm(glm_mgr, switches)
     _update_diesel_dg_state_in_glm(glm_mgr, machines)
 
+def _update_load_state_in_glm(glm_mgr: GLMManager, loads: dict):
+    """Given current state of loads, update their state in
+    the GridLAB-D model.
+
+    :param glm_mgr:
+    :param loads:
+    :return:
+    """
+    # Loop over the machines.
+    for load_dict in loads.values():
+        p = load_dict.p
+        q = load_dict.q
+        ld_name = load_dict.name
+        name_load = ga.cim_to_glm_name(
+                prefix=ga.LOAD_PREFIX, cim_name=load_dict.name)
+
+        ld_dict = {'object': 'triplex_load', 'base_power_1': p, 'base_power_2': p,
+                        'name': name_load}
+        glm_mgr.modify_item(ld_dict)
+    LOG.info('All loads in the .glm have been updated with '
+             'current states.')
 
 def _update_inverter_state_in_glm(glm_mgr: GLMManager, inverters):
     """Given a GLMManager and InverterSinglePhase objects, update the
