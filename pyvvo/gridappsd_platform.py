@@ -726,7 +726,7 @@ class SimulationClock:
         # Attempt to extract the fields we care about.
         try:
             source = message['source']
-            timestamp = message['timestamp']
+            timestamp = message['processId']
             log_msg = message['logMessage']
         except KeyError:
             self.log.error('Incoming message missing one or more of the '
@@ -735,7 +735,7 @@ class SimulationClock:
             return None
 
         # We only want message from the fncs_goss_bridge.
-        if source != 'fncs_goss_bridge.py':
+        if source != 'helics_goss_bridge.py':
             self.log.debug(f'Ignoring message from {source}.')
             return None
 
