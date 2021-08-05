@@ -221,11 +221,11 @@ def main(sim_id: str, sim_request: dict):
         cap_cmd = cap_mgr.build_equipment_commands(cap_forward)
 
         # Send 'em!
-        reg_msg = platform.send_command(sim_id=sim_id, **reg_cmd)
+        reg_msg = platform.send_command(sim_id=sim_id, sim_epoch=router.sim_epoch, **reg_cmd)
         if reg_msg is not None:
             LOG.info('Regulator commands sent in.')
 
-        cap_msg = platform.send_command(sim_id=sim_id, **cap_cmd)
+        cap_msg = platform.send_command(sim_id=sim_id, sim_epoch=router.sim_epoch, **cap_cmd)
         if cap_msg is not None:
             LOG.info('Capacitor commands sent in.')
 
