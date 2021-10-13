@@ -399,7 +399,8 @@ class PlatformManager:
 
         # Fix bad json return.
         # TODO: remove when platform is fixed.
-        glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
+        # glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
+        glm = REGEX_2.sub('', REGEX_1.sub('', response))
         return glm
 
     def _query_weather(self, start_time, end_time):
