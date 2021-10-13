@@ -69,8 +69,8 @@ def get_gad_object(**kwargs):
 
     # TODO: handle connection failures?
     # TODO: flexibility for different username/password?
-    gad = GridAPPSD(address=address, username=gad_utils.get_gridappsd_user(),
-                    password=gad_utils.get_gridappsd_pass(), **kwargs)
+    gad = GridAPPSD(address=address, username="system",
+                    password='manager', **kwargs)
 
     LOG.debug('GridAPPSD object created and connected to the platform.')
     return gad
@@ -155,6 +155,13 @@ class SimOutRouter:
         self.platform.gad.subscribe(topic=self.output_topic,
                                     callback=self._on_message)
 
+        # Simulation time
+        self._sim_epoch = 0
+
+    @property
+    def sim_epoch(self):
+        return self._sim_epoch
+
     @utils.wait_for_lock
     def add_funcs_and_mrids(self, fn_mrid_list):
         """Helper to add functions and MRIDs to the router.
@@ -213,6 +220,7 @@ class SimOutRouter:
 
         # Log simulation time.
         sim_dt = simulation_dt(int(message['message']['timestamp']))
+        self._sim_epoch = message['message']['timestamp']
 
         self.log.debug(
             'Simulation timestamp: {}'.format(sim_dt.strftime(DATE_FORMAT)))
@@ -297,7 +305,7 @@ class PlatformManager:
         self.last_sim_config = None
 
     def send_command(self, object_ids, attributes, forward_values,
-                     reverse_values, sim_id=None):
+                     reverse_values, sim_id=None, sim_epoch=0):
         """Function for sending a command into a running simulation.
         This is partly a wrapper to DifferenceBuilder, but also sends
         the command into the simulation.
@@ -315,6 +323,7 @@ class PlatformManager:
         :param sim_id: Simulation ID. If None, will attempt to use
             self.sim.simulation_id. If that is also None, ValueError
             will be raised.
+        :param sim_epoch: Simulation epoch time. Default 0.
 
         :returns: Dictionary representing the message that gets sent in.
             If no message will be sent (if input lists are empty),
@@ -366,7 +375,7 @@ class PlatformManager:
                                         reverse_value=reverse_values[k])
 
         # Get the message and log it.
-        msg = diff_builder.get_message()
+        msg = diff_builder.get_message(epoch=sim_epoch)
         msg_str = json.dumps(msg)
         self.log.info('Preparing to send following command: {}'
                       .format(msg_str))
@@ -390,7 +399,8 @@ class PlatformManager:
 
         # Fix bad json return.
         # TODO: remove when platform is fixed.
-        glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
+        # glm = REGEX_2.sub('', REGEX_1.sub('', response['message']))
+        glm = REGEX_2.sub('', REGEX_1.sub('', response))
         return glm
 
     def _query_weather(self, start_time, end_time):
